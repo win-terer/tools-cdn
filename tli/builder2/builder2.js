@@ -1889,7 +1889,9 @@ const GOD_SHAPES = [ // [표시 이름(그림 기준, 2026-10-15 정리 — 예�
 const GOD_BASES = {260000: '사냥의 여신', 260100: '기만의 여신', 260200: '지식의 여신', 260300: '전쟁의 신', 260400: '기계의 신', 260500: '힘의 신'};
 const GOD_PAL = [[3, 'Z'], [1, 'L'], [5, 'O'], [7, 'T']]; // 팔레트·[모양] 순환에 노출하는 변형 (variant, 라벨) — J(변형6)는 L 의 [좌우 반전]으로
 // 로그 ShapeId → 신격 변형 번호 (실측 누적 — 로그의 BaseId는 기본형으로만 기록되고 실제 모양은 ShapeId에 있다)
-const GOD_SHAPE_IDS = {'1011': 2, '1023': 3, '1031': 6}; // ShapeId → 신격 모양 변형 (실측: 15번 기만=Z2 · 리스틸 1023=L1 · 1031=T) // 1023=전쟁의 신 S자(세이지), 1031=기만의 여신 T형(리스틸)
+// 값 = 변형 번호, 또는 [변형 번호, 방향 보정] — 빌더 쪽 기본 방향이 게임과 다른 모양(빌더 전용 T)은 로그 Direction 에 보정을 더한다
+// 16번 티아 실보드(2026-10-18): 1010·1012=Z 반전(변형 13 — 빌더가 만든 거울 번호지만 게임에도 있는 모양) · 1020=Z · 1062=T(방향 +2)
+const GOD_SHAPE_IDS = {'1010': 13, '1011': 2, '1012': 13, '1020': 3, '1023': 3, '1031': 6, '1062': [7, 2]}; // ShapeId → 신격 모양 변형 (실측: 15번 기만=Z2 · 리스틸 1023=L1 · 1031=T) // 1023=전쟁의 신 S자(세이지), 1031=기만의 여신 T형(리스틸)
 Object.keys(GOD_BASES).forEach(b => GOD_SHAPES.forEach((g, vi) => {
   SLATES[+b + vi + 1] = {n: GOD_BASES[b] + '의 신격', c: g[1].map(c => c.slice()), v: 0, god: 1, shp: g[0],
     sl: [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]};
@@ -5303,6 +5305,9 @@ function createLogParser() {
   // 마지막 두 자리가 노드 좌표다: 십의 자리 = 단계(45/60/75 = 1~3), 일의 자리 = 단계 안 순번
   const RE_HTRAIT = /\+activeId\+1 \[(\d+)\]/;
   const RE_HTRAIT_CONT = /\+(\d+) \[(\d+)\]\s*$/;
+  // SS14 부터는 treeActivatedNodes 목록(+N+node_id, 사이사이 matched_slot 줄) — 끝 두 자리 규칙은 같다 (16번 티아1 실측)
+  const RE_HTREE = /\+treeActivatedNodes\+1\+node_id \[(\d+)\]/;
+  const RE_HTREE_CONT = /\+(\d+)\+node_id \[(\d+)\]/;
   // 정령 — ContractDatas가 착용(servantId + areaId, 1~3 전투 · 4~6 드롭),
   // ContractInfosV2.pointDatas가 노드판(contractPointId = 영역×100 + 자리,
   // selectContract 1 = 정령 노드 그대로, 2 = 운명으로 교체, isActive가 활성)
@@ -5470,6 +5475,12 @@ function createLogParser() {
     // 두 키가 나오는 순서는 덤프마다 다르므로(10=Enchant 먼저, 08=Base 먼저) 따로 담는다
     if ((m = RE_TAL.exec(l))) { inTal = m[1] === 'EnchantTalentList' ? 'e' : 'b'; (inTal === 'e' ? curEnc : curTal)[0] = m[2]; return; }
     if ((m = RE_HTRAIT.exec(l))) { inHTrait = true; hTraits = [m[1]]; return; }
+    if ((m = RE_HTREE.exec(l))) { inHTrait = 'tree'; hTraits = [m[1]]; return; }
+    if (inHTrait === 'tree') {
+      if ((m = RE_HTREE_CONT.exec(l))) { hTraits[+m[1] - 1] = m[2]; return; }
+      if (/\+matched_slot \[/.test(l)) return;
+      inHTrait = false;
+    }
     if (inHTrait) {
       if ((m = RE_HTRAIT_CONT.exec(l))) { hTraits[+m[1] - 1] = m[2]; return; }
       inHTrait = false; // 다른 키가 나오면 목록 종료
@@ -6120,9 +6131,9 @@ function buildPresetFromLog(r, liSrc) {
     slateBd.forEach(s => {
       const info = SLATES[s.u] || {};
       if (!info.god || !s.sh) return;
-      const v = GOD_SHAPE_IDS[s.sh];
+      const gv = GOD_SHAPE_IDS[s.sh], v = Array.isArray(gv) ? gv[0] : gv;
       const gBase = Math.floor((s.u - 1) / 100) * 100;
-      if (v && SLATES[gBase + v]) s.u = gBase + v;
+      if (v && SLATES[gBase + v]) { s.u = gBase + v; if (Array.isArray(gv)) s.d = (s.d + gv[1]) % 4; }
       else if (!v && s.sh >= 1000 && s.sh < 2000) missNames.add('신격 모양 ShapeId ' + s.sh); // 실측 수집용
     });
     // 방향 자동 보정: 명왕 심판 등은 로그에 Direction이 아예 없음(실측) — 현재 방향이 보드 밖·겹침이면
@@ -6169,12 +6180,14 @@ function buildPresetFromLog(r, liSrc) {
   // 역상은 원래 자리가 아닌 칸에 노드를 반사시키므로 위치를 로그에서 그대로 받아야 한다.
   // 위치 정보가 없는 구 페이로드는 [노드ID, 포인트]만 (렌더에서 계열 기본 배치로 표시)
   const gN = ((r.genius || {}).nodes) || [];
+  // 티아 「계시의 예언」 변형 노드(…01)는 같은 칸의 기본 ID(…00)로 — 변형 문구는 보드가 히어로 노드를 보고 바꿔 보여준다
+  const gbCellId = g => { g = String(g); return g.length === 8 && g.slice(6) !== '00' ? g.slice(0, 6) + '00' : g; };
   const boardOut = gN.length
     ? gN.filter(x => x && String(x.g).length === 8 && BOARDS[String(x.g).slice(0, 2)] && (x.p > 0 || x.m))
-        .map(x => [String(x.g), Math.max(0, Math.min(9, +x.p || 0)), +x.r || 0, +x.c || 0, (x.m ? 1 : 0) | (x.a ? 2 : 0) | (x.f ? 4 : 0)])
+        .map(x => [gbCellId(x.g), Math.max(0, Math.min(9, +x.p || 0)), +x.r || 0, +x.c || 0, (x.m ? 1 : 0) | (x.a ? 2 : 0) | (x.f ? 4 : 0)])
     : (((r.genius || {}).picked) || [])
         .filter(x => Array.isArray(x) && String(x[0]).length === 8 && BOARDS[String(x[0]).slice(0, 2)])
-        .map(x => [String(x[0]), Math.max(1, Math.min(9, +x[1] || 1))]);
+        .map(x => [gbCellId(x[0]), Math.max(1, Math.min(9, +x[1] || 1))]);
   const boardPt = boardOut.reduce((s, x) => s + x[1], 0);
   // 프리즘·역상 영향 범위 — 재능 보드에 영역 표시용.
   // 둘이 함께 있으면 prismInfo가 여러 개다 (15번 실측: 프리즘 360503 장군 + 역상 360701 철의 개척자).
