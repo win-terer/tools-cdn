@@ -5895,21 +5895,24 @@ function buildPresetFromLog(r, liSrc) {
         const randIdx = [];
         optsT.forEach((t, i) => { if (String(t).indexOf('<랜덤') >= 0) randIdx.push(i); });
         const rand = {};
+        const norm = t => String(t || '').replace(/[–—−~]/g, '-').replace(/\s+/g, ' ').trim();
+        // 랜덤 자리 어픽스 — '랜덤 풀' 행이 보통이지만, 같은 ID가 그 레전드 아이템 행(type=아이템 이름)으로
+        // 색인돼 오기도 한다(17번 실측: 가짜 신의 허물 51525761·51525781). 고정 옵션 문구가 아니면 랜덤으로 본다
+        const isRand = row => row && (row.type === '랜덤 풀' || (row.type === it.name && !optsT.some(t => norm(t) === norm(row.effect))));
         if (randIdx.length) {
           const pool = [];
           ids.forEach((aid, i) => {
             const row = resolveAffix(aid);
-            if (row && row.type === '랜덤 풀') pool.push(applyRollText(row.effect, vals[i]));
+            if (isRand(row)) pool.push(applyRollText(row.effect, vals[i]));
           });
           randIdx.forEach((oi, k) => { if (pool[k] != null) rand[oi] = pool[k]; });
           if (!pool.length) missNames.add(it.name + ' 랜덤 옵션');
         }
         // 랜덤이 아닌 자리도 어픽스 문구가 데이터 문구와 일치하면 실측값으로 고정한다
         // ("모든 속성 +(6–10)%" → 로그 DynArgs 7 → "+7%" — rolledValsOf가 개수 불일치로 못 쓰는 아이템용)
-        const norm = t => String(t || '').replace(/[–—−~]/g, '-').replace(/\s+/g, ' ').trim();
         ids.forEach((aid, i) => {
           const row = resolveAffix(aid);
-          if (!row || row.type === '랜덤 풀' || !(vals[i] || []).length) return;
+          if (!row || isRand(row) || !(vals[i] || []).length) return;
           const oi = optsT.findIndex((t, j) => rand[j] == null && String(t).indexOf('<랜덤') < 0 && norm(t) === norm(row.effect));
           if (oi >= 0) rand[oi] = applyRollText(row.effect, vals[i]);
         });
@@ -7074,6 +7077,7 @@ function wzListHtml() {
   const card = p => wlPick ? `<div class="wl-card" onclick="wlPickGo(${p.id})" title="이 빌드로 공유 글 덮어쓰기">` + wlCardBody(p) + '</div>' :
     `<div class="wl-card${p.id === preset.id ? ' on' : ''}" onclick="wzListView(${p.id})" title="눌러서 보기">` + wlCardBody(p) +
       `<div class="wl-acts"><button class="wz-btn" onclick="event.stopPropagation();wzListEdit(${p.id})">수정</button>` +
+      `<button class="wz-btn" onclick="event.stopPropagation();wzListRen(${p.id})" title="이름 바꾸기">이름</button>` +
       `<button class="wz-btn" onclick="event.stopPropagation();wzListShare(${p.id})" title="이 빌드를 빌드 공유에 올립니다">${p.shareEdit ? '공유 글 저장' : '공유'}</button>` +
       `<button class="wz-btn" onclick="event.stopPropagation();wzListDup(${p.id})" title="복제">복제</button>` +
       `<button class="wz-btn wb-del" onclick="event.stopPropagation();wzListDel(${p.id})" title="삭제">삭제</button></div></div>`;
@@ -7105,7 +7109,8 @@ function wlCardBody(p) {
   const ico = main && wlSkIcon(main.name);
   return `<div class="wl-faces"><div class="wl-face">${tr ? `<img src="${tr.img}" alt="" loading="lazy">` : '<span>?</span>'}</div>` +
     (ico ? `<img class="wl-sk" src="${ico}" alt="" title="메인 스킬 · ${escapeHtml(main.name)}" loading="lazy" onerror="this.remove()">` : '') + '</div>' +
-    `<div class="wl-info"><b>${escapeHtml(p.name || '빌드 ' + p.id)}</b>` +
+    `<div class="wl-info">` + (p.id === wlRenId ? `<input class="wl-ren" maxlength="30" value="${escapeHtml(p.name || '')}" onclick="event.stopPropagation()" ` +
+      `onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){wlRenId=0;pageRender();}" onblur="wzListRenSave(${p.id},this.value)">` : `<b>${escapeHtml(p.name || '빌드 ' + p.id)}</b>`) +
     `<small>${p.hero ? escapeHtml(p.hero.trait) : '히어로 없음'}${main ? ' · ' + escapeHtml(main.name) : ''}</small>` +
     `<div class="wl-tags"><span>스킬 ${sk}/9</span><span>장비 ${gear}/10</span><span>재능 ${pts}pt</span>` +
     (old ? `<span class="old">${escapeHtml(p.season)}</span>` : '') + (p.shareEdit ? '<span class="se">공유 글 수정 중</span>' : '') + (p.memo ? '<span>💬 코멘트</span>' : '') + '</div></div>';
@@ -7168,6 +7173,19 @@ async function wzListShare(id) {
   wbShareOpen();
 }
 function wzListDup(id) { window.wtEv && wtEv('build_copy'); if (id !== preset.id) hpSwitch(id); wbDup(); wbClose(); wzList(); }
+// 목록 카드에서 바로 이름 바꾸기 (2026-10-20 사용자) — 이름 자리가 입력칸으로, Enter·바깥 누르면 저장, Esc 취소
+let wlRenId = 0;
+function wzListRen(id) {
+  wlRenId = id; pageRender();
+  const el = document.querySelector('.wl-ren'); if (el) { el.focus(); el.select(); }
+}
+function wzListRenSave(id, v) {
+  if (wlRenId !== id) return;
+  wlRenId = 0;
+  const p = presets.list.find(x => x.id === id), nm = String(v || '').trim().slice(0, 30);
+  if (p && nm && nm !== p.name) { p.name = nm; if (p.id === preset.id) preset.name = nm; persistPreset(); }
+  pageRender();
+}
 function wzListDel(id) {
   const p = presets.list.find(x => x.id === id); if (!p) return;
   uiConfirm(`[${p.name}] 빌드를 삭제할까요? 되돌릴 수 없습니다.`, () => {

@@ -4857,21 +4857,24 @@ function buildPresetFromLog(r, liSrc) {
         const randIdx = [];
         optsT.forEach((t, i) => { if (String(t).indexOf('<랜덤') >= 0) randIdx.push(i); });
         const rand = {};
+        const norm = t => String(t || '').replace(/[–—−~]/g, '-').replace(/\s+/g, ' ').trim();
+        // 랜덤 자리 어픽스 — '랜덤 풀' 행이 보통이지만, 같은 ID가 그 레전드 아이템 행(type=아이템 이름)으로
+        // 색인돼 오기도 한다(17번 실측: 가짜 신의 허물 51525761·51525781). 고정 옵션 문구가 아니면 랜덤으로 본다
+        const isRand = row => row && (row.type === '랜덤 풀' || (row.type === it.name && !optsT.some(t => norm(t) === norm(row.effect))));
         if (randIdx.length) {
           const pool = [];
           ids.forEach((aid, i) => {
             const row = resolveAffix(aid);
-            if (row && row.type === '랜덤 풀') pool.push(applyRollText(row.effect, vals[i]));
+            if (isRand(row)) pool.push(applyRollText(row.effect, vals[i]));
           });
           randIdx.forEach((oi, k) => { if (pool[k] != null) rand[oi] = pool[k]; });
           if (!pool.length) missNames.add(it.name + ' 랜덤 옵션');
         }
         // 랜덤이 아닌 자리도 어픽스 문구가 데이터 문구와 일치하면 실측값으로 고정한다
         // ("모든 속성 +(6–10)%" → 로그 DynArgs 7 → "+7%" — rolledValsOf가 개수 불일치로 못 쓰는 아이템용)
-        const norm = t => String(t || '').replace(/[–—−~]/g, '-').replace(/\s+/g, ' ').trim();
         ids.forEach((aid, i) => {
           const row = resolveAffix(aid);
-          if (!row || row.type === '랜덤 풀' || !(vals[i] || []).length) return;
+          if (!row || isRand(row) || !(vals[i] || []).length) return;
           const oi = optsT.findIndex((t, j) => rand[j] == null && String(t).indexOf('<랜덤') < 0 && norm(t) === norm(row.effect));
           if (oi >= 0) rand[oi] = applyRollText(row.effect, vals[i]);
         });

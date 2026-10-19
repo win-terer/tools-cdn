@@ -682,10 +682,11 @@
     .wl-face { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; border: 2px solid #2a3446; background: #0a0f17; display: grid; place-items: center; color: #5d6878; font-weight: 700; }
     .wl-face img { width: 100%; height: 100%; object-fit: cover; }
     .wl-info { min-width: 0; } .wl-info b { display: block; color: #e6edf3; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wl-ren { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; font-weight: 700; color: #e6edf3; background: #0b0f17; border: 1px solid #e3b860; border-radius: 6px; padding: 2px 6px; outline: none; }
     .wl-info small { display: block; color: #9fb0c6; font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .wl-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; } .wl-tags span { padding: 1px 7px; border-radius: 999px; border: 1px solid #263044; color: #8b95a7; font-size: 11px; }
     .wl-tags span.old { border-color: #5a4a1c; color: #e8c86a; } .wl-tags span.se { border-color: #5a4a1c; color: #e8c86a; }
-    .wl-acts { grid-column: 2; display: flex; gap: 6px; } .wl-acts .wz-btn { padding: 3px 10px; font-size: 12px; }
+    .wl-acts { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; } .wl-acts .wz-btn { padding: 3px 10px; font-size: 12px; }
     .wl-note { margin-top: 10px; color: #6b7686; font-size: 12px; text-align: center; }
     .wb-steps { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; line-height: 1.7; color: #c9d1d9; } .wb-steps li { margin-bottom: 4px; }
     .wb-pathh { color: #7d8794; font-size: 11.5px; margin-bottom: 4px; }
