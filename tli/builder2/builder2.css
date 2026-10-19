@@ -213,6 +213,10 @@
     .hrt-n.base { cursor: default; }
     .hrt-n.lock { cursor: not-allowed; } .hrt-n.lock .hrt-ic { opacity: .45; } .hrt-n.lock .hrt-nm { color: #5d6878; }
     .hrt-n.focus .hrt-ic { border-color: #7db4ff; }
+    /* 보기 화면(읽기 전용) — 촘촘한 트리: 줄 간격은 heroTreeHtml 의 tight 와 짝 */
+    .hrt-wrap.tight .hrt-ic { width: 44px; height: 44px; }
+    .hrt-wrap.tight .hrt-nm { margin-top: 3px; font-size: 11px; -webkit-line-clamp: 1; }
+    .hrt-wrap.tight .hrt-st { font-size: 10px; margin-top: 0; }
     .hrm-pop small { display: block; color: #7d8794; font-size: 11px; margin: -2px 0 6px; }
     .hrm-pop em { display: block; margin-top: 6px; color: #7d8794; font-style: normal; font-size: 11px; } .hrm-pop em.why { color: #ffb37a; }
     .hrt-focus, .hrt-sum { margin-top: 12px; border: 1px solid #1f2735; border-radius: 12px; background: #0b0f17; padding: 10px 12px; }

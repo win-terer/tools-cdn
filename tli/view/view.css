@@ -213,6 +213,10 @@
     .hrt-n.base { cursor: default; }
     .hrt-n.lock { cursor: not-allowed; } .hrt-n.lock .hrt-ic { opacity: .45; } .hrt-n.lock .hrt-nm { color: #5d6878; }
     .hrt-n.focus .hrt-ic { border-color: #7db4ff; }
+    /* 보기 화면(읽기 전용) — 촘촘한 트리: 줄 간격은 heroTreeHtml 의 tight 와 짝 */
+    .hrt-wrap.tight .hrt-ic { width: 44px; height: 44px; }
+    .hrt-wrap.tight .hrt-nm { margin-top: 3px; font-size: 11px; -webkit-line-clamp: 1; }
+    .hrt-wrap.tight .hrt-st { font-size: 10px; margin-top: 0; }
     .hrm-pop small { display: block; color: #7d8794; font-size: 11px; margin: -2px 0 6px; }
     .hrm-pop em { display: block; margin-top: 6px; color: #7d8794; font-style: normal; font-size: 11px; } .hrm-pop em.why { color: #ffb37a; }
     .hrt-focus, .hrt-sum { margin-top: 12px; border: 1px solid #1f2735; border-radius: 12px; background: #0b0f17; padding: 10px 12px; }
@@ -1343,3 +1347,11 @@
     .vw-amenu[open] > summary { border-color: #d4a84a; color: #f3e3b5; }
     .vw-amenu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 150px; border-radius: 10px; border: 1px solid #2a3446; background: #0e131c; box-shadow: 0 8px 24px #0009; }
     .vw-amenu-pop .wz-btn { justify-content: flex-start; text-align: left; }
+    /* 이미지 저장 — 굽는 동안만(body.vw-shot) 단추·목차를 빼고 아래에 출처 한 줄 */
+    body.vw-shot .vw-acts, body.vw-shot .vw-toc, body.vw-shot .vw-stnav, body.vw-shot .vw-edit, body.vw-shot .vw-gall, body.vw-shot .vw-bigbtn, body.vw-shot .vw-more { display: none !important; }
+    body.vw-shot .vw-slist { max-height: none !important; -webkit-mask-image: none !important; mask-image: none !important; } /* 석판 옵션은 [더보기] 없이 전부 */
+    .vw-shotfoot { display: flex; gap: 8px; align-items: center; margin: 14px 2px 4px; color: #7d8794; font-size: 12px; } .vw-shotfoot b { color: #e3b860; } .vw-shotfoot span { margin-left: auto; }
+    .wb-pop.vw-shotpop { width: min(760px, 100%); }
+    .vw-shotimg { max-height: 62vh; overflow: auto; border: 1px solid #2a3446; border-radius: 10px; background: #0a0e15; } .vw-shotimg img { display: block; width: 100%; height: auto; }
+    .vw-shotmsg { color: #7d8794; font-size: 12px; margin: 8px 0 0; }
+    .wb-btns a.wz-btn { text-decoration: none; display: inline-flex; align-items: center; }

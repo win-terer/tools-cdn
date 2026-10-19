@@ -367,8 +367,10 @@ function heroTreeHtml(t, got, cur, herbs) {
   };
   if (base) place(base);
   nodes.forEach(n => { if (!pos.has(n.name)) pos.set(n.name, {col: Math.min(3, depthOf(n)), row: leaf++}); }); // 이어지지 않은 노드
-  const ROWH = 118, H = Math.max(1, leaf) * ROWH, X = c => 7 + c * 28.6; // 가로는 % (넓이에 맞춰 늘고 줄어듦), 세로는 px
-  const Y = r => r * ROWH + 30; // 아이콘 가운데
+  // 보기 화면은 읽기 전용이라 촘촘하게 — 아이콘 44px·줄 80px (티아1 갈래형이 화면을 다 차지, 2026-10-20 사용자)
+  const tight = !!(document.body && document.body.classList.contains('vw-page')), IC = tight ? 22 : 30;
+  const ROWH = tight ? 80 : 118, H = Math.max(1, leaf) * ROWH, X = c => 7 + c * 28.6; // 가로는 % (넓이에 맞춰 늘고 줄어듦), 세로는 px
+  const Y = r => r * ROWH + IC; // 아이콘 가운데
   const onOf = n => !n.step || got.has(n);
   let svg = '';
   nodes.forEach(n => {
@@ -383,7 +385,7 @@ function heroTreeHtml(t, got, cur, herbs) {
     const cls = !n.step ? ' base on' : on ? ' on' : why ? ' lock' : ' can';
     const jn = JSON.stringify(n.name).replace(/"/g, '&quot;'), ic = hrIconUrl(cur.trait, n);
     const hint = !n.step ? '기본 노드 — 늘 보유' : why || (on ? '다시 누르면 빼기 (이어진 뒤 노드도 함께)' : '눌러서 찍기');
-    return `<div class="hrt-n${cls}${hrtFocus === n.name ? ' focus' : ''}" style="left:${X(q.col)}%;top:${Y(q.row) - 30}px"` + (n.step ? ` onclick="hrtTap(${n.step}, ${jn})"` : ` onclick="if(hrtTouch()){hrtFocus=${jn};hrtRedraw()}"`) + '>' +
+    return `<div class="hrt-n${cls}${hrtFocus === n.name ? ' focus' : ''}" style="left:${X(q.col)}%;top:${Y(q.row) - IC}px"` + (n.step ? ` onclick="hrtTap(${n.step}, ${jn})"` : ` onclick="if(hrtTouch()){hrtFocus=${jn};hrtRedraw()}"`) + '>' +
       `<div class="hrt-ic">${ic ? `<img src="${ic}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}</div>` +
       `<div class="hrt-nm">${escapeHtml(n.name)}</div><div class="hrt-st">${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}</div>` +
       `<div class="hrt-desc" hidden><b>${escapeHtml(n.name)}</b><small>${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}${n.par ? ' · ← ' + escapeHtml(n.par) : ''}</small>${descHtml(n)}<em class="${why ? 'why' : ''}">${escapeHtml(hint)}</em></div></div>`;
@@ -403,7 +405,7 @@ function heroTreeHtml(t, got, cur, herbs) {
   const sum = `<details class="hrt-sum"${sumOpen ? ' open' : ''} ontoggle="try{localStorage.setItem('tli_hrt_sum',this.open?'1':'0')}catch(e){}">` +
     `<summary>찍은 노드 효과 <span>${picked.length}개</span></summary><div class="hrt-sumg">` + picked.map(n => `<div class="hrt-si${n.step ? '' : ' base'}"><div class="hrt-sih">` +
     `<b>${escapeHtml(n.name)}</b><small>${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}</small></div>${descHtml(n)}${n.step ? herbHtml(n) : ''}</div>`).join('') + '</div></details>';
-  return `<div class="hrt-wrap"><div class="hrt-in"><div class="hrt-cols">${['기본 특성', '1번째 노드', '2번째 노드', '3번째 노드'].map((c, i) => `<span style="left:${X(i)}%">${c}</span>`).join('')}</div>` +
+  return `<div class="hrt-wrap${tight ? ' tight' : ''}"><div class="hrt-in"><div class="hrt-cols">${['기본 특성', '1번째 노드', '2번째 노드', '3번째 노드'].map((c, i) => `<span style="left:${X(i)}%">${c}</span>`).join('')}</div>` +
     `<div class="hrt" style="height:${H}px"><svg class="hrt-lines" viewBox="0 0 1000 ${H}" preserveAspectRatio="none">${svg}</svg>${nodes.map(nodeHtml).join('')}</div></div></div>` + focusHtml + sum;
 }
 
@@ -5408,12 +5410,12 @@ function vwHead() {
     `<div class="vw-acts">${VW.mine ? (preset.shareEdit
       // 수정 중: 위 [수정]은 섹션별 [수정]과 겹쳐 뺌, [빌드 삭제] 대신 [수정 그만두기](수정용 사본 지우기) — 2026-10-13 사용자
       ? '<div class="vw-acts1"><button type="button" class="wz-btn pri" onclick="vwEdit(\'share\')" title="공유 글을 지금 내용으로 바꿉니다 (링크·추천·조회수 유지)">💾 공유 글에 저장</button></div>' +
-        '<div class="vw-acts2"><button type="button" class="wz-btn" onclick="vwSeStop()" title="고치던 내용을 지웁니다 — 공유 글은 바뀌지 않습니다">수정 그만두기</button></div>'
+        '<div class="vw-acts2">' + VW_SHOT_BTN + '<button type="button" class="wz-btn" onclick="vwSeStop()" title="고치던 내용을 지웁니다 — 공유 글은 바뀌지 않습니다">수정 그만두기</button></div>'
       : '<div class="vw-acts1"><button type="button" class="wz-btn pri" onclick="vwEdit()">수정</button><button type="button" class="wz-btn" onclick="vwEdit(\'share\')" title="빌더에서 공유 올리기 창을 엽니다">🌐 공유 올리기</button></div>') +
-      (preset.shareEdit ? '' : '<div class="vw-acts2"><button type="button" class="wz-btn vw-del" onclick="vwMyDel()" title="이 브라우저에서 이 빌드를 지웁니다">🗑 빌드 삭제</button></div>')
-      : '<button class="wz-btn pri" onclick="vwTake()">내 빌드로 가져오기</button>'}` +
+      (preset.shareEdit ? '' : '<div class="vw-acts2">' + VW_SHOT_BTN + '<button type="button" class="wz-btn vw-del" onclick="vwMyDel()" title="이 브라우저에서 이 빌드를 지웁니다">🗑 빌드 삭제</button></div>')
+      : '<button class="wz-btn pri" onclick="vwTake()">내 빌드로 가져오기</button>' + (s ? '' : '<div class="vw-acts2">' + VW_SHOT_BTN + '</div>')}` +
     (s ? `<div class="vw-acts2"><button type="button" class="wz-btn" id="vwLike" onclick="vwLike()"${VW.liked ? ' disabled' : ''}>👍 추천 ${s.likes || 0}${VW.liked ? ' (추천함)' : ''}</button>` +
-      '<button type="button" class="wz-btn" onclick="vwCopy()">🔗 링크 복사</button>' +
+      '<button type="button" class="wz-btn" onclick="vwCopy()">🔗 링크 복사</button>' + VW_SHOT_BTN +
       // 작성자만 쓰는 것(수정·삭제·영상)은 접어 둔다 — 방문자에게 버튼 6개가 쌓여 보였다 (2026-10-15)
       '<details class="vw-amenu"><summary class="wz-btn" title="글을 올린 사람용 — 올릴 때 등록한 비밀번호로">⋯ 작성자</summary><div class="vw-amenu-pop">' +
       '<button type="button" class="wz-btn" onclick="vwShareEdit(false)" title="올릴 때 등록한 비밀번호로 내 글을 고칩니다 (빌더에서 고친 뒤 저장)">✏ 내 글 수정</button>' +
@@ -5666,6 +5668,64 @@ function pageRender() {
   vwVidsRender();
   document.title = ((VW.share && VW.share.title) || preset.name || '빌드') + ' · 빌드 보기 · Winterer\'s Tools';
 }
+// ── 이미지 저장 (2026-10-20 사용자 — 옛 빌더 📷 이미지 저장을 새 화면에 맞게 다시) ──
+// 보이는 화면을 그대로 PNG 로 굽는다(modern-screenshot). 단추·목차·영상은 빼고, 장비는 전체 펼친 상태로.
+// tlidb·패치노트 그림은 CORS 요청을 403 으로 막아 캔버스에 못 넣는다 → 우리 워커 /api/timg 가 대신 받아 준다(같은 출처)
+const VW_SHOT_BTN = '<button type="button" class="wz-btn" onclick="vwShot()" title="이 빌드 화면을 PNG 그림으로 저장합니다">📷 이미지 저장</button>';
+const VW_SHOT_LIB = ['https://cdn.jsdelivr.net/npm/modern-screenshot@4.7.0/dist/index.js', 'https://unpkg.com/modern-screenshot@4.7.0/dist/index.js'];
+const vwShotProxied = u => /^https:\/\/(cdn\.tlidb\.com|torchpn-ss\d+\.workers\.xd\.team)\//.test(u);
+function vwShotLib() {
+  if (window.modernScreenshot) return Promise.resolve(window.modernScreenshot);
+  return VW_SHOT_LIB.reduce((p, src) => p.catch(() => new Promise((ok, no) => {
+    const sc = document.createElement('script'); sc.src = src; sc.onload = () => window.modernScreenshot ? ok(window.modernScreenshot) : no(new Error('라이브러리 없음'));
+    sc.onerror = () => { sc.remove(); no(new Error('라이브러리를 받지 못했습니다')); }; document.head.appendChild(sc);
+  })), Promise.reject(new Error('시작')));
+}
+function vwShotBlobUrl(b) { return new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ok(false); r.readAsDataURL(b); }); }
+async function vwShotFetch(u) { // modern-screenshot fetchFn — 다른 출처 그림만 워커로, 나머지는 기본 동작(false)
+  if (!vwShotProxied(u)) return false;
+  try { const r = await fetch('/api/timg?u=' + encodeURIComponent(u)); if (!r.ok) return false; return await vwShotBlobUrl(await r.blob()); }
+  catch (e) { return false; }
+}
+function vwShotName() {
+  const t = ((VW.share && VW.share.title) || preset.name || 'build').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'build';
+  return t + (VW.stages ? ' - ' + VW.stages[VW.st].t : '') + '.png';
+}
+async function vwShot() {
+  const app = document.getElementById('vwApp'); if (!app || VW.shooting) return;
+  VW.shooting = true; vwToast('📷 이미지를 만드는 중… (그림이 많으면 몇 초 걸립니다)');
+  const gall = VW.gall;
+  try {
+    const lib = await vwShotLib();
+    if (!gall) vwGAll();
+    document.body.classList.add('vw-shot');
+    const foot = document.createElement('div'); foot.className = 'vw-shotfoot';
+    const link = VW.share ? location.origin + '/tli/view/?preset=' + VW.share.id : location.origin + '/tli/builder/';
+    foot.innerHTML = `<b>미니토치DB</b> · ${vwEsc(link.replace(/^https?:\/\//, ''))}<span>${vwEsc(new Date().toLocaleDateString('sv-SE'))}</span>`;
+    app.appendChild(foot);
+    await new Promise(r => setTimeout(r, 60)); // 펼친 장비·숨긴 단추가 자리 잡게
+    const w = app.scrollWidth, h = app.scrollHeight;
+    // 캔버스 한도 — iOS 사파리 약 1,670만 화소·한 변 16,384px. 2배를 넘지 않게
+    const scale = Math.max(0.5, Math.min(2, 16000 / h, 16000 / w, Math.sqrt(16e6 / (w * h))));
+    const blob = await lib.domToBlob(app, {scale, backgroundColor: '#0a0e15', fetchFn: vwShotFetch, timeout: 15000,
+      filter: el => !(el.classList && (el.classList.contains('vw-acts') || el.classList.contains('vw-toc') || el.classList.contains('vw-stnav') || el.classList.contains('vw-edit') || el.classList.contains('vw-gall') || el.classList.contains('vw-bigbtn') || el.classList.contains('vw-more')))});
+    vwShotShow(blob);
+  } catch (e) { vwToast('이미지를 만들지 못했습니다: ' + (e && e.message || e)); }
+  finally {
+    document.body.classList.remove('vw-shot'); document.querySelectorAll('.vw-shotfoot').forEach(x => x.remove());
+    if (!gall && VW.gall) vwGAll();
+    VW.shooting = false;
+  }
+}
+function vwShotShow(blob) { // 미리보기 → [저장]. 휴대폰은 그림을 길게 눌러 저장할 수도 있다
+  if (VW.shotUrl) URL.revokeObjectURL(VW.shotUrl);
+  const u = VW.shotUrl = URL.createObjectURL(blob), kb = Math.round(blob.size / 1024);
+  vwPop(`<h3>📷 이미지 저장</h3><div class="vw-shotimg"><img src="${u}" alt="빌드 이미지"></div>` +
+    `<p class="vw-shotmsg">${kb >= 1024 ? (kb / 1024).toFixed(1) + 'MB' : kb + 'KB'} · 휴대폰은 그림을 길게 눌러 저장해도 됩니다</p>` +
+    `<div class="wb-btns"><button class="wz-btn" onclick="vwClose()">닫기</button><a class="wz-btn pri" href="${u}" download="${vwEsc(vwShotName())}">💾 저장</a></div>`);
+  const pop = document.querySelector('.wb-dim .wb-pop'); if (pop) pop.classList.add('vw-shotpop');
+}
+
 // ── 공유 글: 추천 · 링크 · 내 글 수정/삭제 (빌더 06_share 와 같은 API, 2026-10-09 빌더 전환) ──
 function vwPop(html) {
   vwClose();

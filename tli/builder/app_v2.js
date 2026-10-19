@@ -1025,8 +1025,10 @@ function heroTreeHtml(t, got, cur, herbs) {
   };
   if (base) place(base);
   nodes.forEach(n => { if (!pos.has(n.name)) pos.set(n.name, {col: Math.min(3, depthOf(n)), row: leaf++}); }); // 이어지지 않은 노드
-  const ROWH = 118, H = Math.max(1, leaf) * ROWH, X = c => 7 + c * 28.6; // 가로는 % (넓이에 맞춰 늘고 줄어듦), 세로는 px
-  const Y = r => r * ROWH + 30; // 아이콘 가운데
+  // 보기 화면은 읽기 전용이라 촘촘하게 — 아이콘 44px·줄 80px (티아1 갈래형이 화면을 다 차지, 2026-10-20 사용자)
+  const tight = !!(document.body && document.body.classList.contains('vw-page')), IC = tight ? 22 : 30;
+  const ROWH = tight ? 80 : 118, H = Math.max(1, leaf) * ROWH, X = c => 7 + c * 28.6; // 가로는 % (넓이에 맞춰 늘고 줄어듦), 세로는 px
+  const Y = r => r * ROWH + IC; // 아이콘 가운데
   const onOf = n => !n.step || got.has(n);
   let svg = '';
   nodes.forEach(n => {
@@ -1041,7 +1043,7 @@ function heroTreeHtml(t, got, cur, herbs) {
     const cls = !n.step ? ' base on' : on ? ' on' : why ? ' lock' : ' can';
     const jn = JSON.stringify(n.name).replace(/"/g, '&quot;'), ic = hrIconUrl(cur.trait, n);
     const hint = !n.step ? '기본 노드 — 늘 보유' : why || (on ? '다시 누르면 빼기 (이어진 뒤 노드도 함께)' : '눌러서 찍기');
-    return `<div class="hrt-n${cls}${hrtFocus === n.name ? ' focus' : ''}" style="left:${X(q.col)}%;top:${Y(q.row) - 30}px"` + (n.step ? ` onclick="hrtTap(${n.step}, ${jn})"` : ` onclick="if(hrtTouch()){hrtFocus=${jn};hrtRedraw()}"`) + '>' +
+    return `<div class="hrt-n${cls}${hrtFocus === n.name ? ' focus' : ''}" style="left:${X(q.col)}%;top:${Y(q.row) - IC}px"` + (n.step ? ` onclick="hrtTap(${n.step}, ${jn})"` : ` onclick="if(hrtTouch()){hrtFocus=${jn};hrtRedraw()}"`) + '>' +
       `<div class="hrt-ic">${ic ? `<img src="${ic}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}</div>` +
       `<div class="hrt-nm">${escapeHtml(n.name)}</div><div class="hrt-st">${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}</div>` +
       `<div class="hrt-desc" hidden><b>${escapeHtml(n.name)}</b><small>${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}${n.par ? ' · ← ' + escapeHtml(n.par) : ''}</small>${descHtml(n)}<em class="${why ? 'why' : ''}">${escapeHtml(hint)}</em></div></div>`;
@@ -1061,7 +1063,7 @@ function heroTreeHtml(t, got, cur, herbs) {
   const sum = `<details class="hrt-sum"${sumOpen ? ' open' : ''} ontoggle="try{localStorage.setItem('tli_hrt_sum',this.open?'1':'0')}catch(e){}">` +
     `<summary>찍은 노드 효과 <span>${picked.length}개</span></summary><div class="hrt-sumg">` + picked.map(n => `<div class="hrt-si${n.step ? '' : ' base'}"><div class="hrt-sih">` +
     `<b>${escapeHtml(n.name)}</b><small>${escapeHtml(HR_STEP[n.step][0])} · Lv ${lvOf(n)}</small></div>${descHtml(n)}${n.step ? herbHtml(n) : ''}</div>`).join('') + '</div></details>';
-  return `<div class="hrt-wrap"><div class="hrt-in"><div class="hrt-cols">${['기본 특성', '1번째 노드', '2번째 노드', '3번째 노드'].map((c, i) => `<span style="left:${X(i)}%">${c}</span>`).join('')}</div>` +
+  return `<div class="hrt-wrap${tight ? ' tight' : ''}"><div class="hrt-in"><div class="hrt-cols">${['기본 특성', '1번째 노드', '2번째 노드', '3번째 노드'].map((c, i) => `<span style="left:${X(i)}%">${c}</span>`).join('')}</div>` +
     `<div class="hrt" style="height:${H}px"><svg class="hrt-lines" viewBox="0 0 1000 ${H}" preserveAspectRatio="none">${svg}</svg>${nodes.map(nodeHtml).join('')}</div></div></div>` + focusHtml + sum;
 }
 
