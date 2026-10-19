@@ -5310,6 +5310,7 @@ function createLogParser() {
   // SS14 부터는 treeActivatedNodes 목록(+N+node_id, 사이사이 matched_slot 줄) — 끝 두 자리 규칙은 같다 (16번 티아1 실측)
   const RE_HTREE = /\+treeActivatedNodes\+1\+node_id \[(\d+)\]/;
   const RE_HTREE_CONT = /\+(\d+)\+node_id \[(\d+)\]/;
+  let hTreeIdx = 0;
   // 정령 — ContractDatas가 착용(servantId + areaId, 1~3 전투 · 4~6 드롭),
   // ContractInfosV2.pointDatas가 노드판(contractPointId = 영역×100 + 자리,
   // selectContract 1 = 정령 노드 그대로, 2 = 운명으로 교체, isActive가 활성)
@@ -5477,9 +5478,12 @@ function createLogParser() {
     // 두 키가 나오는 순서는 덤프마다 다르므로(10=Enchant 먼저, 08=Base 먼저) 따로 담는다
     if ((m = RE_TAL.exec(l))) { inTal = m[1] === 'EnchantTalentList' ? 'e' : 'b'; (inTal === 'e' ? curEnc : curTal)[0] = m[2]; return; }
     if ((m = RE_HTRAIT.exec(l))) { inHTrait = true; hTraits = [m[1]]; return; }
-    if ((m = RE_HTREE.exec(l))) { inHTrait = 'tree'; hTraits = [m[1]]; return; }
+    if ((m = RE_HTREE.exec(l))) { inHTrait = 'tree'; hTraits = [m[1]]; hTreeIdx = 1; return; }
     if (inHTrait === 'tree') {
-      if ((m = RE_HTREE_CONT.exec(l))) { hTraits[+m[1] - 1] = m[2]; return; }
+      // 키 순서가 덤프마다 다르다 — 16번은 +N+node_id 다음 줄 matched_slot, 17번(2026-10-19)은 +N+matched_slot 다음 줄 +node_id
+      if ((m = RE_HTREE_CONT.exec(l))) { hTraits[+m[1] - 1] = m[2]; hTreeIdx = +m[1]; return; }
+      if ((m = /\+(\d+)\+matched_slot \[/.exec(l))) { hTreeIdx = +m[1]; return; }
+      if ((m = /\| \+node_id \[(\d+)\]/.exec(l))) { hTraits[hTreeIdx - 1] = m[1]; return; }
       if (/\+matched_slot \[/.test(l)) return;
       inHTrait = false;
     }
