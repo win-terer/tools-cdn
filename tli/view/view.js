@@ -5684,8 +5684,10 @@ function vwShotLib() {
 function vwShotBlobUrl(b) { return new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ok(false); r.readAsDataURL(b); }); }
 async function vwShotFetch(u) { // modern-screenshot fetchFn — 다른 출처 그림만 워커로, 나머지는 기본 동작(false)
   if (!vwShotProxied(u)) return false;
-  try { const r = await fetch('/api/timg?u=' + encodeURIComponent(u)); if (!r.ok) return false; return await vwShotBlobUrl(await r.blob()); }
-  catch (e) { return false; }
+  const get = async x => { try { const r = await fetch(x); return r.ok ? await vwShotBlobUrl(await r.blob()) : false; } catch (e) { return false; } };
+  // 정령 노드 아이콘 일부는 tlidb 원본에서 사라져(403) 워커가 못 받는다 — 한국 캐시에서 건진 사본(/tli/builder/cimg/, 2026-10-20)으로
+  const m = /\/Skill\/Contract\/64\/(UI_Contract_\w+\.webp)$/.exec(u);
+  return (await get('/api/timg?u=' + encodeURIComponent(u))) || (m ? await get('/tli/builder/cimg/' + m[1]) : false);
 }
 function vwShotName() {
   const t = ((VW.share && VW.share.title) || preset.name || 'build').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'build';

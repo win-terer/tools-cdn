@@ -7075,9 +7075,8 @@ function wzSummary(id) { // 단계 카드 아래 한 줄 — 지금 빌드에 �
 function wzList() { wzStep = 'list'; history.replaceState(null, '', location.pathname); pageRender(); window.scrollTo(0, 0); }
 function wzListHtml() {
   const card = p => wlPick ? `<div class="wl-card" onclick="wlPickGo(${p.id})" title="이 빌드로 공유 글 덮어쓰기">` + wlCardBody(p) + '</div>' :
-    `<div class="wl-card${p.id === preset.id ? ' on' : ''}" onclick="wzListView(${p.id})" title="눌러서 보기">` + wlCardBody(p) +
+    `<div class="wl-card${p.id === preset.id ? ' on' : ''}" onclick="wzListView(${p.id})" title="눌러서 보기">` + wlCardBody(p, true) +
       `<div class="wl-acts"><button class="wz-btn" onclick="event.stopPropagation();wzListEdit(${p.id})">수정</button>` +
-      `<button class="wz-btn" onclick="event.stopPropagation();wzListRen(${p.id})" title="이름 바꾸기">이름</button>` +
       `<button class="wz-btn" onclick="event.stopPropagation();wzListShare(${p.id})" title="이 빌드를 빌드 공유에 올립니다">${p.shareEdit ? '공유 글 저장' : '공유'}</button>` +
       `<button class="wz-btn" onclick="event.stopPropagation();wzListDup(${p.id})" title="복제">복제</button>` +
       `<button class="wz-btn wb-del" onclick="event.stopPropagation();wzListDel(${p.id})" title="삭제">삭제</button></div></div>`;
@@ -7101,7 +7100,7 @@ function wzListHtml() {
     `<div class="wl-note">${wlPick ? '고른 빌드는 그대로 남고, 그 내용을 복사해 공유 글에 저장합니다.' : '이 브라우저에 저장된 빌드입니다. 카드를 누르면 보기 화면, [수정]을 누르면 빌더에서 고칩니다.'}</div></div>`;
 }
 // 빌드 카드 몸통(얼굴·이름·특성/스킬·칩) — 목록 화면과 빌드 관리 창이 같이 쓴다 (2026-10-13)
-function wlCardBody(p) {
+function wlCardBody(p, ren) { // ren = 제목 오른쪽 끝 ✎(이름 바꾸기) — 내 빌드 목록 카드만
   const tr = p.hero && traitInfo(p.hero.trait), main = ['a1', 'a2', 'a3', 'a4', 'a5'].map(k => p.skills && p.skills[k] && p.skills[k].main).find(Boolean);
   const gear = Object.values(p.slots || {}).filter(Boolean).length, sk = Object.values(p.skills || {}).filter(x => x && x.main).length;
   const pts = (p.gboard || []).reduce((t, x) => t + (x[1] || 0), 0);
@@ -7109,8 +7108,11 @@ function wlCardBody(p) {
   const ico = main && wlSkIcon(main.name);
   return `<div class="wl-faces"><div class="wl-face">${tr ? `<img src="${tr.img}" alt="" loading="lazy">` : '<span>?</span>'}</div>` +
     (ico ? `<img class="wl-sk" src="${ico}" alt="" title="메인 스킬 · ${escapeHtml(main.name)}" loading="lazy" onerror="this.remove()">` : '') + '</div>' +
-    `<div class="wl-info">` + (p.id === wlRenId ? `<input class="wl-ren" maxlength="30" value="${escapeHtml(p.name || '')}" onclick="event.stopPropagation()" ` +
-      `onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){wlRenId=0;pageRender();}" onblur="wzListRenSave(${p.id},this.value)">` : `<b>${escapeHtml(p.name || '빌드 ' + p.id)}</b>`) +
+    `<div class="wl-info">` + (ren && p.id === wlRenId ? `<input class="wl-ren" maxlength="30" value="${escapeHtml(p.name || '')}" onclick="event.stopPropagation()" ` +
+      `onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){wlRenId=0;pageRender();}" onblur="wzListRenSave(${p.id},this.value)">` :
+      ren ? `<div class="wl-ttl"><b>${escapeHtml(p.name || '빌드 ' + p.id)}</b><button type="button" class="wl-pen" onclick="event.stopPropagation();wzListRen(${p.id})" title="이름 바꾸기" aria-label="이름 바꾸기">` +
+        '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.6 13.4 2 14l.6-3.6 9.1-9.1zM3.6 11l-.3 1.7 1.7-.3 7.6-7.6-1.4-1.4L3.6 11z"/></svg></button></div>' :
+      `<b>${escapeHtml(p.name || '빌드 ' + p.id)}</b>`) +
     `<small>${p.hero ? escapeHtml(p.hero.trait) : '히어로 없음'}${main ? ' · ' + escapeHtml(main.name) : ''}</small>` +
     `<div class="wl-tags"><span>스킬 ${sk}/9</span><span>장비 ${gear}/10</span><span>재능 ${pts}pt</span>` +
     (old ? `<span class="old">${escapeHtml(p.season)}</span>` : '') + (p.shareEdit ? '<span class="se">공유 글 수정 중</span>' : '') + (p.memo ? '<span>💬 코멘트</span>' : '') + '</div></div>';
