@@ -1350,6 +1350,8 @@
     /* 이미지 저장 — 굽는 동안만(body.vw-shot) 단추·목차를 빼고 아래에 출처 한 줄 */
     body.vw-shot .vw-acts, body.vw-shot .vw-toc, body.vw-shot .vw-stnav, body.vw-shot .vw-edit, body.vw-shot .vw-gall, body.vw-shot .vw-bigbtn, body.vw-shot .vw-more { display: none !important; }
     body.vw-shot .vw-slist { max-height: none !important; -webkit-mask-image: none !important; mask-image: none !important; } /* 석판 옵션은 [더보기] 없이 전부 */
+    body.vw-shot .vw-stage::before { display: none; } /* 문장은 vwShotEmbs 가 그림으로 바꿔 끼운다 */
+    .vw-shotemb { position: absolute; left: 50%; top: 50%; aspect-ratio: 1; transform: translate(-50%, -50%); opacity: .2; pointer-events: none; }
     .vw-shotfoot { display: flex; gap: 8px; align-items: center; margin: 14px 2px 4px; color: #7d8794; font-size: 12px; } .vw-shotfoot b { color: #e3b860; } .vw-shotfoot span { margin-left: auto; }
     .wb-pop.vw-shotpop { width: min(760px, 100%); }
     .vw-shotimg { max-height: 62vh; overflow: auto; border: 1px solid #2a3446; border-radius: 10px; background: #0a0e15; } .vw-shotimg img { display: block; width: 100%; height: auto; }

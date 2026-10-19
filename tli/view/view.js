@@ -5703,6 +5703,7 @@ async function vwShot() {
     const link = VW.share ? location.origin + '/tli/view/?preset=' + VW.share.id : location.origin + '/tli/builder/';
     foot.innerHTML = `<b>미니토치DB</b> · ${vwEsc(link.replace(/^https?:\/\//, ''))}<span>${vwEsc(new Date().toLocaleDateString('sv-SE'))}</span>`;
     app.appendChild(foot);
+    await vwShotEmbs();
     await new Promise(r => setTimeout(r, 60)); // 펼친 장비·숨긴 단추가 자리 잡게
     const w = app.scrollWidth, h = app.scrollHeight;
     // 캔버스 한도 — iOS 사파리 약 1,670만 화소·한 변 16,384px. 2배를 넘지 않게
@@ -5712,10 +5713,26 @@ async function vwShot() {
     vwShotShow(blob);
   } catch (e) { vwToast('이미지를 만들지 못했습니다: ' + (e && e.message || e)); }
   finally {
-    document.body.classList.remove('vw-shot'); document.querySelectorAll('.vw-shotfoot').forEach(x => x.remove());
+    document.body.classList.remove('vw-shot'); document.querySelectorAll('.vw-shotfoot, .vw-shotemb').forEach(x => x.remove());
     if (!gall && VW.gall) vwGAll();
     VW.shooting = false;
   }
+}
+// 보드 뒤 문장 워터마크는 CSS mask(::before)라 이미지 굽기에서 마스크가 빠져 네모로 칠해진다 —
+// 굽는 동안만 같은 색으로 물들인 문장 그림(<img>)을 미리 만들어 바꿔 끼운다
+async function vwShotEmbs() {
+  const load = u => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = u; });
+  await Promise.all([...document.querySelectorAll('#vwApp .vw-stage')].map(async st => {
+    const m = /url\(['"]?([^'")]+)/.exec(st.style.getPropertyValue('--em')); if (!m || /\/emblem\/$/.test(m[1])) return;
+    const im = await load(m[1]); if (!im) return;
+    const bf = getComputedStyle(st, '::before'), N = 320, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d'), k = Math.min(N / im.naturalWidth, N / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    g.drawImage(im, (N - iw) / 2, (N - ih) / 2, iw, ih);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = bf.backgroundColor || '#f6e6bb'; g.fillRect(0, 0, N, N);
+    const e = document.createElement('img'); e.className = 'vw-shotemb'; e.alt = ''; e.src = c.toDataURL('image/png');
+    e.style.width = Math.min(st.clientWidth * .78, 640) + 'px'; await e.decode().catch(() => {});
+    st.insertBefore(e, st.firstChild);
+  }));
 }
 function vwShotShow(blob) { // 미리보기 → [저장]. 휴대폰은 그림을 길게 눌러 저장할 수도 있다
   if (VW.shotUrl) URL.revokeObjectURL(VW.shotUrl);
