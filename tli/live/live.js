@@ -59,9 +59,9 @@ function lvTable(rows) {
   else if (LV.sort === 'price') xs.sort((a, b) => b.now - a.now);
   else xs.sort((a, b) => (b.pct == null ? -1e9 : b.pct) - (a.pct == null ? -1e9 : a.pct));
   if (!xs.length) return '<p class="pr-none">해당 아이템이 없습니다</p>';
-  return `<div class="pr-tw"><table class="pr-t lv-t"><thead><tr><th>아이템</th><th class="sel">지금</th><th>어제 평균</th><th class="sel">변동</th><th>오늘 최저~최고</th><th>기준 시각</th></tr></thead><tbody>` +
+  return `<div class="pr-tw"><table class="pr-t lv-t"><thead><tr><th>아이템</th><th>어제 평균</th><th class="sel">지금</th><th class="sel">변동</th><th>오늘 최저~최고</th><th>기준 시각</th></tr></thead><tbody>` +
     xs.map(r => `<tr><td class="pr-tn"><a href="https://tlidb.com/ko/${encodeURIComponent(r.it.page)}" target="_blank" rel="noopener"><img src="${lvEsc(lvIcon(r.it.icon))}" alt="" loading="lazy" class="q${r.it.q}" ${LV_IMG_ERR}><span class="pr-in"><b>${lvEsc(r.it.name)}</b><small>${lvEsc(r.it.cat)}</small></span></a></td>` +
-      `<td class="sel"><b>${lvNum(r.now)}</b></td><td>${r.base ? lvNum(r.base) : '–'}</td><td class="sel pct ${r.pct > 0 ? 'up' : r.pct < 0 ? 'dn' : ''}">${r.pct == null ? '–' : lvPctTxt(r.pct)}</td>` +
+      `<td>${r.base ? lvNum(r.base) : '–'}</td><td class="sel"><b>${lvNum(r.now)}</b></td><td class="sel pct ${r.pct > 0 ? 'up' : r.pct < 0 ? 'dn' : ''}">${r.pct == null ? '–' : lvPctTxt(r.pct)}</td>` +
       `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 function lvRender(onlyTable) {
