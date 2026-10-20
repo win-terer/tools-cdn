@@ -69,6 +69,10 @@
       { href: '/tli/share/', label: '히어로 빌드 공유', match: /^\/tli\/share/ },
       { href: '/tli/farm/',  label: '파밍 빌드 공유',   match: /^\/tli\/farm/ },
     ] },
+    // 시세 — 오늘의 시세(/tli/live, ETor 30분마다) (2026-10-20 사용자: 대메뉴로). 초대 전용 /tli/price 는 메뉴에 없음
+    { label: '시세', match: /^\/tli\/live/, kids: [
+      { href: '/tli/live/', label: '오늘의 시세', match: /^\/tli\/live/ },
+    ] },
     // 트래커 — 누르면 PC(TITrack-KR, 지인 Hoza), 하위로 모바일(mTTD, listil) (2026-10-14)
     { label: '트래커', match: /^\/tli\/tracker/, kids: [
       { href: '/tli/tracker/',        label: 'PC (TITrack-KR)', match: /^\/tli\/tracker\/(index\.html)?$/ },
