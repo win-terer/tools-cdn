@@ -8,9 +8,12 @@ const PR_IVS = PR_DAYS.slice(0, -1).map(d => [d, d + 1]).concat([[1, 7], [7, 14]
 const PR_MIN = 3;    // 결정
 const PR_TOP = 10;
 const PR_NOTE = '이 시세는 중국 트래커 易火 ETor 의 시세 서버에서 수집했습니다.\nETor 측의 허가를 받지 않고 가져온 자료라, 문제가 된다면 디스코드 win.terer 로 연락 주시면 바로 내리겠습니다.\n\n단위: 최초의 불꽃 결정. 일차는 시즌 시작일 기준입니다.';
-const PR = {se: '', iv: '1-2', cat: '', q: '', sort: 'pct', mode: 'list', bd: 1, admin: false};
+const PR = {se: '', iv: '1-2', cat: '', q: '', sort: 'pct', mode: 'list', bd: 1, admin: false, nohot: false, wide: false};
 const PR_BUY_DAYS = PR_DAYS.slice(0, -1);  // 1~13일차에 사서 다음 날 팔기
 const PR_BUY_TOP = 20, PR_BUY_MIN = 2;  // 추천은 2개 시즌 이상 기록이 있는 것만
+const PR_SPREAD = [60, 1.5];  // 시즌별 차이 큼 = (가장 높은 시즌 − 가장 낮은 시즌) > max(60%p, 중앙값 × 1.5) — 기본으로 뺀다 (사용자 2026-10-20)
+const PR_RECENT_W = [1, 0.6, 0.35, 0.2], PR_CLIP = 300, PR_WEAK = 0.3;  // 최근 시즌 가중치·튀는 값 자르기·'최근 시즌 약함' 기준
+const PR_GAP = 30;  // 이번 시즌 누적 상승률이 지난 시즌 같은 기간보다 30%p 넘게 높으면 '이미 더 오름', 낮으면 '덜 오름'
 const prEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const prNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
 const prPct = (a, b) => (b - a) / a * 100;
@@ -73,7 +76,12 @@ function prSet(k, v) {
 function prRender(onlyTable) {
   const app = document.getElementById('priceApp'), ses = prSeasons();
   if (!ses.length) { app.innerHTML = prTopHtml(null) + prEmptyHtml(); return; }
-  if (PR.mode === 'buy' && PR.admin) { app.innerHTML = prTabsHtml() + prBuyHtml(); return; }
+  if (PR.mode === 'buy' && PR.admin) {
+    app.innerHTML = prTabsHtml() + prBuyHtml();
+    const on = app.querySelector('.pb-day.on'), bar = app.querySelector('.pb-days');  // 휴대폰: 고른 날이 보이게 일차 줄만 옆으로
+    if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2;
+    return;
+  }
   const pool = prPool();
   // 고른 구간에 값이 없으면(진행 중인 시즌 등) 값이 있는 첫 구간으로
   if (!PR_IVS.some(v => v.join('-') === PR.iv && prHasDay(pool.ok, v[0]) && prHasDay(pool.ok, v[1]))) {
@@ -165,35 +173,70 @@ function prBuyRows() {
     let best = null;
     // 판매일 = 바로 다음 날 (사용자 2026-10-20 — 처음엔 '가장 많이 오른 날'을 골랐다)
     PR_DAYS.filter(d => d > bd).slice(0, 1).forEach(sd => {
-      const ps = ses.map(x => { const d = per[x.id]; return d && d[bd] && d[sd] && d[bd][0] > 0 ? [x.label, prPct(d[bd][0], d[sd][0])] : null; }).filter(Boolean);
+      // ps = [시즌, %, 산 값, 판 값] — 최근 시즌 먼저 (prSeasons 순서)
+      const ps = ses.map(x => { const d = per[x.id]; return d && d[bd] && d[sd] && d[bd][0] > 0 ? [x.label, prPct(d[bd][0], d[sd][0]), d[bd][0], d[sd][0]] : null; }).filter(Boolean);
       if (ps.length < PR_BUY_MIN) return;
-      const med = prMed(ps.map(p => p[1])), hit = ps.filter(p => p[1] > 0).length;
-      if (!best || med > best.med) best = {it, sd, med, hit, n: ps.length, per: ps, buy: prMed(ses.map(x => per[x.id] && per[x.id][bd] && per[x.id][bd][0]).filter(Boolean))};
+      const vs = ps.map(p => p[1]), hit = vs.filter(v => v > 0).length, mid = prMed(vs);
+      // 순위 = 최근 시즌 가중 평균 (사용자 2026-10-20: 시즌마다 드롭률 등이 달라 최근 시즌을 더 믿는다). 한 시즌 튀는 값은 ±300% 에서 자른다
+      const ws = vs.map((v, k) => PR_RECENT_W[k] || PR_RECENT_W[PR_RECENT_W.length - 1]);
+      const med = vs.reduce((t, v, k) => t + Math.max(-PR_CLIP, Math.min(PR_CLIP, v)) * ws[k], 0) / ws.reduce((t, w) => t + w, 0);
+      const spread = Math.max(...vs) - Math.min(...vs), olderMax = Math.max(...vs.slice(1));
+      // 최근 시즌 약함 = 가장 최근 시즌 상승폭이 예전 시즌 최고치의 30% 도 안 됨 (예전엔 좋았는데 요즘은 아닌 것)
+      const weak = olderMax > 0 && vs[0] < olderMax * PR_WEAK;
+      const wide = spread > Math.max(PR_SPREAD[0], Math.abs(mid) * PR_SPREAD[1]);
+      if (!best || med > best.med) best = {it, sd, med, mid, hit, n: ps.length, per: ps, wide: wide || weak, why: [wide && '시즌별 차이 큼', weak && '최근 시즌 약함'].filter(Boolean).join(' · '), buy: prMed(ses.map(x => per[x.id] && per[x.id][bd] && per[x.id][bd][0]).filter(Boolean))};
     });
-    if (best) out.push(best);
+    if (best) { best.flow = prFlow(per, bd); out.push(best); }
   });
   return out;
 }
+// 이번 시즌 흐름 (사용자 2026-10-20) — 이번 시즌이 구매일까지 얼마나 올랐는지 vs 지난 시즌들의 같은 기간 중앙값.
+// 기준일은 2일차(TTD 시즌은 1일차 기록이 없음), 이번 시즌에 2일차가 없으면 1일차. 끝은 구매일 이하에서 이번 시즌의 가장 최근 기록
+function prFlow(per, bd) {
+  const c = prCur(), cd = c && per[c.id]; if (!cd) return null;
+  const L = Object.keys(cd).map(Number).filter(d => d <= bd).sort((a, b) => b - a)[0];
+  const s0 = cd[2] && L >= 3 ? 2 : 1;
+  if (!L || L <= s0 || !cd[s0] || !cd[s0][0]) return null;
+  const past = prSeasons().filter(x => x.id !== c.id).map(x => per[x.id]).filter(d => d && d[s0] && d[L] && d[s0][0] > 0).map(d => prPct(d[s0][0], d[L][0]));
+  if (!past.length) return null;
+  const cur = prPct(cd[s0][0], cd[L][0]), pm = prMed(past), gap = cur - pm;
+  return {s0, L, cur, past: pm, n: past.length, gap, k: gap > PR_GAP ? 'hot' : gap < -PR_GAP ? 'cold' : 'same'};
+}
+function prFlowHtml(f) {
+  if (!f) return '<i class="pr-flow na" title="이번 시즌 기록이 아직 비교할 만큼 없습니다">이번 시즌 –</i>';
+  const t = {hot: '이미 더 오름', cold: '덜 오름', same: '비슷'}[f.k];
+  return `<i class="pr-flow ${f.k}" title="이번 시즌 ${f.s0}→${f.L}일차 ${prPctTxt(f.cur)} · 지난 시즌 같은 기간 중앙값 ${prPctTxt(f.past)} (${f.n}시즌)">이번 시즌 ${t} <b>${prPctTxt(f.cur)}</b> <small>지난 ${prPctTxt(f.past)}</small></i>`;
+}
 function prBuyHtml() {
-  const rows = prBuyRows(), all = CONSUM.items.filter(it => !PR.cat || it.cat === PR.cat);
-  const up = rows.filter(r => r.med > 0 && r.hit * 2 >= r.n).sort((a, b) => b.med - a.med).slice(0, PR_BUY_TOP);
-  const dn = rows.filter(r => r.med < 0).sort((a, b) => a.med - b.med).slice(0, 10);
-  const ses = prSeasons();
-  const row = (r, i) => `<li class="pr-b"><span class="pr-rk">${i + 1}</span>${prItemHead(r.it)}` +
-    `<span class="pr-bper">${r.per.map(([l, p]) => `<i class="${p > 0 ? 'up' : 'dn'}" title="${l} · ${PR.bd}일차 → ${r.sd}일차">${l.replace('SS', '')} ${prPctTxt(p)}</i>`).join('')}</span>` +
-    `<span class="pr-rv"><em>${PR.bd}일차 ${prNum(r.buy)}결 → <b class="pr-sd">${r.sd}일차</b> 판매</em><b class="${r.med > 0 ? 'up' : 'dn'}">${prPctTxt(r.med)}</b><em>${r.n}시즌 중 ${r.hit}번 상승</em></span></li>`;
-  const cur = prCur(), td = prToday();
-  return `<div class="pr-top"><div class="pr-ttl"><b>추천 구매</b><small>${ses.map(x => x.label).join('·')} 기록을 모아 본 일차별 구매 후보 · 관리자만</small></div>` +
-    `<div class="pr-meta">날짜는 이번 시즌 ${prEsc(cur.label)} 기준 · 오늘 ${prDayDate(td)} = <b class="pr-tdyt">${td}일차</b>${td > 13 ? ' (추천은 13일차 구매까지라 13일차 기준)' : ''}</div>` +
-    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일에 사서 <b>바로 다음 날</b> 팔았을 때의 <b>시즌별 상승률 중앙값</b>으로 순위를 매깁니다.<br>` +
-    `${PR_BUY_MIN}개 시즌 이상 기록이 있는 것만, 오른 시즌이 절반 이상인 것만 추천에 넣습니다. 가장 비쌀 때도 ${PR_MIN}결 이하인 아이템은 뺍니다.<br>` +
-    `SS11·SS12 는 TTD 디아블로 기록(1일차 기록 없음, SS11 은 7·14일차만), SS13·SS14 는 ETor 기록입니다. 지난 시즌 흐름일 뿐 이번 시즌도 같다는 보장은 없습니다.</div></details></div>` +
-    `<div class="pr-ivs">${PR_BUY_DAYS.map(d => { const n = PR_DAYS.find(x => x > d), td = prToday(), today = td === d;
-      return `<button type="button" class="pr-iv pr-bdb${PR.bd === d ? ' on' : ''}${today ? ' today' : ''}" onclick="prSet('bd',${d})">${today ? '<span class="pr-tdy">오늘</span>' : ''}${d}일차 → ${n}일차<small>${prDayDate(d)} 사기 → ${prDayDate(n)} 팔기</small></button>`; }).join('')}</div>` +
-    `<div class="pr-cats"><button type="button" class="pr-chip${!PR.cat ? ' on' : ''}" onclick="prSet('cat','')">전체</button>` +
-    CONSUM.cats.filter(c => CONSUM.items.some(x => x.cat === c)).map(c => `<button type="button" class="pr-chip${PR.cat === c ? ' on' : ''}" onclick="prSet('cat','${prEsc(c)}')">${prEsc(c)}</button>`).join('') + '</div>' +
-    `<div class="pr-buy"><div class="pr-rcol up"><div class="pr-rh">🛒 ${PR.bd}일차에 사 두면 좋았던 아이템 <small>${rows.length}개 중</small></div>${up.length ? '<ol>' + up.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>` +
-    `<div class="pr-rcol dn"><div class="pr-rh">⚠ ${PR.bd}일차에 사면 손해였던 아이템 <small>다음 날 내림</small></div>${dn.length ? '<ol>' + dn.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div></div>` +
-    (all.length ? '' : '');
+  const rows = prBuyRows(), ses = prSeasons(), cur = prCur(), td = prToday(), bd = PR.bd, sd = PR_DAYS.find(x => x > bd);
+  const good = r => r.med > 0 && r.hit * 2 >= r.n, hot = r => r.flow && r.flow.k === 'hot';
+  const hotN = rows.filter(r => good(r) && hot(r)).length, wideN = rows.filter(r => good(r) && r.wide).length;
+  const up = rows.filter(r => good(r) && !(PR.nohot && hot(r)) && (PR.wide || !r.wide)).sort((a, b) => b.med - a.med).slice(0, PR_BUY_TOP);
+  const dn = rows.filter(r => r.med < 0 && (PR.wide || !r.wide)).sort((a, b) => a.med - b.med).slice(0, 10);
+  const card = (r, i) => `<li class="pb-card${i < 3 ? ' top' : ''}${r.med < 0 ? ' neg' : ''}">` +
+    `<div class="pb-h"><span class="pb-rk">${i + 1}</span><img src="${prEsc(r.it.icon)}" alt="" loading="lazy" class="q${r.it.q}" onerror="this.style.visibility='hidden'">` +
+    `<span class="pb-nm"><b>${prEsc(r.it.name)}</b><small>${prEsc(r.it.cat)}</small></span>` +
+    `<span class="pb-pct ${r.med > 0 ? 'up' : 'dn'}" title="최근 시즌 가중 평균 ${prPctTxt(r.med)} · 중앙값 ${prPctTxt(r.mid)}&#10;${r.per.map(p => `${p[0]} · ${bd}일차 ${prNum(p[2])}결 → ${r.sd}일차 ${prNum(p[3])}결 (${prPctTxt(p[1])})`).join('&#10;')}">${prPctTxt(r.med)}<small>${r.n}시즌 중 ${r.hit}번 상승</small></span></div>` +
+    `<div class="pb-f"><span class="pb-buy">${prNum(r.buy)}<small>결</small></span>${prFlowHtml(r.flow)}` +
+    `<span class="pb-ses">${r.per.map(([l, p, a, b]) => `<i class="${p > 0 ? 'up' : 'dn'}" title="${l} · ${bd}일차 ${prNum(a)}결 → ${r.sd}일차 ${prNum(b)}결 (${prPctTxt(p)})">${l} ${prPctTxt(p)}</i>`).join('')}</span>` +
+    (r.why && PR.wide ? `<span class="pb-why">⚠ ${r.why}</span>` : '') + '</div></li>';
+  const days = PR_BUY_DAYS.map(d => `<button type="button" class="pb-day${bd === d ? ' on' : ''}${td === d ? ' today' : ''}${d < td ? ' past' : ''}" onclick="prSet('bd',${d})">` +
+    `<b>${d}일차</b><small>${prDayDate(d)}</small>${td === d ? '<i>오늘</i>' : ''}</button>`).join('');
+  const cats = ['', ...CONSUM.cats.filter(c => CONSUM.items.some(x => x.cat === c))].map(c =>
+    `<button type="button" class="pr-chip${PR.cat === c ? ' on' : ''}" onclick="prSet('cat','${prEsc(c)}')">${c ? prEsc(c) : '전체'}</button>`).join('');
+  return `<div class="pb-hero"><div class="pb-ht"><b>추천 구매</b><small>${ses.map(x => x.label).join('·')} 기록 · 관리자만</small></div>` +
+    `<div class="pb-now"><span>오늘</span><b>${prDayDate(td)}</b><em>${prEsc(cur.label)} ${td}일차</em></div>` +
+    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일에 사서 <b>바로 다음 날</b> 팔았을 때의 상승률을 <b>최근 시즌일수록 무게를 더 줘서</b>(가장 최근 1 · 그 전 0.6 · 0.35 · 0.2) 평균 낸 값으로 순위를 매깁니다. 한 시즌만 튄 값은 ±${PR_CLIP}%에서 자릅니다. ` +
+    `${PR_BUY_MIN}개 시즌 이상 기록이 있고 오른 시즌이 절반 이상인 것만 넣고, 가장 비쌀 때도 ${PR_MIN}결 이하인 아이템은 뺍니다. ` +
+    `<b>믿기 어려운 것</b>은 기본으로 뺍니다 — 시즌마다 결과가 크게 갈린 것(가장 높은·낮은 시즌 차이가 ${PR_SPREAD[0]}%p 와 중앙값의 ${PR_SPREAD[1]}배를 넘음), 그리고 예전 시즌엔 좋았지만 가장 최근 시즌 상승폭이 그 ${PR_WEAK * 100}%도 안 되는 것.<br>` +
+    `<b>이번 시즌 흐름</b>: 이번 시즌이 2일차부터 구매일(또는 가장 최근 기록일)까지 오른 정도를 지난 시즌들의 같은 기간 중앙값과 비교합니다. ${PR_GAP}%p 넘게 더 올랐으면 「이미 더 오름」, 덜 올랐으면 「덜 오름」.<br>` +
+    `날짜는 이번 시즌 ${prEsc(cur.label)} 기준. SS11·SS12 는 TTD 디아블로 기록(1일차 없음, SS11 은 6일차부터), SS13·SS14 는 ETor 기록입니다. 지난 시즌 흐름일 뿐 이번 시즌도 같다는 보장은 없습니다.</div></details></div>` +
+    `<div class="pb-days">${days}</div>` +
+    `<div class="pb-bar"><div class="pb-bt"><b>${bd}일차 ${prDayDate(bd)}</b>에 사서 <b>${sd}일차 ${prDayDate(sd)}</b>에 팔기 <small>${rows.length}개 비교</small></div>` +
+    `<span class="pb-opts"><label class="pr-nohot" title="시즌마다 결과가 크게 갈린 것(가장 높은·낮은 시즌 차이가 ${PR_SPREAD[0]}%p·중앙값의 ${PR_SPREAD[1]}배를 넘음)과, 최근 시즌 상승폭이 예전 시즌 최고치의 ${PR_WEAK * 100}%도 안 되는 것"><input type="checkbox"${!PR.wide ? ' checked' : ''} onchange="prSet('wide', !this.checked)"> 믿기 어려운 것 빼기 <small>${wideN}</small></label>` +
+    `<label class="pr-nohot"><input type="checkbox"${PR.nohot ? ' checked' : ''} onchange="prSet('nohot', this.checked)"> 이번 시즌 이미 많이 오른 것 빼기 <small>${hotN}</small></label></span></div>` +
+    `<div class="pb-cats">${cats}</div>` +
+    (up.length ? `<ol class="pb-grid">${up.map(card).join('')}</ol>` : '<p class="pr-none">해당 아이템이 없습니다</p>') +
+    (dn.length ? `<details class="pb-dn"><summary>⚠ 다음 날 내린 아이템 ${dn.length}개 — 이날 사면 손해였던 것</summary><ol class="pb-grid">${dn.map(card).join('')}</ol></details>` : '');
 }
 prInit();
