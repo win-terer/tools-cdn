@@ -1,7 +1,7 @@
 // 생성물 — 고칠 땐 update/src/live_page.js (build_html2.build_tool_pages)
 // 오늘의 시세 (/tli/live, 2026-10-20 사용자 — 처음 이름 '실시간 시세', 30분 간격이라 바꿈) — 공개(출입 확인 없음)·메뉴 없음(검증 중). 소비 아이템 이번 시즌 지금 가격.
 // 데이터: LCONSUM(아이템) · LSEASON · LDAYS(이번 시즌 일봉, 묶음) · CHOURS(시간대) + /api/price-now(워커 크론이 30분마다 ETor 한 번에 받기 → 오늘·어제 표본)
-const LV = {cat: '', q: '', sort: 'pct', now: null, more: 20};  // more = 표에 보이는 줄 수 (사용자 2026-10-20: 20개 + 더보기)
+const LV = {cat: '', q: '', sort: 'pct', now: null, more: 10, cards: 6};  // 표 10줄·카드 6장부터 (사용자 2026-10-20: 스크롤이 길다 → 20 → 10)
 const LV_MIN = 3, LV_TOP = 10, DAY = 864e5;
 const lvEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const lvNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
@@ -64,28 +64,29 @@ function lvTable(rows) {
     xs.map(r => `<tr><td class="pr-tn"><a href="https://tlidb.com/ko/${encodeURIComponent(r.it.page)}" target="_blank" rel="noopener"><img src="${lvEsc(lvIcon(r.it.icon))}" alt="" loading="lazy" class="q${r.it.q}" ${LV_IMG_ERR}><span class="pr-in"><b>${lvEsc(r.it.name)}</b><small>${lvEsc(r.it.cat)}</small></span></a></td>` +
       `<td>${r.base ? lvNum(r.base) : '–'}</td><td class="sel"><b>${lvNum(r.now)}</b></td><td class="sel pct ${r.pct > 0 ? 'up' : r.pct < 0 ? 'dn' : ''}">${r.pct == null ? '–' : lvPctTxt(r.pct)}</td>` +
       `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>' +
-    (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(20)">더보기 +20</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length} / ${all}</small></div>` : '');
+    (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(10)">더보기 +10</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length} / ${all}</small></div>` : '');
 }
 function lvRender(onlyTable) {
   const app = document.getElementById('priceApp'), rows = lvRows(), td = lvDay();
   if (onlyTable) { document.getElementById('lvTable').innerHTML = lvTable(rows); return; }
   const mv = rows.filter(r => r.pct != null);
-  const up = mv.filter(r => r.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, LV_TOP), dn = mv.filter(r => r.pct < 0).sort((a, b) => a.pct - b.pct).slice(0, LV_TOP);
+  const up = mv.filter(r => r.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, LV.cards), dn = mv.filter(r => r.pct < 0).sort((a, b) => a.pct - b.pct).slice(0, LV.cards);
   const got = LV.now && LV.now.got;
   const cats = ['', ...LCONSUM.cats.filter(c => LCONSUM.items.some(x => x.cat === c))].map(c =>
     `<button type="button" class="pr-chip${LV.cat === c ? ' on' : ''}" onclick="lvSet('cat','${lvEsc(c)}')">${c ? lvEsc(c) : '전체'}</button>`).join('');
   const sec = (t, cls, xs) => `<div class="pb-sec ${cls}"><div class="pb-sh">${t}</div>${xs.length ? `<ol class="pb-grid">${xs.map(lvCard).join('')}</ol>` : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>`;
+  const cardMore = LV.cards < LV_TOP && mv.length > LV.cards * 2 ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="LV.cards=${LV_TOP};lvRender()">많이 오른·내린 아이템 ${LV_TOP}개씩 보기</button></div>` : '';
   app.innerHTML = `<div class="pb-hero"><div class="pb-ht"><b>오늘의 시세</b><small>소비 아이템 · 이번 시즌 · 30분마다 갱신 (단위 결정)</small></div>` +
     `<div class="pb-now"><span>오늘</span><b>${lvDate(td)}</b><em>${lvEsc(LSEASON.label)} ${td}일차</em></div>` +
     `<div class="pb-meta">${got ? `마지막 갱신 <b>${lvTime(got)}</b>` : ''}<br><small>변동 = 어제 평균 대비 지금 가격</small></div>` +
     `<details class="pr-note"><summary>ⓘ 시세 출처</summary><div>중국 트래커 易火 ETor 의 시세 서버에서 30분마다 받습니다. 허가를 받은 자료가 아니라 문제가 되면 내리겠습니다.<br>단위: 최초의 불꽃 결정. 가장 비쌀 때도 ${LV_MIN}결 이하인 아이템은 뺐습니다.</div></details></div>` +
     lvHourHtml() + `<div class="pb-cats">${cats}</div>` +
-    sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) +
+    sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) + cardMore +
     `<div class="pr-sec"><div class="pr-sech"><b>전체 시세</b><input class="pr-q" placeholder="아이템 이름 검색" value="${lvEsc(LV.q)}" oninput="lvSet('q', this.value)">` +
     `<select class="pr-sort" onchange="lvSet('sort', this.value)">${[['pct', '변동순'], ['price', '가격순'], ['name', '이름순']].map(([k, t]) => `<option value="${k}"${LV.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>` +
     `<div id="lvTable">${lvTable(rows)}</div></div>`;
 }
-function lvSet(k, v) { LV[k] = v; LV.more = 20; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 20개부터
+function lvSet(k, v) { LV[k] = v; LV.more = 10; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 10개부터
 function lvMore(n) { LV.more += n; lvRender(true); }
 async function lvLoad() {
   try { const r = await fetch('/api/price-now', {cache: 'no-store'}); if (r.ok) { const o = await r.json(); if (o.ok && o.season === LSEASON.id) LV.now = o; } } catch (e) {}
