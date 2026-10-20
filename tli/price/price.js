@@ -142,7 +142,7 @@ function prTableHtml(list, pool) {
     }).join('') + '</tbody></table></div>';
 }
 // ── 추천 구매 (관리자만, 2026-10-20 사용자) — SS11~SS14 를 모아 'N일차에 사서 M일차에 팔면' 시즌마다 몇 % 였는지 ──
-// 아이템마다 판매일(구매일 뒤 2~14일차) 중 시즌별 상승률 중앙값이 가장 큰 날을 고른다. 중앙값이라 한 시즌 튀는 값(TTD 매물 적은 날)에 덜 흔들린다
+// 판매일은 바로 다음 날, 시즌별 상승률의 중앙값으로 순위. 중앙값이라 한 시즌 튀는 값(TTD 매물 적은 날)에 덜 흔들린다
 function prTabsHtml() {
   if (!PR.admin) return '';
   return `<div class="pr-tabs"><button type="button" class="pr-tab${PR.mode === 'list' ? ' on' : ''}" onclick="prSet('mode','list')">📈 시세</button>` +
@@ -157,7 +157,8 @@ function prBuyRows() {
     const top = Math.max(0, ...Object.values(per).flatMap(d => Object.values(d).map(v => v[0])));
     if (top <= PR_MIN) return;  // 시세 화면과 같은 규칙 — 가장 비쌀 때도 3결 이하면 뺀다
     let best = null;
-    PR_DAYS.filter(d => d > bd).forEach(sd => {
+    // 판매일 = 바로 다음 날 (사용자 2026-10-20 — 처음엔 '가장 많이 오른 날'을 골랐다). 7일차 다음 기록은 14일차
+    PR_DAYS.filter(d => d > bd).slice(0, 1).forEach(sd => {
       const ps = ses.map(x => { const d = per[x.id]; return d && d[bd] && d[sd] && d[bd][0] > 0 ? [x.label, prPct(d[bd][0], d[sd][0])] : null; }).filter(Boolean);
       if (ps.length < PR_BUY_MIN) return;
       const med = prMed(ps.map(p => p[1])), hit = ps.filter(p => p[1] > 0).length;
@@ -176,14 +177,14 @@ function prBuyHtml() {
     `<span class="pr-bper">${r.per.map(([l, p]) => `<i class="${p > 0 ? 'up' : 'dn'}" title="${l} · ${PR.bd}일차 → ${r.sd}일차">${l.replace('SS', '')} ${prPctTxt(p)}</i>`).join('')}</span>` +
     `<span class="pr-rv"><em>${PR.bd}일차 ${prNum(r.buy)}결 → <b class="pr-sd">${r.sd}일차</b> 판매</em><b class="${r.med > 0 ? 'up' : 'dn'}">${prPctTxt(r.med)}</b><em>${r.n}시즌 중 ${r.hit}번 상승</em></span></li>`;
   return `<div class="pr-top"><div class="pr-ttl"><b>추천 구매</b><small>${ses.map(x => x.label).join('·')} 기록을 모아 본 일차별 구매 후보 · 관리자만</small></div>` +
-    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일을 고르면 아이템마다 그 뒤 판매일(2~14일차) 중 <b>시즌별 상승률의 중앙값</b>이 가장 큰 날을 고릅니다.<br>` +
+    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일에 사서 <b>바로 다음 날</b> 팔았을 때의 <b>시즌별 상승률 중앙값</b>으로 순위를 매깁니다(7일차는 다음 기록인 14일차).<br>` +
     `${PR_BUY_MIN}개 시즌 이상 기록이 있는 것만, 오른 시즌이 절반 이상인 것만 추천에 넣습니다. 가장 비쌀 때도 ${PR_MIN}결 이하인 아이템은 뺍니다.<br>` +
     `SS11·SS12 는 TTD 디아블로 기록(1일차 기록 없음, SS11 은 7·14일차만), SS13·SS14 는 ETor 기록입니다. 지난 시즌 흐름일 뿐 이번 시즌도 같다는 보장은 없습니다.</div></details></div>` +
-    `<div class="pr-ivs">${PR_BUY_DAYS.map(d => `<button type="button" class="pr-iv${PR.bd === d ? ' on' : ''}" onclick="prSet('bd',${d})">${d}일차에 사기</button>`).join('')}</div>` +
+    `<div class="pr-ivs">${PR_BUY_DAYS.map(d => `<button type="button" class="pr-iv${PR.bd === d ? ' on' : ''}" onclick="prSet('bd',${d})">${d}일차 → ${PR_DAYS.find(x => x > d)}일차</button>`).join('')}</div>` +
     `<div class="pr-cats"><button type="button" class="pr-chip${!PR.cat ? ' on' : ''}" onclick="prSet('cat','')">전체</button>` +
     CONSUM.cats.filter(c => CONSUM.items.some(x => x.cat === c)).map(c => `<button type="button" class="pr-chip${PR.cat === c ? ' on' : ''}" onclick="prSet('cat','${prEsc(c)}')">${prEsc(c)}</button>`).join('') + '</div>' +
     `<div class="pr-buy"><div class="pr-rcol up"><div class="pr-rh">🛒 ${PR.bd}일차에 사 두면 좋았던 아이템 <small>${rows.length}개 중</small></div>${up.length ? '<ol>' + up.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>` +
-    `<div class="pr-rcol dn"><div class="pr-rh">⚠ ${PR.bd}일차에 사면 손해였던 아이템 <small>어느 날 팔아도 내림</small></div>${dn.length ? '<ol>' + dn.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div></div>` +
+    `<div class="pr-rcol dn"><div class="pr-rh">⚠ ${PR.bd}일차에 사면 손해였던 아이템 <small>다음 날 내림</small></div>${dn.length ? '<ol>' + dn.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div></div>` +
     (all.length ? '' : '');
 }
 prInit();
