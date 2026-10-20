@@ -83,9 +83,18 @@ function lvRender(onlyTable) {
     lvHourHtml() + `<div class="pb-cats">${cats}</div>` +
     sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) + cardMore +
     `<div class="pr-sec"><div class="pr-sech"><b>전체 시세</b><input class="pr-q" placeholder="아이템 이름 검색" value="${lvEsc(LV.q)}" oninput="lvSet('q', this.value)">` +
-    `<select class="pr-sort" onchange="lvSet('sort', this.value)">${[['pct', '변동순'], ['price', '가격순'], ['name', '이름순']].map(([k, t]) => `<option value="${k}"${LV.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>` +
+    ddHtml(LV.sort, [['pct', '변동순'], ['price', '가격순'], ['name', '이름순']], 'lvSort') + '</div>' +
     `<div id="lvTable">${lvTable(rows)}</div></div>`;
 }
+// 맞춤 드롭다운 — 기본 <select> 대신 (2026-10-20 사용자: 셀렉트 박스가 깨져 보임)
+function ddHtml(cur, opts, fn) {  // opts = [[값, 글자]], fn = 고르면 부를 함수 이름(값을 받음)
+  const t = (opts.find(o => o[0] === cur) || opts[0])[1];
+  return `<div class="dd"><button type="button" class="dd-b" onclick="ddToggle(this, event)">${t}<i>▾</i></button><div class="dd-m">` +
+    opts.map(([k, v]) => `<button type="button" class="${k === cur ? 'on' : ''}" onclick="${fn}('${k}')">${v}</button>`).join('') + '</div></div>';
+}
+function ddToggle(b, e) { e.stopPropagation(); const d = b.parentNode, o = d.classList.contains('open'); document.querySelectorAll('.dd.open').forEach(x => x.classList.remove('open')); if (!o) d.classList.add('open'); }
+document.addEventListener('click', () => document.querySelectorAll('.dd.open').forEach(x => x.classList.remove('open')));
+function lvSort(v) { lvSet('sort', v); }
 function lvSet(k, v) { LV[k] = v; LV.more = 10; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 10개부터
 function lvMore(n) { LV.more += n; lvRender(true); }
 async function lvLoad() {

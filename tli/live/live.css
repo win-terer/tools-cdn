@@ -35,6 +35,14 @@
     .pr-sech { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; } .pr-sech b { color: #f3e3b5; font-size: 14px; margin-right: auto; }
     .pr-q, .pr-sort { background: #0b0f17; border: 1px solid #2f3a4d; color: #e6edf3; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; }
     .pr-q { width: min(240px, 100%); } .pr-q:focus { outline: none; border-color: #e3b860; }
+    /* 맞춤 드롭다운 (2026-10-20 사용자: 기본 셀렉트가 깨져 보임) */
+    .dd { position: relative; display: inline-block; }
+    .dd-b { display: inline-flex; align-items: center; gap: 8px; min-width: 104px; justify-content: space-between; padding: 7px 12px; border-radius: 8px; border: 1px solid #2f3a4d; background: #0b0f17; color: #e6edf3; font: inherit; font-size: 13px; cursor: pointer; }
+    .dd-b i { font-style: normal; color: #7d8794; font-size: 11px; transition: .15s; } .dd.open .dd-b { border-color: #e3b860; } .dd.open .dd-b i { transform: rotate(180deg); }
+    .dd-m { display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; min-width: 100%; padding: 4px; border-radius: 10px; background: #121826; border: 1px solid #2f3a4d; box-shadow: 0 10px 28px rgba(0,0,0,.5); }
+    .dd.open .dd-m { display: block; }
+    .dd-m button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 7px; background: none; color: #c9d1d9; font: inherit; font-size: 13px; text-align: left; cursor: pointer; white-space: nowrap; }
+    .dd-m button:hover { background: #1b2230; color: #fff; } .dd-m button.on { color: #f3e3b5; font-weight: 700; } .dd-m button.on::after { content: '✓'; margin-left: auto; color: #e3b860; }
     .pr-tw { overflow-x: auto; }
     .pr-t { width: 100%; border-collapse: collapse; font-size: 13px; }
     .pr-t th { color: #9aa4b2; font-weight: 600; font-size: 12px; text-align: right; padding: 6px 8px; border-bottom: 1px solid #222b3a; white-space: nowrap; }
