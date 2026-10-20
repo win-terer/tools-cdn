@@ -229,3 +229,4 @@
       .lv-card .pb-h { flex-wrap: wrap; } .lv-big { order: 3; flex: 1 1 100%; flex-direction: row; align-items: baseline; gap: 8px; padding: 6px 0 0 34px; border-top: 1px dashed #1f2735; }
       .lv-card .pg-f2 { padding-left: 0; }
     }
+    .lv-more { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; } .lv-more small { color: #7d8794; font-size: 12px; }

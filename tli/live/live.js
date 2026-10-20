@@ -1,7 +1,7 @@
 // 생성물 — 고칠 땐 update/src/live_page.js (build_html2.build_tool_pages)
 // 오늘의 시세 (/tli/live, 2026-10-20 사용자 — 처음 이름 '실시간 시세', 30분 간격이라 바꿈) — 공개(출입 확인 없음)·메뉴 없음(검증 중). 소비 아이템 이번 시즌 지금 가격.
 // 데이터: LCONSUM(아이템) · LSEASON · LDAYS(이번 시즌 일봉, 묶음) · CHOURS(시간대) + /api/price-now(워커 크론이 30분마다 ETor 한 번에 받기 → 오늘·어제 표본)
-const LV = {cat: '', q: '', sort: 'pct', now: null};
+const LV = {cat: '', q: '', sort: 'pct', now: null, more: 20};  // more = 표에 보이는 줄 수 (사용자 2026-10-20: 20개 + 더보기)
 const LV_MIN = 3, LV_TOP = 10, DAY = 864e5;
 const lvEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const lvNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
@@ -59,10 +59,12 @@ function lvTable(rows) {
   else if (LV.sort === 'price') xs.sort((a, b) => b.now - a.now);
   else xs.sort((a, b) => (b.pct == null ? -1e9 : b.pct) - (a.pct == null ? -1e9 : a.pct));
   if (!xs.length) return '<p class="pr-none">해당 아이템이 없습니다</p>';
+  const all = xs.length; xs = xs.slice(0, LV.more);
   return `<div class="pr-tw"><table class="pr-t lv-t"><thead><tr><th>아이템</th><th>어제 평균</th><th class="sel">지금</th><th class="sel">변동</th><th>오늘 최저~최고</th><th>기준 시각</th></tr></thead><tbody>` +
     xs.map(r => `<tr><td class="pr-tn"><a href="https://tlidb.com/ko/${encodeURIComponent(r.it.page)}" target="_blank" rel="noopener"><img src="${lvEsc(lvIcon(r.it.icon))}" alt="" loading="lazy" class="q${r.it.q}" ${LV_IMG_ERR}><span class="pr-in"><b>${lvEsc(r.it.name)}</b><small>${lvEsc(r.it.cat)}</small></span></a></td>` +
       `<td>${r.base ? lvNum(r.base) : '–'}</td><td class="sel"><b>${lvNum(r.now)}</b></td><td class="sel pct ${r.pct > 0 ? 'up' : r.pct < 0 ? 'dn' : ''}">${r.pct == null ? '–' : lvPctTxt(r.pct)}</td>` +
-      `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>';
+      `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>' +
+    (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(20)">더보기 +20</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length} / ${all}</small></div>` : '');
 }
 function lvRender(onlyTable) {
   const app = document.getElementById('priceApp'), rows = lvRows(), td = lvDay();
@@ -83,7 +85,8 @@ function lvRender(onlyTable) {
     `<select class="pr-sort" onchange="lvSet('sort', this.value)">${[['pct', '변동순'], ['price', '가격순'], ['name', '이름순']].map(([k, t]) => `<option value="${k}"${LV.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>` +
     `<div id="lvTable">${lvTable(rows)}</div></div>`;
 }
-function lvSet(k, v) { LV[k] = v; lvRender(k === 'q'); }
+function lvSet(k, v) { LV[k] = v; LV.more = 20; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 20개부터
+function lvMore(n) { LV.more += n; lvRender(true); }
 async function lvLoad() {
   try { const r = await fetch('/api/price-now', {cache: 'no-store'}); if (r.ok) { const o = await r.json(); if (o.ok && o.season === LSEASON.id) LV.now = o; } } catch (e) {}
   lvRender();
