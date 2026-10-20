@@ -1,5 +1,5 @@
 // 생성물 — 고칠 땐 update/src/live_page.js (build_html2.build_tool_pages)
-// 실시간 시세 (/tli/live, 2026-10-20 사용자) — 공개(출입 확인 없음)·메뉴 없음(검증 중). 소비 아이템 이번 시즌 지금 가격.
+// 오늘의 시세 (/tli/live, 2026-10-20 사용자 — 처음 이름 '실시간 시세', 30분 간격이라 바꿈) — 공개(출입 확인 없음)·메뉴 없음(검증 중). 소비 아이템 이번 시즌 지금 가격.
 // 데이터: LCONSUM(아이템) · LSEASON · LDAYS(이번 시즌 일봉, 묶음) · CHOURS(시간대) + /api/price-now(워커 크론이 30분마다 ETor 한 번에 받기 → 오늘·어제 표본)
 const LV = {cat: '', q: '', sort: 'pct', now: null};
 const LV_MIN = 3, LV_TOP = 10, DAY = 864e5;
@@ -73,9 +73,9 @@ function lvRender(onlyTable) {
   const cats = ['', ...LCONSUM.cats.filter(c => LCONSUM.items.some(x => x.cat === c))].map(c =>
     `<button type="button" class="pr-chip${LV.cat === c ? ' on' : ''}" onclick="lvSet('cat','${lvEsc(c)}')">${c ? lvEsc(c) : '전체'}</button>`).join('');
   const sec = (t, cls, xs) => `<div class="pb-sec ${cls}"><div class="pb-sh">${t}</div>${xs.length ? `<ol class="pb-grid">${xs.map(lvCard).join('')}</ol>` : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>`;
-  app.innerHTML = `<div class="pb-hero"><div class="pb-ht"><b>실시간 시세</b><small>소비 아이템 · 이번 시즌 지금 가격 (단위 결정)</small></div>` +
+  app.innerHTML = `<div class="pb-hero"><div class="pb-ht"><b>오늘의 시세</b><small>소비 아이템 · 이번 시즌 · 30분마다 갱신 (단위 결정)</small></div>` +
     `<div class="pb-now"><span>오늘</span><b>${lvDate(td)}</b><em>${lvEsc(LSEASON.label)} ${td}일차</em></div>` +
-    `<div class="pb-meta">${got ? `마지막 갱신 <b>${lvTime(got)}</b> · ` : ''}30분마다 갱신<br><small>변동 = 어제 평균 대비 지금 가격</small></div>` +
+    `<div class="pb-meta">${got ? `마지막 갱신 <b>${lvTime(got)}</b>` : ''}<br><small>변동 = 어제 평균 대비 지금 가격</small></div>` +
     `<details class="pr-note"><summary>ⓘ 시세 출처</summary><div>중국 트래커 易火 ETor 의 시세 서버에서 30분마다 받습니다. 허가를 받은 자료가 아니라 문제가 되면 내리겠습니다.<br>단위: 최초의 불꽃 결정. 가장 비쌀 때도 ${LV_MIN}결 이하인 아이템은 뺐습니다.</div></details></div>` +
     lvHourHtml() + `<div class="pb-cats">${cats}</div>` +
     sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) +
