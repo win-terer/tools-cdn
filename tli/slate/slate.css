@@ -140,6 +140,7 @@
     /* 단계 안의 히어로·재능 화면: 단독 화면 여백·닫기 단추는 빼고 단계 막대 아래를 채운다 */
     .wz-page .wz-body #heroApp, .wz-page .wz-body #talentApp { width: 100%; padding: 0; }
     .wz-page .wz-body .gbm-x { display: none; }
+    .gbm-log { margin-left: auto; }
     .wz-page .wz-body .hp-build { display: none; } /* 빌드 고르기는 단계 막대에 */
     .wz-page .wz-body #talentApp .gbm { height: var(--wz-room); min-height: 500px; }
     .wz-page .wz-body #heroApp .gbm { height: var(--wz-room); min-height: 500px; } /* 히어로도 페이지 스크롤 없이 — 넘치면 안쪽만 스크롤 */

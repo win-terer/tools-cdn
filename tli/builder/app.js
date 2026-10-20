@@ -993,6 +993,8 @@ function hrRenderModal() {
   el.innerHTML = '<div class="gbm hrm"><div class="gbm-top"><b class="gbm-title">히어로 · 특성</b>' + (typeof gbmHelp === 'function' ? gbmHelp('hero') : '') + (page && typeof hpBuildPicker === 'function' ? hpBuildPicker() : '') +
     '<span class="gbm-keys"><kbd>클릭</kbd> 찍기 / 빼기 <span class="gbm-sep">·</span> 특성 레벨은 장착한 추억(근원·자기 수호·진격)을 따릅니다</span>' +
     (heroMsg ? '<span class="gbm-msg">' + escapeHtml(heroMsg.replace(/^⚠\s*/, '')) + '</span>' : '') +
+    // 프리셋이 없으면 빌더가 바로 1단계로 열려 목록의 [로그에서 가져오기]를 못 본다 — 빈 프리셋일 때만 머리줄 오른쪽 끝에 (2026-10-21 사용자)
+    (typeof wbLogPick === 'function' && typeof wzFilled === 'function' && !wzFilled(preset) ? '<button class="wz-btn gbm-log" onclick="wbLogPick()" title="게임 로그 파일에서 새 프리셋으로">🎮 로그에서 가져오기</button>' : '') +
     (typeof PAGE_SOLO !== 'undefined' && PAGE_SOLO ? '' : '<button class="gbm-x" onclick="hrCloseModal()">' + (page ? '빌더에서 이어서 짜기 →' : '닫기 ✕') + '</button>') + '</div>' +
     `<div class="gbm-body"><div class="gbm-side">${side}</div><div class="gbm-main">${main}</div></div></div>`;
   if (!page) el.style.display = 'flex';
