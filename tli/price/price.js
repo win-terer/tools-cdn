@@ -104,7 +104,10 @@ function prTableHtml(list, pool) {
   const last = it => { const d = prDays(it.id); return (d[days.filter(x => d[x]).pop()] || [0])[0]; };
   if (PR.sort === 'name') xs.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   else if (PR.sort === 'price') xs.sort((a, b) => last(b) - last(a));
-  else xs.sort((a, b) => Math.abs(prChange(b, iv) || 0) - Math.abs(prChange(a, iv) || 0));
+  else { // 변동률순 = 오른 것 위 → 내린 것 맨 아래 (사용자 2026-10-20), 그 구간 값이 없는 것은 그보다도 뒤
+    const pv = it => { const p = prChange(it, iv); return p == null ? -Infinity : p; };
+    xs.sort((a, b) => pv(b) - pv(a));
+  }
   if (!xs.length) return '<p class="pr-none">해당 아이템이 없습니다</p>';
   return `<div class="pr-tw"><table class="pr-t"><thead><tr><th>아이템</th>${days.map(d => `<th${iv.includes(d) ? ' class="sel"' : ''}>${d}일차</th>`).join('')}<th class="sel">${iv[0]}→${iv[1]}</th></tr></thead><tbody>` +
     xs.map(it => {
