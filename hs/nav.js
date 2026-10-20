@@ -47,7 +47,7 @@
   const GAME = isTli ? (tliEn ? 'Mini Torch DB' : '미니토치DB') : '미니히시즈DB', GAME_FULL = isTli ? 'Torchlight: Infinite · 토치라이트 인피니트' : 'Hero Siege · 히어로시즈';
   const LINKS = isTli ? [
     // DB — 누르면 통합 검색, 하위 메뉴로 각 탭에 바로 (2026-10-10 사용자 요청). tab = DB 화면 ?tab= 값 (DB 화면 안에서는 새로 불러오지 않고 탭만 바꾼다)
-    { label: 'DB', match: /^\/tli\/(db|price)/, kids: [
+    { label: 'DB', match: /^\/tli\/db/, kids: [
       { href: '/tli/db/?tab=total',    label: '통합 검색',   match: /^\/tli\/db/, tab: 'total' },
       { href: '/tli/db/?tab=all',      label: '장비 옵션',   match: /^\/tli\/db/, tab: 'all' },
       { href: '/tli/db/?tab=legend',   label: '레전드 장비', match: /^\/tli\/db/, tab: 'legend' },
@@ -56,7 +56,6 @@
       { href: '/tli/db/?tab=pact',     label: '정령',        match: /^\/tli\/db/, tab: 'pact' },
       { href: '/tli/db/?tab=skill',    label: '스킬',        match: /^\/tli\/db/, tab: 'skill' },
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
-      { href: '/tli/price/',           label: '소비 아이템 시세', match: /^\/tli\/price/ },   // 일차별 시세·변동률 (2026-10-20 사용자)
     ] },
     { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
@@ -76,6 +75,7 @@
       { href: '/tli/tracker/ttd/',    label: 'PC (TTD)',        match: /^\/tli\/tracker\/ttd/ },
       { href: '/tli/tracker/mobile/', label: '모바일 (mTTD)',   match: /^\/tli\/tracker\/mobile/ },
     ] },
+    // 소비 아이템 시세(/tli/price, 2026-10-20)는 메뉴에 넣지 않는다 — 사용자: 주소로만 (방문 집계 'price' 는 남김)
     // 'SS14 관련' 묶음(패치노트·없는 변경)은 시즌 시작(2026-10-16)으로 메뉴에서 뺐다 — 페이지는 남김
   ] : [
     // 페이지가 늘어 탭이 9개가 되자 헤더가 빡빡해져, 성격이 같은 것끼리 묶었다(2026-09-19).
