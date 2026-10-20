@@ -1,0 +1,117 @@
+// 생성물 — 고칠 땐 update/src/price_page.js (build_html2.build_tool_pages)
+// 소비 아이템 시세 (/tli/price, 2026-10-20 사용자 요청) — 시즌 초반 1·2·3·4·7·14일차 시세 + 구간별 변동률 순위
+// 데이터: CONSUM {cats, items:[{id, name, cat, q, icon, page, desc}]} (build_consum.py, tlidb Inventory 분류 29개)
+//         CPRICE {seasons:[{id, label, start}], items:{id:{시즌:{일차:[평균, 최저, 최고]}}}} (etor_prices.py --consum, 단위 결정)
+// 규칙: 가장 비쌀 때도 3결 이하인 아이템은 뺀다(사용자 2026-10-20 — 싼 건 몇 %가 움직여도 의미 없음)
+const PR_DAYS = [1, 2, 3, 4, 7, 14];
+const PR_IVS = [[1, 2], [2, 3], [3, 4], [4, 7], [7, 14], [1, 14]];
+const PR_MIN = 3;    // 결정
+const PR_TOP = 10;
+const PR_NOTE = '이 시세는 중국 트래커 易火 ETor 의 시세 서버에서 수집했습니다.\nETor 측의 허가를 받지 않고 가져온 자료라, 문제가 된다면 디스코드 win.terer 로 연락 주시면 바로 내리겠습니다.\n\n단위: 최초의 불꽃 결정. 일차는 시즌 시작일 기준입니다.';
+const PR = {se: '', iv: '1-2', cat: '', q: '', sort: 'pct'};
+const prEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const prNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
+const prPct = (a, b) => (b - a) / a * 100;
+const prPctTxt = p => (p > 0 ? '+' : '') + (Math.abs(p) >= 100 ? Math.round(p) : Math.round(p * 10) / 10) + '%';
+const prIv = () => PR.iv.split('-').map(Number);
+
+function prSeasons() { return (CPRICE.seasons || []).slice().sort((a, b) => +b.id - +a.id); }
+function prDays(id) { return (CPRICE.items[id] || {})[PR.se] || null; }
+// 이 시즌에 시세가 있고, 가장 비쌀 때 3결을 넘는 아이템
+function prPool() {
+  const all = CONSUM.items.filter(it => prDays(it.id));
+  const ok = all.filter(it => Math.max(...Object.values(prDays(it.id)).map(v => v[0])) > PR_MIN);
+  return {ok, cheap: all.length - ok.length, none: CONSUM.items.length - all.length};
+}
+function prHasDay(pool, d) { return pool.some(it => prDays(it.id)[d]); }
+function prChange(it, [a, b]) {
+  const d = prDays(it.id), x = d && d[a], y = d && d[b];
+  return x && y && x[0] > 0 ? prPct(x[0], y[0]) : null;
+}
+
+function prInit() {
+  const q = new URLSearchParams(location.search), ses = prSeasons();
+  PR.se = ses.some(s => s.id === q.get('se')) ? q.get('se') : (ses.find(s => s.label === 'SS13') || ses[0] || {}).id || '';
+  if (PR_IVS.some(v => v.join('-') === q.get('iv'))) PR.iv = q.get('iv');
+  if (CONSUM.cats.includes(q.get('cat'))) PR.cat = q.get('cat');
+  prRender();
+}
+function prSet(k, v) {
+  PR[k] = v;
+  const q = new URLSearchParams();
+  if (PR.se) q.set('se', PR.se); if (PR.iv !== '1-2') q.set('iv', PR.iv); if (PR.cat) q.set('cat', PR.cat);
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+  if (k === 'iv') window.wtEv && wtEv('price_iv', {tab: v});
+  prRender(k === 'q');
+}
+
+function prRender(onlyTable) {
+  const app = document.getElementById('priceApp'), ses = prSeasons();
+  if (!ses.length) { app.innerHTML = prTopHtml(null) + prEmptyHtml(); return; }
+  const pool = prPool();
+  // 고른 구간에 값이 없으면(진행 중인 시즌 등) 값이 있는 첫 구간으로
+  if (!PR_IVS.some(v => v.join('-') === PR.iv && prHasDay(pool.ok, v[0]) && prHasDay(pool.ok, v[1]))) {
+    const f = PR_IVS.find(v => prHasDay(pool.ok, v[0]) && prHasDay(pool.ok, v[1])); if (f) PR.iv = f.join('-');
+  }
+  const inCat = pool.ok.filter(it => !PR.cat || it.cat === PR.cat);
+  if (onlyTable) { document.getElementById('prTable').innerHTML = prTableHtml(inCat, pool); return; }
+  app.innerHTML = prTopHtml(pool) + prIvHtml(pool.ok) + prCatHtml(pool.ok) + prRankHtml(inCat) +
+    `<div class="pr-sec"><div class="pr-sech"><b>전체 시세</b><input class="pr-q" placeholder="아이템 이름 검색" value="${prEsc(PR.q)}" oninput="prSet('q', this.value)">` +
+    `<select class="pr-sort" onchange="prSet('sort', this.value)">${[['pct', '변동률순'], ['price', '가격순'], ['name', '이름순']].map(([k, t]) => `<option value="${k}"${PR.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>` +
+    `<div id="prTable">${prTableHtml(inCat, pool)}</div></div>`;
+}
+function prTopHtml(pool) {
+  const ses = prSeasons(), s = ses.find(x => x.id === PR.se);
+  const start = s && s.start ? new Date(s.start).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul', month: 'long', day: 'numeric'}) : '';
+  return `<div class="pr-top"><div class="pr-ttl"><b>소비 아이템 시세</b><small>시즌 초반 일차별 시세 · 변동률 순위</small></div>` +
+    (ses.length > 1 ? `<div class="pr-ses">${ses.map(x => `<button type="button" class="pr-chip${x.id === PR.se ? ' on' : ''}" onclick="prSet('se','${x.id}')">${prEsc(x.label)}</button>`).join('')}</div>` : '') +
+    `<div class="pr-meta">${s ? `${prEsc(s.label)} 1일차 = ${start}` : ''}${pool ? ` · 시세 ${pool.ok.length}개 · <span title="가장 비쌀 때도 ${PR_MIN}결정 이하">${PR_MIN}결 이하 ${pool.cheap}개 제외</span>` : ''}</div>` +
+    `<details class="pr-note"><summary title="${prEsc(PR_NOTE)}">ⓘ 시세 출처</summary><div>${prEsc(PR_NOTE).replace(/\n/g, '<br>')}</div></details></div>`;
+}
+function prEmptyHtml() {
+  return `<div class="pr-empty"><b>아직 시세를 받지 못했습니다</b><p>시세를 가져오는 ETor 서버가 지금 응답하지 않습니다. 서버가 돌아오는 대로 받아서 채우겠습니다.</p>` +
+    `<div class="pr-cats">${CONSUM.cats.map(c => `<span class="pr-chip">${prEsc(c)} <small>${CONSUM.items.filter(x => x.cat === c).length}</small></span>`).join('')}</div></div>`;
+}
+function prIvHtml(ok) {
+  return `<div class="pr-ivs" role="tablist">` + PR_IVS.map(v => {
+    const k = v.join('-'), has = prHasDay(ok, v[0]) && prHasDay(ok, v[1]);
+    return `<button type="button" class="pr-iv${PR.iv === k ? ' on' : ''}"${has ? ` onclick="prSet('iv','${k}')"` : ' disabled title="아직 그 일차 시세가 없습니다"'}>${v[0]}일차 → ${v[1]}일차${k === '1-14' ? ' <small>전체</small>' : ''}</button>`;
+  }).join('') + '</div>';
+}
+function prCatHtml(ok) {
+  const n = c => ok.filter(x => x.cat === c).length;
+  return `<div class="pr-cats"><button type="button" class="pr-chip${!PR.cat ? ' on' : ''}" onclick="prSet('cat','')">전체 <small>${ok.length}</small></button>` +
+    CONSUM.cats.filter(n).map(c => `<button type="button" class="pr-chip${PR.cat === c ? ' on' : ''}" onclick="prSet('cat','${prEsc(c)}')">${prEsc(c)} <small>${n(c)}</small></button>`).join('') + '</div>';
+}
+function prItemHead(it) {
+  return `<img src="${prEsc(it.icon)}" alt="" loading="lazy" class="q${it.q}" onerror="this.style.visibility='hidden'"><span class="pr-in"><b>${prEsc(it.name)}</b><small>${prEsc(it.cat)}</small></span>`;
+}
+function prRankHtml(list) {
+  const iv = prIv(), rows = list.map(it => [it, prChange(it, iv)]).filter(x => x[1] != null);
+  const up = rows.filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, PR_TOP);
+  const dn = rows.filter(x => x[1] < 0).sort((a, b) => a[1] - b[1]).slice(0, PR_TOP);
+  const li = ([it, p], i) => {
+    const d = prDays(it.id);
+    return `<li class="pr-r"><span class="pr-rk">${i + 1}</span>${prItemHead(it)}<span class="pr-rv"><em>${prNum(d[iv[0]][0])} → ${prNum(d[iv[1]][0])}</em><b class="${p > 0 ? 'up' : 'dn'}">${prPctTxt(p)}</b></span></li>`;
+  };
+  const col = (t, cls, xs) => `<div class="pr-rcol ${cls}"><div class="pr-rh">${t}</div>${xs.length ? '<ol>' + xs.map(li).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>`;
+  return `<div class="pr-rank">${col('▲ 가장 많이 오른 아이템', 'up', up)}${col('▼ 가장 많이 내린 아이템', 'dn', dn)}</div>`;
+}
+function prTableHtml(list, pool) {
+  const iv = prIv(), q = PR.q.trim().toLowerCase();
+  const days = PR_DAYS.filter(d => prHasDay(pool.ok, d));
+  let xs = list.filter(it => !q || it.name.toLowerCase().includes(q));
+  const last = it => { const d = prDays(it.id); return (d[days.filter(x => d[x]).pop()] || [0])[0]; };
+  if (PR.sort === 'name') xs.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  else if (PR.sort === 'price') xs.sort((a, b) => last(b) - last(a));
+  else xs.sort((a, b) => Math.abs(prChange(b, iv) || 0) - Math.abs(prChange(a, iv) || 0));
+  if (!xs.length) return '<p class="pr-none">해당 아이템이 없습니다</p>';
+  return `<div class="pr-tw"><table class="pr-t"><thead><tr><th>아이템</th>${days.map(d => `<th${iv.includes(d) ? ' class="sel"' : ''}>${d}일차</th>`).join('')}<th class="sel">${iv[0]}→${iv[1]}</th></tr></thead><tbody>` +
+    xs.map(it => {
+      const d = prDays(it.id), p = prChange(it, iv);
+      return `<tr><td class="pr-tn"><a href="https://tlidb.com/ko/${encodeURIComponent(it.page)}" target="_blank" rel="noopener" title="tlidb에서 보기">${prItemHead(it)}</a></td>` +
+        days.map(x => d[x] ? `<td${iv.includes(x) ? ' class="sel"' : ''} title="${x}일차 · 평균 ${d[x][0]} (최저 ${d[x][1]} ~ 최고 ${d[x][2]}) 결정">${prNum(d[x][0])}</td>` : '<td class="na">–</td>').join('') +
+        `<td class="sel pct ${p > 0 ? 'up' : p < 0 ? 'dn' : ''}">${p == null ? '–' : prPctTxt(p)}</td></tr>`;
+    }).join('') + '</tbody></table></div>';
+}
+prInit();

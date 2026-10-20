@@ -47,7 +47,7 @@
   const GAME = isTli ? (tliEn ? 'Mini Torch DB' : '미니토치DB') : '미니히시즈DB', GAME_FULL = isTli ? 'Torchlight: Infinite · 토치라이트 인피니트' : 'Hero Siege · 히어로시즈';
   const LINKS = isTli ? [
     // DB — 누르면 통합 검색, 하위 메뉴로 각 탭에 바로 (2026-10-10 사용자 요청). tab = DB 화면 ?tab= 값 (DB 화면 안에서는 새로 불러오지 않고 탭만 바꾼다)
-    { label: 'DB', match: /^\/tli\/db/, kids: [
+    { label: 'DB', match: /^\/tli\/(db|price)/, kids: [
       { href: '/tli/db/?tab=total',    label: '통합 검색',   match: /^\/tli\/db/, tab: 'total' },
       { href: '/tli/db/?tab=all',      label: '장비 옵션',   match: /^\/tli\/db/, tab: 'all' },
       { href: '/tli/db/?tab=legend',   label: '레전드 장비', match: /^\/tli\/db/, tab: 'legend' },
@@ -56,6 +56,7 @@
       { href: '/tli/db/?tab=pact',     label: '정령',        match: /^\/tli\/db/, tab: 'pact' },
       { href: '/tli/db/?tab=skill',    label: '스킬',        match: /^\/tli\/db/, tab: 'skill' },
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
+      { href: '/tli/price/',           label: '소비 아이템 시세', match: /^\/tli\/price/ },   // 일차별 시세·변동률 (2026-10-20 사용자)
     ] },
     { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
@@ -445,7 +446,7 @@
     const post = (u, o) => { if (!LIVE) return; try { fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(o), keepalive: true }).catch(() => {}); } catch (e) {} };
     const mode = () => document.documentElement.dataset.tliMode;
     const hsm = /^\/hs\/(db|augments|skills|crystals|tree|ether|journal|guides|tracker|market)(\/|$)/.exec(path);
-    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
+    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : path.startsWith('/tli/price') ? 'price' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
       : path.startsWith('/tli/db') ? 'db' : path.startsWith('/tli/share') ? 'share' : path.startsWith('/tli/view') ? 'view'
       : path.startsWith('/tli/hero') ? 'hero' : path.startsWith('/tli/tracker/mobile') ? 'tracker_m' : path.startsWith('/tli/tracker/ttd') ? 'tracker_t' : path.startsWith('/tli/tracker') ? 'tracker' : path.startsWith('/tli/talent') ? 'talent'
       : path.startsWith('/tli/preview/changes') ? 'changes' : path.startsWith('/tli/preview') ? 'notes'
