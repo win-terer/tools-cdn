@@ -35,6 +35,12 @@
     .pr-sech { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; } .pr-sech b { color: #f3e3b5; font-size: 14px; margin-right: auto; }
     .pr-q, .pr-sort { background: #0b0f17; border: 1px solid #2f3a4d; color: #e6edf3; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; }
     .pr-q { width: min(240px, 100%); } .pr-q:focus { outline: none; border-color: #e3b860; }
+    /* 가로로 넘기는 줄 — 기본 스크롤바 숨김 + 휠·끌기로 넘김 + 끝 흐림 (2026-10-20 사용자: 기본 스크롤바가 생길 때가 있음) */
+    .pb-cats, .pb-days, .pr-ivs { scrollbar-width: none; -ms-overflow-style: none; } .pb-cats::-webkit-scrollbar, .pb-days::-webkit-scrollbar, .pr-ivs::-webkit-scrollbar { display: none; }
+    .hs-more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent); }
+    .hs-more.hs-left { -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
+    .hs-end.hs-left { -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px); mask-image: linear-gradient(90deg, transparent, #000 48px); }
+    .hs-drag { cursor: grabbing; user-select: none; }
     /* 맞춤 드롭다운 (2026-10-20 사용자: 기본 셀렉트가 깨져 보임) */
     .dd { position: relative; display: inline-block; }
     .dd-b { display: inline-flex; align-items: center; gap: 8px; min-width: 104px; justify-content: space-between; padding: 7px 12px; border-radius: 8px; border: 1px solid #2f3a4d; background: #0b0f17; color: #e6edf3; font: inherit; font-size: 13px; cursor: pointer; }
@@ -129,7 +135,7 @@
     .pb-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 2px 8px; }
     .pb-bt { color: #c9d1d9; font-size: 14px; } .pb-bt b { color: #f3e3b5; } .pb-bt small { color: #7d8794; font-size: 12px; margin-left: 6px; }
     .pb-opts { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; } .pb-opts .pr-nohot { margin: 0; float: none; }
-    .pb-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; scrollbar-width: thin; } .pb-cats .pr-chip { flex: none; }
+    .pb-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 10px; } .pb-cats .pr-chip { flex: none; }
     .pb-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 8px; }
     .pb-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px; background: #0f141f; border: 1px solid #1f2735; min-width: 0; }
     .pb-card.top { border-color: #4a3d1e; background: linear-gradient(135deg, #1b1610, #0f141f 60%); }

@@ -66,7 +66,23 @@ function lvTable(rows) {
       `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>' +
     (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(10)">더보기 +10</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length} / ${all}</small></div>` : '');
 }
-function lvRender(onlyTable) {
+// 가로로 넘기는 줄(분류 칩·일차 줄) — 휠로 옆으로, 끌어서 넘기기, 끝 흐림 표시 (2026-10-20 사용자: 기본 스크롤바가 보일 때가 있음)
+function hsMark(el) { const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2; el.classList.toggle('hs-more', r); el.classList.toggle('hs-left', l); el.classList.toggle('hs-end', l && !r); }
+function hsInit() {
+  document.querySelectorAll('.pb-cats, .pb-days, .pr-ivs').forEach(el => {
+    hsMark(el); if (el.dataset.hs) return; el.dataset.hs = 1;
+    el.addEventListener('scroll', () => hsMark(el), {passive: true});
+    el.addEventListener('wheel', e => { if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; e.preventDefault(); el.scrollLeft += e.deltaY; }, {passive: false});
+    let x0 = null, s0 = 0, moved = false;
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || el.scrollWidth <= el.clientWidth) return; x0 = e.clientX; s0 = el.scrollLeft; moved = false; });
+    el.addEventListener('pointermove', e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 4) { moved = true; el.classList.add('hs-drag'); } el.scrollLeft = s0 - dx; });
+    const up = () => { x0 = null; el.classList.remove('hs-drag'); };
+    el.addEventListener('pointerup', up); el.addEventListener('pointerleave', up);
+    el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);  // 끌고 난 뒤 칩이 눌리지 않게
+  });
+}
+addEventListener('resize', () => document.querySelectorAll('.pb-cats, .pb-days, .pr-ivs').forEach(hsMark));
+function lvRenderRaw(onlyTable) {
   const app = document.getElementById('priceApp'), rows = lvRows(), td = lvDay();
   if (onlyTable) { document.getElementById('lvTable').innerHTML = lvTable(rows); return; }
   const mv = rows.filter(r => r.pct != null);
@@ -108,3 +124,5 @@ document.addEventListener('mousemove', e => { const el = e.target.closest && e.t
   lvTip.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - w - 8)) + 'px'; lvTip.style.top = (e.clientY + 18 + h > innerHeight ? e.clientY - h - 12 : e.clientY + 18) + 'px'; });
 lvRender(); lvLoad();
 setInterval(lvLoad, 5 * 60e3);  // 5분마다 다시 (서버는 30분마다 갱신)
+
+function lvRender(a) { lvRenderRaw(a); hsInit(); }
