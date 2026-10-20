@@ -916,10 +916,13 @@ function gbPzSave() {
   gbPzEd = null;
   gbSaved();
 }
+// 드롭처 (tlidb Drop_Source — 제노 프리즘 24종 전부 '이면세계 콘텐츠 한정 드롭', 역상은 이면세계 문지기, 사용자 요청 2026-10-20)
+const PRISM_DROP = '이면세계 콘텐츠 한정 드롭';
+const INV_DROP = '이면세계(아득 8단계 이상) 보스 "문지기" 처치 시 확률 드롭';
 function gbPzPopup() { // 편집 팝업 HTML
   const e = gbPzEd;
   if (e.k === 'i') {
-    return `<div class="gbz-h"><b>◆ 역상</b><small>범위(장착 노드 둘레 3×3)를 보드 반대편으로 복사 — 복사된 노드 효과에 아래 비율이 붙습니다</small><button class="gbz-x" onclick="gbPzClose()">✕</button></div>` +
+    return `<div class="gbz-h"><b>◆ 역상</b><small>범위(장착 노드 둘레 3×3)를 보드 반대편으로 복사 — 복사된 노드 효과에 아래 비율이 붙습니다</small><span class="gbz-drop">드롭처 · ${INV_DROP}</span><button class="gbz-x" onclick="gbPzClose()">✕</button></div>` +
       GB_INV.map(([t, lb, lo, hi]) => `<label class="gbz-iv"><span>반사 후 ${lb} 재능 효과</span><input type="number" min="${lo}" max="${hi}" step="1" value="${e.iv[t]}" onchange="gbPzIv('${t}', this.value)"><em>% (${lo} ~ +${hi})</em></label>`).join('') +
       '<div class="gbz-note">−100% = 그 등급은 반사 효과 없음. 게임에서 역상에 붙은 수치를 그대로 넣으세요.</div>' +
       `<div class="gbz-acts"><button class="gbz-btn pri" onclick="gbPzSave()">${gbpOf('i') ? '저장' : '저장하고 보드에 놓기'}</button><button class="gbz-btn" onclick="gbPzClose()">취소</button></div>`;
@@ -929,7 +932,7 @@ function gbPzPopup() { // 편집 팝업 HTML
     return `<span class="gbz-tab${e.stage === i ? ' on' : ''}${done ? ' done' : ''}" onclick="gbPzStage(${i})">${lb}${done ? ' ✓' : ''}</span>`;
   }).join('');
   const picked = e.item ? `<div class="gbz-picked"><b>${escapeHtml(e.item)}</b>` + e.opts.map((o, i) => o ? `<div>${i + 1}. ${escapeHtml(o.effect)}</div>` : '').join('') + '</div>' : '';
-  return `<div class="gbz-h"><b>◆ 제노 프리즘</b><small>종류와 옵션 3칸을 고른 뒤 보드에 놓습니다 (안 고른 칸은 비워 둬도 됨)</small><button class="gbz-x" onclick="gbPzClose()">✕</button></div>` +
+  return `<div class="gbz-h"><b>◆ 제노 프리즘</b><small>종류와 옵션 3칸을 고른 뒤 보드에 놓습니다 (안 고른 칸은 비워 둬도 됨)</small><span class="gbz-drop">드롭처 · ${PRISM_DROP}</span><button class="gbz-x" onclick="gbPzClose()">✕</button></div>` +
     `<div class="gbz-tabs">${tabs}</div>${picked}` +
     `<input class="gbz-q" type="search" placeholder="${e.stage ? '옵션' : '프리즘'} 검색" value="${escapeHtml(e.q || '')}" oninput="gbPzSearch(this.value)">` +
     `<div class="gbz-list" id="gbPzList">${gbPzRows()}</div>` +
