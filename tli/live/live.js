@@ -113,8 +113,14 @@ document.addEventListener('click', () => document.querySelectorAll('.dd.open').f
 function lvSort(v) { lvSet('sort', v); }
 function lvSet(k, v) { LV[k] = v; LV.more = 10; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 10개부터
 function lvMore(n) { LV.more += n; lvRender(true); }
+// 묶음 단위로 보는 아이템 (it.u, 빌드가 붙임 — 영감 재료 500개 기준): 서버의 낱개 가격 [평균, 최저, 최고, 표본, 시각, 마지막] 에 곱한다
+const LV_UNIT = Object.fromEntries(LCONSUM.items.filter(it => it.u).map(it => [it.id, it.u]));
+function lvScale(o) {
+  Object.entries(LV_UNIT).forEach(([id, u]) => { const x = o.items && o.items[id]; if (!x) return;
+    ['t', 'y'].forEach(k => { const a = x[k]; if (a) [0, 1, 2, 5].forEach(i => { if (a[i] != null) a[i] *= u; }); }); });
+}
 async function lvLoad() {
-  try { const r = await fetch('/api/price-now', {cache: 'no-store'}); if (r.ok) { const o = await r.json(); if (o.ok && o.season === LSEASON.id) LV.now = o; } } catch (e) {}
+  try { const r = await fetch('/api/price-now', {cache: 'no-store'}); if (r.ok) { const o = await r.json(); if (o.ok && o.season === LSEASON.id) { lvScale(o); LV.now = o; } } } catch (e) {}
   lvRender();
 }
 // 맞춤 툴팁 (소비 아이템 시세 화면과 같음)
