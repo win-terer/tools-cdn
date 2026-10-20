@@ -446,7 +446,7 @@
     const post = (u, o) => { if (!LIVE) return; try { fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(o), keepalive: true }).catch(() => {}); } catch (e) {} };
     const mode = () => document.documentElement.dataset.tliMode;
     const hsm = /^\/hs\/(db|augments|skills|crystals|tree|ether|journal|guides|tracker|market)(\/|$)/.exec(path);
-    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : path.startsWith('/tli/price') ? 'price' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
+    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : path.startsWith('/tli/price') ? 'price' : path.startsWith('/tli/live') ? 'live' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
       : path.startsWith('/tli/db') ? 'db' : path.startsWith('/tli/share') ? 'share' : path.startsWith('/tli/view') ? 'view'
       : path.startsWith('/tli/hero') ? 'hero' : path.startsWith('/tli/tracker/mobile') ? 'tracker_m' : path.startsWith('/tli/tracker/ttd') ? 'tracker_t' : path.startsWith('/tli/tracker') ? 'tracker' : path.startsWith('/tli/talent') ? 'talent'
       : path.startsWith('/tli/preview/changes') ? 'changes' : path.startsWith('/tli/preview') ? 'notes'
