@@ -1817,6 +1817,12 @@ function hlNums(html) {
 // 지난 시즌 초반 시세 — 易火 ETor 시세 서버에서 시즌마다 한 번 받은 값 (update/etor_prices.py, 2026-10-14 사용자 요청)
 // it.ep = [[시즌, {일차: [평균, 최저, 최고]}], …] · 단위 결정 · 거래소는 글로벌 통합이라 같은 시세 (사용자 확인 2026-10-14)
 const ITEM_PRICE_DAYS = [[1, '1일'], [2, '2일'], [3, '3일'], [7, '1주'], [14, '2주']];
+// 레전드 드롭처 — tlidb Drop_Source ('이계 구역 드롭' 제외, 사용자 요청 2026-10-20). 없으면 이계 어디서나 나오는 레전드
+function itemDropHtml(it) {
+  if (!it || !it.drop || !it.drop.length) return '';
+  return '<div class="icard-drop"><div class="icard-drop-h">드롭처 <small>이계 구역 일반 드롭 외</small></div>' +
+    it.drop.map(t => `<div class="icard-drop-r">${escapeHtml(t)}</div>`).join('') + '</div>';
+}
 function itemPriceHtml(it) {
   if (!it || !it.ep || !it.ep.length) return '';
   const f = v => v >= 100 ? Math.round(v) : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
@@ -3876,6 +3882,7 @@ function wgItemPool() { // 이 칸에 들어갈 레전드 [{idx, name, part}] �
     if (!seen.has(r.type)) seen.set(r.type, {idx: +r.item, name: r.type, part: r.source || '특수 갑옷', txt: r.type});
     seen.get(r.type).txt += ' ' + r.effect;
   });
+  seen.forEach(g => { const it = ITEMS[g.idx]; if (it && it.drop) g.txt += ' ' + it.drop.join(' '); }); // 드롭처로도 찾기 (2026-10-20)
   return [...seen.values()];
 }
 function wgEquipItem(idx) {
@@ -3903,7 +3910,7 @@ function wgItemCard(it) {
     (it.attrs && it.attrs.length ? `<div class="icard-attrs">${it.attrs.map(l => `<div>${l}</div>`).join('')}</div>` : '') +
     (it.opts && it.opts.length ? `<div class="icard-opts">${it.opts.map(l => `<div class="icard-opt">${l}</div>`).join('')}</div>` : '') +
     (it.corr && it.corr.length ? '<div class="ccard-sec">침식화 시 (최대 2개 강화)</div>' + it.corr.map(c => `<div class="icard-opt">${c[1]}</div>`).join('') : '') +
-    itemPoolsHtml(it) + itemPriceHtml(it) +
+    itemPoolsHtml(it) + itemPriceHtml(it) + itemDropHtml(it) +
     (it.flavor ? `<div class="wg-flavor">${it.flavor}</div>` : '') + '</div>';
 }
 function wgFocusOn(idx) { const b = document.getElementById('wgCard'); if (b) b.innerHTML = wgItemCard(ITEMS[idx]); }
@@ -4276,7 +4283,7 @@ function wgViewOptsHtml(v) {
     return `<div class="wg-vsec">${WG_ADD[k]}</div><div class="wg-vo wg-vadd"><span>${wgOptHtml(v[k].effect, src.tips)}</span>${sub ? `<em class="wg-vt">${escapeHtml(sub)}</em>` : ''}</div>`;
   }).join('');
   const it = v.kind === 'item' ? (ITEMS[wgItemIdx(v.name)] || v.snap || {}) : {};
-  return wgViewOptsCore(v, addSec) + itemPriceHtml(it) + (it.flavor ? `<div class="wg-flavor">${it.flavor}</div>` : ''); // 지난 시즌 초반 시세(ETor) · 설명 문구는 맨 끝
+  return wgViewOptsCore(v, addSec) + itemPriceHtml(it) + itemDropHtml(it) + (it.flavor ? `<div class="wg-flavor">${it.flavor}</div>` : ''); // 지난 시즌 초반 시세(ETor) · 설명 문구는 맨 끝
 }
 function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 옵션 바로 아래(레전드는 옵션 위) (사용자 요청)
   const ero = v.ero || [], list = wgEroList(v);

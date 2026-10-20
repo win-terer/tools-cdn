@@ -634,6 +634,12 @@ function hlNums(html) {
 // 지난 시즌 초반 시세 — 易火 ETor 시세 서버에서 시즌마다 한 번 받은 값 (update/etor_prices.py, 2026-10-14 사용자 요청)
 // it.ep = [[시즌, {일차: [평균, 최저, 최고]}], …] · 단위 결정 · 거래소는 글로벌 통합이라 같은 시세 (사용자 확인 2026-10-14)
 const ITEM_PRICE_DAYS = [[1, '1일'], [2, '2일'], [3, '3일'], [7, '1주'], [14, '2주']];
+// 레전드 드롭처 — tlidb Drop_Source ('이계 구역 드롭' 제외, 사용자 요청 2026-10-20). 없으면 이계 어디서나 나오는 레전드
+function itemDropHtml(it) {
+  if (!it || !it.drop || !it.drop.length) return '';
+  return '<div class="icard-drop"><div class="icard-drop-h">드롭처 <small>이계 구역 일반 드롭 외</small></div>' +
+    it.drop.map(t => `<div class="icard-drop-r">${escapeHtml(t)}</div>`).join('') + '</div>';
+}
 function itemPriceHtml(it) {
   if (!it || !it.ep || !it.ep.length) return '';
   const f = v => v >= 100 ? Math.round(v) : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
@@ -12253,7 +12259,7 @@ function renderLegend() {
   const base = legendBase();
   const hay = it => it._lgHay || (it._lgHay = norm([it.name, ...(it.tags || []), base[it.name] || '',
     ...(it.opts_t || (it.opts || []).map(o => plainText(typeof o === 'string' ? o : (o && o.effect) || ''))),
-    ...(it.corr_t || []).map(c => c[1])].join('\n')));
+    ...(it.corr_t || []).map(c => c[1]), ...(it.drop || [])].join('\n')));  // 드롭처(콘텐츠 이름)로도 찾기 (2026-10-20)
   const list = ITEMS.map((it, i) => ({ it, i })).filter(x => !words.length || words.every(w => hay(x.it).includes(w)));
   const cnt = document.getElementById('legendCount'); if (cnt) cnt.textContent = list.length + '개';
   wtMiss('legend', (document.getElementById('legendSearch').value || '').trim(), list.length);
@@ -12427,7 +12433,7 @@ function renderTotal() {
   const groups = [
     {title: '⚔ 장비 옵션', go: 'equip', rows: ALL_DATA.filter(r => r.category === '장비' && totalMatch(tokens, ['장비 옵션', r.effect, ...st(r.source, r.type), ...rowTipTexts(r)])),
       line: r => [r.effect, (r.source || '특수 갑옷') + ' · ' + r.type], html: r => renderEffect(r, kws)},
-    {title: '🏆 레전드 아이템', go: 'item', rows: ITEMS.map((it, i) => ({it, i})).filter(x => totalMatch(tokens, ['레전드 아이템', x.it.name, (x.it.tags || []).join(' '), ...(x.it.attrs || []).map(stripHtml), ...(x.it.opts || []).map(stripHtml)])),
+    {title: '🏆 레전드 아이템', go: 'item', rows: ITEMS.map((it, i) => ({it, i})).filter(x => totalMatch(tokens, ['레전드 아이템', x.it.name, (x.it.tags || []).join(' '), ...(x.it.attrs || []).map(stripHtml), ...(x.it.opts || []).map(stripHtml), ...(x.it.drop || [])])),
       line: x => [x.it.name, (x.it.tags || []).join(' · ')], idx: x => x.i,
       html: x => `<span class="ilink" data-item="${x.i}">${highlight(x.it.name, kws)}</span>`},
     {title: '✨ 재능', go: 'talent', rows: ALL_DATA.filter(r => r.category === '재능' && totalMatch(tokens, ['재능', r.effect, ...st(r.type), ...rowTipTexts(r)])),
@@ -12598,7 +12604,7 @@ function itemCardHtml(it, idx, ero) {
   }).join('')}</div>`;
   // 침식화 옵션 (tlidb 상세 페이지의 Corroded 카드 — 옵션 순서는 위 opts와 1:1 대응)
   if (it.corr && it.corr.length && !ero) h += `<div class="icard-corr"><div class="icard-corr-head">침식화 시 (최대 2개 강화 가능)</div>${it.corr.map(c => `<div class="icard-opt">${c[1]}</div>`).join('')}</div>`;
-  if (!ero) h += itemPoolsHtml(it) + itemPriceHtml(it);
+  if (!ero) h += itemPoolsHtml(it) + itemPriceHtml(it) + itemDropHtml(it);
   if (it.flavor) h += `<div class="icard-flavor">${it.flavor}</div>`;
   return h + '</div>';
 }

@@ -176,6 +176,12 @@ function hlNums(html) {
 // 지난 시즌 초반 시세 — 易火 ETor 시세 서버에서 시즌마다 한 번 받은 값 (update/etor_prices.py, 2026-10-14 사용자 요청)
 // it.ep = [[시즌, {일차: [평균, 최저, 최고]}], …] · 단위 결정 · 거래소는 글로벌 통합이라 같은 시세 (사용자 확인 2026-10-14)
 const ITEM_PRICE_DAYS = [[1, '1일'], [2, '2일'], [3, '3일'], [7, '1주'], [14, '2주']];
+// 레전드 드롭처 — tlidb Drop_Source ('이계 구역 드롭' 제외, 사용자 요청 2026-10-20). 없으면 이계 어디서나 나오는 레전드
+function itemDropHtml(it) {
+  if (!it || !it.drop || !it.drop.length) return '';
+  return '<div class="icard-drop"><div class="icard-drop-h">드롭처 <small>이계 구역 일반 드롭 외</small></div>' +
+    it.drop.map(t => `<div class="icard-drop-r">${escapeHtml(t)}</div>`).join('') + '</div>';
+}
 function itemPriceHtml(it) {
   if (!it || !it.ep || !it.ep.length) return '';
   const f = v => v >= 100 ? Math.round(v) : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
