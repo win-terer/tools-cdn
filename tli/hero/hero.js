@@ -329,13 +329,18 @@ function hrRenderModal() {
   el.innerHTML = '<div class="gbm hrm"><div class="gbm-top"><b class="gbm-title">히어로 · 특성</b>' + (typeof gbmHelp === 'function' ? gbmHelp('hero') : '') + (page && typeof hpBuildPicker === 'function' ? hpBuildPicker() : '') +
     '<span class="gbm-keys"><kbd>클릭</kbd> 찍기 / 빼기 <span class="gbm-sep">·</span> 특성 레벨은 장착한 추억(근원·자기 수호·진격)을 따릅니다</span>' +
     (heroMsg ? '<span class="gbm-msg">' + escapeHtml(heroMsg.replace(/^⚠\s*/, '')) + '</span>' : '') +
-    // 빌드가 없으면 빌더가 바로 1단계로 열려 목록의 [로그에서 가져오기]를 못 본다 — 빈 빌드일 때만 머리줄 오른쪽 끝에 (2026-10-21 사용자)
-    (typeof wbLogPick === 'function' && typeof wzFilled === 'function' && !wzFilled(preset) ? '<button class="wz-btn gbm-log" onclick="wbLogPick()" title="게임 로그 파일에서 새 빌드로">🎮 로그에서 가져오기</button>' : '') +
+    // 빌드가 없으면 빌더가 바로 1단계로 열려 목록의 [로그에서 가져오기]를 못 본다 — 머리줄 오른쪽 끝에 (2026-10-21 사용자, 채운 빌드는 누를 때 확인 한 번)
+    (typeof wbLogPick === 'function' ? '<button class="wz-btn gbm-log" onclick="hrLogPick()" title="게임 로그 파일에서 새 빌드로">🎮 로그에서 가져오기</button>' : '') +
     (typeof PAGE_SOLO !== 'undefined' && PAGE_SOLO ? '' : '<button class="gbm-x" onclick="hrCloseModal()">' + (page ? '빌더에서 이어서 짜기 →' : '닫기 ✕') + '</button>') + '</div>' +
     `<div class="gbm-body"><div class="gbm-side">${side}</div><div class="gbm-main">${main}</div></div></div>`;
   if (!page) el.style.display = 'flex';
   heroClampMark(el);
   hrScrollHint(el);
+}
+function hrLogPick() {
+  if (typeof wzFilled === 'function' && wzFilled(preset) &&
+    !confirm(`로그에서 가져오면 새 빌드가 하나 더 만들어집니다.\n지금 빌드 [${preset.name || '빌드 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`)) return;
+  wbLogPick();
 }
 // 좁은 화면에서 트리가 넘치면 '옆으로 밀어서 보기' 표시 + 오른쪽 끝 흐림 (잘린 줄 알았다 — 2026-10-15)
 function hrScrollHint(root) {
