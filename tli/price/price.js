@@ -15,7 +15,8 @@ const prPct = (a, b) => (b - a) / a * 100;
 const prPctTxt = p => (p > 0 ? '+' : '') + (Math.abs(p) >= 100 ? Math.round(p) : Math.round(p * 10) / 10) + '%';
 const prIv = () => PR.iv.split('-').map(Number);
 
-function prSeasons() { return (CPRICE.seasons || []).slice().sort((a, b) => +b.id - +a.id); }
+// 시즌 순서 = 표기의 숫자(SS14 → SS11) — id 는 ETor('1601')·TTD('s12') 가 섞인다
+function prSeasons() { const n = s => +String(s.label).replace(/\D/g, '') || 0; return (CPRICE.seasons || []).slice().sort((a, b) => n(b) - n(a)); }
 function prDays(id) { return (CPRICE.items[id] || {})[PR.se] || null; }
 // 이 시즌에 시세가 있고, 가장 비쌀 때 3결을 넘는 아이템
 function prPool() {
@@ -35,6 +36,20 @@ function prInit() {
   if (PR_IVS.some(v => v.join('-') === q.get('iv'))) PR.iv = q.get('iv');
   if (CONSUM.cats.includes(q.get('cat'))) PR.cat = q.get('cat');
   prRender();
+  prLoadOld();
+}
+// SS11·SS12 (TTD 디아블로 기록) — 관리자만 (사용자 2026-10-20). 서버가 관리 쿠키를 보고 내주고, 아니면 404 라 조용히 지나간다
+async function prLoadOld() {
+  try {
+    const r = await fetch('/tli/price/old_prices.json', {credentials: 'same-origin', cache: 'no-store'});
+    if (!r.ok) return;
+    const o = await r.json();
+    (o.seasons || []).forEach(x => { if (!CPRICE.seasons.some(y => y.id === x.id)) CPRICE.seasons.push(Object.assign({lock: true}, x)); });
+    Object.entries(o.items || {}).forEach(([id, v]) => { CPRICE.items[id] = Object.assign(CPRICE.items[id] || {}, v); });
+    const q = new URLSearchParams(location.search).get('se');
+    if (q && (o.seasons || []).some(x => x.id === q)) PR.se = q;
+    prRender();
+  } catch (e) {}
 }
 function prSet(k, v) {
   PR[k] = v;
@@ -64,8 +79,8 @@ function prTopHtml(pool) {
   const ses = prSeasons(), s = ses.find(x => x.id === PR.se);
   const start = s && s.start ? new Date(s.start).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul', month: 'long', day: 'numeric'}) : '';
   return `<div class="pr-top"><div class="pr-ttl"><b>소비 아이템 시세</b><small>시즌 초반 일차별 시세 · 변동률 순위</small></div>` +
-    (ses.length > 1 ? `<div class="pr-ses">${ses.map(x => `<button type="button" class="pr-chip${x.id === PR.se ? ' on' : ''}" onclick="prSet('se','${x.id}')">${prEsc(x.label)}</button>`).join('')}</div>` : '') +
-    `<div class="pr-meta">${s ? `${prEsc(s.label)} 1일차 = ${start}` : ''}${pool ? ` · 시세 ${pool.ok.length}개 · <span title="가장 비쌀 때도 ${PR_MIN}결정 이하">${PR_MIN}결 이하 ${pool.cheap}개 제외</span>` : ''}</div>` +
+    (ses.length > 1 ? `<div class="pr-ses">${ses.map(x => `<button type="button" class="pr-chip${x.id === PR.se ? ' on' : ''}${x.lock ? ' lock' : ''}" onclick="prSet('se','${x.id}')"${x.lock ? ' title="관리자에게만 보이는 시즌 (TTD 디아블로 기록)"' : ''}>${prEsc(x.label)}${x.lock ? ' 🔒' : ''}</button>`).join('')}</div>` : '') +
+    `<div class="pr-meta">${s ? `${prEsc(s.label)} 1일차 = ${start}` : ''}${s && s.src === 'TTD' ? ' · <b class="pr-src" title="ETor 에 기록이 없는 시즌이라 TTD 디아블로(ttdiablo.com) 기록을 씁니다. 같은 결정 단위이고, SS13 을 비교하면 ETor 보다 4%쯤 낮게 나옵니다.">TTD 디아블로 기록 · 관리자만</b>' : ''}${pool ? ` · 시세 ${pool.ok.length}개 · <span title="가장 비쌀 때도 ${PR_MIN}결정 이하">${PR_MIN}결 이하 ${pool.cheap}개 제외</span>` : ''}</div>` +
     `<details class="pr-note"><summary title="${prEsc(PR_NOTE)}">ⓘ 시세 출처</summary><div>${prEsc(PR_NOTE).replace(/\n/g, '<br>')}</div></details></div>`;
 }
 function prEmptyHtml() {
