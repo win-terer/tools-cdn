@@ -46,6 +46,11 @@
     .pr-tn a:hover b { color: #f3e3b5; }
     .pr-empty { padding: 24px; border-radius: 14px; border: 1px dashed #2f3a4d; background: #0d1117; } .pr-empty b { color: #f3e3b5; font-size: 15px; }
     .pr-empty p { color: #9aa4b2; font-size: 13px; margin: 6px 0 14px; } .pr-empty .pr-chip { cursor: default; }
+    .pr-bdb { display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; line-height: 1.25; }
+    .pr-bdb small { font-size: 11px; font-weight: 400; opacity: .75; }
+    .pr-bdb.today:not(.on) { box-shadow: inset 0 0 0 1.5px #e3b860; color: #f3e3b5; }
+    .pr-tdy { position: absolute; top: -8px; right: 6px; padding: 1px 7px; border-radius: 999px; background: #ff7b54; color: #fff; font-size: 10.5px; font-weight: 800; }
+    .pr-tdyt { color: #ff9a6a; }
     .pr-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
     .pr-tab { padding: 7px 16px; border-radius: 10px; border: 1px solid #2f3a4d; background: #0f141f; color: #c9d1d9; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
     .pr-tab.on { border-color: #e3b860; color: #f3e3b5; background: #1d1a12; }

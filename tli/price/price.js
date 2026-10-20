@@ -3,13 +3,13 @@
 // 데이터: CONSUM {cats, items:[{id, name, cat, q, icon, page, desc}]} (build_consum.py, tlidb Inventory 분류 29개)
 //         CPRICE {seasons:[{id, label, start}], items:{id:{시즌:{일차:[평균, 최저, 최고]}}}} (etor_prices.py --consum, 단위 결정)
 // 규칙: 가장 비쌀 때도 3결 이하인 아이템은 뺀다(사용자 2026-10-20 — 싼 건 몇 %가 움직여도 의미 없음)
-const PR_DAYS = [1, 2, 3, 4, 5, 6, 7, 14];  // 7일차까지 매일 + 14일차 (사용자 2026-10-20)
-const PR_IVS = [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 14], [1, 7], [1, 14]];
+const PR_DAYS = Array.from({length: 14}, (_, i) => i + 1);  // 1~14일차 매일 (사용자 2026-10-20)
+const PR_IVS = PR_DAYS.slice(0, -1).map(d => [d, d + 1]).concat([[1, 7], [7, 14], [1, 14]]);
 const PR_MIN = 3;    // 결정
 const PR_TOP = 10;
 const PR_NOTE = '이 시세는 중국 트래커 易火 ETor 의 시세 서버에서 수집했습니다.\nETor 측의 허가를 받지 않고 가져온 자료라, 문제가 된다면 디스코드 win.terer 로 연락 주시면 바로 내리겠습니다.\n\n단위: 최초의 불꽃 결정. 일차는 시즌 시작일 기준입니다.';
 const PR = {se: '', iv: '1-2', cat: '', q: '', sort: 'pct', mode: 'list', bd: 1, admin: false};
-const PR_BUY_DAYS = [1, 2, 3, 4, 5, 6, 7];
+const PR_BUY_DAYS = PR_DAYS.slice(0, -1);  // 1~13일차에 사서 다음 날 팔기
 const PR_BUY_TOP = 20, PR_BUY_MIN = 2;  // 추천은 2개 시즌 이상 기록이 있는 것만
 const prEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const prNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
@@ -52,7 +52,9 @@ async function prLoadOld() {
     if (q && (o.seasons || []).some(x => x.id === q)) PR.se = q;
     PR.admin = true;
     if (sp.get('mode') === 'buy') PR.mode = 'buy';
-    if (PR_BUY_DAYS.includes(+sp.get('bd'))) PR.bd = +sp.get('bd');
+    // 구매일 = 주소에 있으면 그것, 없으면 이번 시즌 오늘 일차 (사용자 2026-10-20) — 13일차를 넘었으면 13일차
+    const td = prToday();
+    PR.bd = PR_BUY_DAYS.includes(+sp.get('bd')) ? +sp.get('bd') : td ? Math.min(Math.max(td, 1), 13) : 1;
     prRender();
   } catch (e) {}
 }
@@ -99,7 +101,7 @@ function prEmptyHtml() {
 function prIvHtml(ok) {
   return `<div class="pr-ivs" role="tablist">` + PR_IVS.map(v => {
     const k = v.join('-'), has = prHasDay(ok, v[0]) && prHasDay(ok, v[1]);
-    return `<button type="button" class="pr-iv${PR.iv === k ? ' on' : ''}"${has ? ` onclick="prSet('iv','${k}')"` : ' disabled title="아직 그 일차 시세가 없습니다"'}>${v[0]}일차 → ${v[1]}일차${k === '1-14' ? ' <small>전체</small>' : k === '1-7' ? ' <small>첫 주</small>' : ''}</button>`;
+    return `<button type="button" class="pr-iv${PR.iv === k ? ' on' : ''}"${has ? ` onclick="prSet('iv','${k}')"` : ' disabled title="아직 그 일차 시세가 없습니다"'}>${v[0]}일차 → ${v[1]}일차${k === '1-14' ? ' <small>2주</small>' : k === '1-7' ? ' <small>첫 주</small>' : k === '7-14' ? ' <small>둘째 주</small>' : ''}</button>`;
   }).join('') + '</div>';
 }
 function prCatHtml(ok) {
@@ -148,6 +150,10 @@ function prTabsHtml() {
   return `<div class="pr-tabs"><button type="button" class="pr-tab${PR.mode === 'list' ? ' on' : ''}" onclick="prSet('mode','list')">📈 시세</button>` +
     `<button type="button" class="pr-tab${PR.mode === 'buy' ? ' on' : ''}" onclick="prSet('mode','buy')" title="관리자에게만 보이는 화면">🛒 추천 구매 🔒</button></div>`;
 }
+// 이번 시즌(가장 최근) 기준 일차·날짜 — 1일차 = 시즌 start(KST 자정)
+const prCur = () => prSeasons()[0];
+const prDayDate = d => { const c = prCur(); return c && c.start ? new Date(c.start + (d - 1) * 864e5).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric'}).replace(/\.\s?/g, '/').replace(/\/$/, '') : ''; };
+function prToday() { const c = prCur(); return c && c.start ? Math.floor((Date.now() - c.start) / 864e5) + 1 : 0; }
 const prMed = a => { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 function prBuyRows() {
   const ses = prSeasons(), bd = PR.bd, out = [];
@@ -157,7 +163,7 @@ function prBuyRows() {
     const top = Math.max(0, ...Object.values(per).flatMap(d => Object.values(d).map(v => v[0])));
     if (top <= PR_MIN) return;  // 시세 화면과 같은 규칙 — 가장 비쌀 때도 3결 이하면 뺀다
     let best = null;
-    // 판매일 = 바로 다음 날 (사용자 2026-10-20 — 처음엔 '가장 많이 오른 날'을 골랐다). 7일차 다음 기록은 14일차
+    // 판매일 = 바로 다음 날 (사용자 2026-10-20 — 처음엔 '가장 많이 오른 날'을 골랐다)
     PR_DAYS.filter(d => d > bd).slice(0, 1).forEach(sd => {
       const ps = ses.map(x => { const d = per[x.id]; return d && d[bd] && d[sd] && d[bd][0] > 0 ? [x.label, prPct(d[bd][0], d[sd][0])] : null; }).filter(Boolean);
       if (ps.length < PR_BUY_MIN) return;
@@ -176,11 +182,14 @@ function prBuyHtml() {
   const row = (r, i) => `<li class="pr-b"><span class="pr-rk">${i + 1}</span>${prItemHead(r.it)}` +
     `<span class="pr-bper">${r.per.map(([l, p]) => `<i class="${p > 0 ? 'up' : 'dn'}" title="${l} · ${PR.bd}일차 → ${r.sd}일차">${l.replace('SS', '')} ${prPctTxt(p)}</i>`).join('')}</span>` +
     `<span class="pr-rv"><em>${PR.bd}일차 ${prNum(r.buy)}결 → <b class="pr-sd">${r.sd}일차</b> 판매</em><b class="${r.med > 0 ? 'up' : 'dn'}">${prPctTxt(r.med)}</b><em>${r.n}시즌 중 ${r.hit}번 상승</em></span></li>`;
+  const cur = prCur(), td = prToday();
   return `<div class="pr-top"><div class="pr-ttl"><b>추천 구매</b><small>${ses.map(x => x.label).join('·')} 기록을 모아 본 일차별 구매 후보 · 관리자만</small></div>` +
-    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일에 사서 <b>바로 다음 날</b> 팔았을 때의 <b>시즌별 상승률 중앙값</b>으로 순위를 매깁니다(7일차는 다음 기록인 14일차).<br>` +
+    `<div class="pr-meta">날짜는 이번 시즌 ${prEsc(cur.label)} 기준 · 오늘 ${prDayDate(td)} = <b class="pr-tdyt">${td}일차</b>${td > 13 ? ' (추천은 13일차 구매까지라 13일차 기준)' : ''}</div>` +
+    `<details class="pr-note"><summary>ⓘ 계산 방법</summary><div>구매일에 사서 <b>바로 다음 날</b> 팔았을 때의 <b>시즌별 상승률 중앙값</b>으로 순위를 매깁니다.<br>` +
     `${PR_BUY_MIN}개 시즌 이상 기록이 있는 것만, 오른 시즌이 절반 이상인 것만 추천에 넣습니다. 가장 비쌀 때도 ${PR_MIN}결 이하인 아이템은 뺍니다.<br>` +
     `SS11·SS12 는 TTD 디아블로 기록(1일차 기록 없음, SS11 은 7·14일차만), SS13·SS14 는 ETor 기록입니다. 지난 시즌 흐름일 뿐 이번 시즌도 같다는 보장은 없습니다.</div></details></div>` +
-    `<div class="pr-ivs">${PR_BUY_DAYS.map(d => `<button type="button" class="pr-iv${PR.bd === d ? ' on' : ''}" onclick="prSet('bd',${d})">${d}일차 → ${PR_DAYS.find(x => x > d)}일차</button>`).join('')}</div>` +
+    `<div class="pr-ivs">${PR_BUY_DAYS.map(d => { const n = PR_DAYS.find(x => x > d), td = prToday(), today = td === d;
+      return `<button type="button" class="pr-iv pr-bdb${PR.bd === d ? ' on' : ''}${today ? ' today' : ''}" onclick="prSet('bd',${d})">${today ? '<span class="pr-tdy">오늘</span>' : ''}${d}일차 → ${n}일차<small>${prDayDate(d)} 사기 → ${prDayDate(n)} 팔기</small></button>`; }).join('')}</div>` +
     `<div class="pr-cats"><button type="button" class="pr-chip${!PR.cat ? ' on' : ''}" onclick="prSet('cat','')">전체</button>` +
     CONSUM.cats.filter(c => CONSUM.items.some(x => x.cat === c)).map(c => `<button type="button" class="pr-chip${PR.cat === c ? ' on' : ''}" onclick="prSet('cat','${prEsc(c)}')">${prEsc(c)}</button>`).join('') + '</div>' +
     `<div class="pr-buy"><div class="pr-rcol up"><div class="pr-rh">🛒 ${PR.bd}일차에 사 두면 좋았던 아이템 <small>${rows.length}개 중</small></div>${up.length ? '<ol>' + up.map(row).join('') + '</ol>' : '<p class="pr-none">해당 아이템이 없습니다</p>'}</div>` +
