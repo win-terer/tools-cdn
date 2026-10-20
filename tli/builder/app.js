@@ -3258,6 +3258,7 @@ const PACT = JSON.parse(PD.pact_raw || '[]');
 const HERO = JSON.parse(PD.hero_raw || '[]');
 const SERVANT_KO = JSON.parse(PD.servant_raw || '{}'); // servantId → 정령 한글명
 const TARTARUS = JSON.parse(PD.tartarus_raw || '[]'); // 타르타로스 스킬 (SS14, DB 탭 전용)
+const CONSUMS = JSON.parse(PD.consum_raw || '[]'); // 소모품 {n, c, q, d, s:[드롭처]} — 통합 검색 전용 (시세용 수집, 2026-10-20)
 const PACT_TIPS = JSON.parse(PD.pacttips_raw || '{}'); // 정령 용어 툴팁 {용어: 설명}
 const PROTOCOL_KO = JSON.parse(PD.protocol_raw || '{}'); // 모듈 프로토콜: 772 대역 어픽스 → {name, effect}
 // 베이스(기본) 아이템 — 로그 장비 BaseId와 같은 id (build_bases.py, tlidb 상세 페이지의 id).
@@ -12456,6 +12457,11 @@ function renderTotal() {
       html: it => highlight(it.name, kws) + (it.effect ? ` <span class="t-inline">— ${renderEffect2(it.effect, it.tips, kws)}</span>` : '')},
     {title: '💠 프리즘 옵션', go: null, rows: PRISM.opts.filter(o => totalMatch(tokens, ['프리즘 옵션 제노', o.effect, o.type, ...selfTipTexts(o)])),
       line: o => [o.effect, [o.slot + '번 칸', o.type].filter(Boolean).join(' · ')], html: o => renderEffect2(o.effect, o.tips, kws)},
+    // 소모품 — 이름·분류·설명·드롭처(콘텐츠 이름)로 찾고, 이름을 누르면 오늘의 시세에서 그 아이템 (사용자 요청 2026-10-20)
+    {title: '🎒 소모품', go: null, rows: CONSUMS.filter(c => totalMatch(tokens, ['소모품', c.n, c.c, c.d, ...(c.s || [])])),
+      line: c => [c.n, [c.c, ...(c.s || [])].join(' · ')],
+      html: c => `<a class="t-cons q${c.q}" href="/tli/live/?q=${encodeURIComponent(c.n)}" target="_blank" rel="noopener" title="오늘의 시세에서 보기">${highlight(c.n, kws)}</a>` +
+        (c.d ? ` <span class="t-inline">— ${highlight(c.d.length > 90 ? c.d.slice(0, 90) + '…' : c.d, kws)}</span>` : '')},
     {title: '🌙 부활 옵션 (추억 전용)', go: null, rows: REVIVALS.filter(o => totalMatch(tokens, ['부활 옵션 추억', o.effect, o.group, ...selfTipTexts(o)])),
       line: o => [o.effect, o.group + (o.tier ? ' · T' + o.tier : '')], html: o => renderEffect2(o.effect, o.tips, kws)},
   ];

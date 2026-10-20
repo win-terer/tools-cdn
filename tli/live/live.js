@@ -122,6 +122,7 @@ const lvTip = document.createElement('div'); lvTip.className = 'pr-tip'; documen
 document.addEventListener('mousemove', e => { const el = e.target.closest && e.target.closest('[data-tip]'); if (!el) { lvTip.style.display = 'none'; return; }
   lvTip.textContent = el.dataset.tip; lvTip.style.display = 'block'; const w = lvTip.offsetWidth, h = lvTip.offsetHeight;
   lvTip.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - w - 8)) + 'px'; lvTip.style.top = (e.clientY + 18 + h > innerHeight ? e.clientY - h - 12 : e.clientY + 18) + 'px'; });
+try { LV.q = new URLSearchParams(location.search).get('q') || ''; } catch (e) {}  // 통합 검색에서 넘어온 아이템 이름 (2026-10-20)
 lvRender(); lvLoad();
 setInterval(lvLoad, 5 * 60e3);  // 5분마다 다시 (서버는 30분마다 갱신)
 
