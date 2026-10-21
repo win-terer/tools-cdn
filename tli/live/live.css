@@ -205,7 +205,7 @@
     .pg-t tr.cur { background: rgba(227,184,96,.09); } .pg-t tr.cur th { color: #f3d38a; } .pg-t tr.cur td { color: #f3e3b5; }
     .pg-t tr.sep th, .pg-t tr.sep td { border-top: 1px solid #2f3a4d; }
     .pg-t td.est { color: #cdb8ff; background: #1a1430; outline: 1px dashed #6b54a8; outline-offset: -2px; } .pg-t td.est small { color: #cdb8ff; }
-    .pg-t td.act { font-weight: 700; }
+    .pg-t td.act { font-weight: 700; } .pg-t td small.pe { display: block; margin: 1px 0 0; color: #a990e0; font-weight: 400; font-size: 11px; }
     .pg-foot { display: flex; flex-direction: column; gap: 6px; }
     .pg-f1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; } .pg-f2 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
     .pg-now { margin-top: 3px; font-size: 13.5px; font-weight: 700; color: #f3e3b5; cursor: help; } .pg-now small { font-size: 11px; font-weight: 400; color: #7d8794; margin-left: 2px; }
