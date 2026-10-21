@@ -153,7 +153,7 @@
     .pb-ses { display: contents; } .pb-ses i { font-style: normal; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: #121826; border: 1px solid #222b3a; white-space: nowrap; }
     .pb-why { font-size: 11px; color: #ffb38a; } .pb-pct, .pb-ses i { cursor: help; }
     .pb-act { font-style: normal; font-size: 12px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
-    .pb-act.ok { background: #10241a; border: 1px solid #2c5a3a; color: #8fe8a0; } .pb-act.ng { background: #2a1213; border: 1px solid #5a2a2a; color: #ff8a80; }
+    .pb-act.live { background: #1a1d2e; border: 1px solid #3d4670; color: #b8c4ff; } .pb-act.ok { background: #10241a; border: 1px solid #2c5a3a; color: #8fe8a0; } .pb-act.ng { background: #2a1213; border: 1px solid #5a2a2a; color: #ff8a80; }
     .pb-chk { padding: 10px 14px; margin-bottom: 10px; border-radius: 12px; background: #0f1828; border: 1px solid #2a3a52; color: #c9d1d9; font-size: 13px; line-height: 1.6; }
     .pb-chk b { color: #9ecbff; margin-right: 4px; } .pb-chk em { font-style: normal; font-weight: 800; } .pb-chk small { color: #7d8794; }
     .pb-chk-n { display: block; font-size: 11.5px; }
