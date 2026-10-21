@@ -244,3 +244,8 @@
       .lv-card .pg-f2 { padding-left: 0; }
     }
     .lv-more { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; } .lv-more small { color: #7d8794; font-size: 12px; }
+    .lv-tn { display: flex; align-items: center; gap: 4px; } .lv-tn > a { flex: 1; min-width: 0; }
+    .lv-star { flex: none; width: 24px; height: 24px; padding: 0; background: none; border: 0; color: #4a5568; font-size: 17px; line-height: 1; cursor: pointer; border-radius: 6px; } .lv-star:hover { color: #e3b765; background: #1b2230; }
+    .lv-star.on { color: #f0c24a; }
+    .lv-t tr.lv-fav td { background: rgba(240,194,74,.05); } .lv-t tr.lv-fav + tr:not(.lv-fav) td { border-top: 1px solid #3a3220; }
+

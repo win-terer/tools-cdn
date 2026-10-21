@@ -53,18 +53,27 @@ function lvCard(r, i) {
     `<span class="lv-big ${r.pct > 0 ? 'up' : 'dn'}">${lvPctTxt(r.pct)}<small>어제 평균 ${lvNum(r.base)} → 지금 <b>${lvNum(r.now)}결</b></small></span></div>` +
     `<div class="pg-f2">${r.lo != null ? `<i class="lv-chip">오늘 ${lvNum(r.lo)} ~ ${lvNum(r.hi)}</i>` : ''}${r.at ? `<i class="lv-chip">${lvTime(r.at)} 기준</i>` : ''}${lvHourChip(r.it.id)}</div></li>`;
 }
+// 즐겨찾기 (2026-10-21 사용자) — ☆ 누르면 전체 시세 맨 위에 고정. 이 브라우저에만 저장 (아이템 id 목록)
+const LV_FAV_KEY = 'lv-fav';
+const LV_FAV = new Set((() => { try { return JSON.parse(localStorage.getItem(LV_FAV_KEY) || '[]').map(String); } catch (e) { return []; } })());
+function lvFav(id) {
+  id = String(id); LV_FAV.has(id) ? LV_FAV.delete(id) : LV_FAV.add(id);
+  try { localStorage.setItem(LV_FAV_KEY, JSON.stringify([...LV_FAV])); } catch (e) {}
+  lvRender(true);
+}
 function lvTable(rows) {
   const q = LV.q.trim().toLowerCase(); let xs = rows.filter(r => !q || r.it.name.toLowerCase().includes(q));
   if (LV.sort === 'name') xs.sort((a, b) => a.it.name.localeCompare(b.it.name, 'ko'));
   else if (LV.sort === 'price') xs.sort((a, b) => b.now - a.now);
   else xs.sort((a, b) => (b.pct == null ? -1e9 : b.pct) - (a.pct == null ? -1e9 : a.pct));
   if (!xs.length) return '<p class="pr-none">해당 아이템이 없습니다</p>';
-  const all = xs.length; xs = xs.slice(0, LV.more);
+  const fav = xs.filter(r => LV_FAV.has(String(r.it.id))), rest = xs.filter(r => !LV_FAV.has(String(r.it.id)));  // 즐겨찾기는 정렬 그대로 맨 위, 더보기 개수와 따로 늘 보임
+  const all = rest.length; xs = fav.concat(rest.slice(0, LV.more));
   return `<div class="pr-tw"><table class="pr-t lv-t"><thead><tr><th>아이템</th><th>어제 평균</th><th class="sel">지금</th><th class="sel">변동</th><th>오늘 최저~최고</th><th>기준 시각</th></tr></thead><tbody>` +
-    xs.map(r => `<tr><td class="pr-tn"><a href="https://tlidb.com/ko/${encodeURIComponent(r.it.page)}" target="_blank" rel="noopener"><img src="${lvEsc(lvIcon(r.it.icon))}" alt="" loading="lazy" class="q${r.it.q}" ${LV_IMG_ERR}><span class="pr-in"><b>${lvEsc(r.it.name)}</b><small>${lvEsc(r.it.cat)}</small></span></a></td>` +
+    xs.map(r => { const f = LV_FAV.has(String(r.it.id)); return `<tr${f ? ' class="lv-fav"' : ''}><td class="pr-tn"><div class="lv-tn"><button type="button" class="lv-star${f ? ' on' : ''}" onclick="lvFav('${lvEsc(r.it.id)}')" title="${f ? '즐겨찾기 빼기' : '즐겨찾기 — 맨 위에 고정'}" aria-label="즐겨찾기">${f ? '★' : '☆'}</button><a href="https://tlidb.com/ko/${encodeURIComponent(r.it.page)}" target="_blank" rel="noopener"><img src="${lvEsc(lvIcon(r.it.icon))}" alt="" loading="lazy" class="q${r.it.q}" ${LV_IMG_ERR}><span class="pr-in"><b>${lvEsc(r.it.name)}</b><small>${lvEsc(r.it.cat)}</small></span></a></div></td>` +
       `<td>${r.base ? lvNum(r.base) : '–'}</td><td class="sel"><b>${lvNum(r.now)}</b></td><td class="sel pct ${r.pct > 0 ? 'up' : r.pct < 0 ? 'dn' : ''}">${r.pct == null ? '–' : lvPctTxt(r.pct)}</td>` +
-      `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`).join('') + '</tbody></table></div>' +
-    (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(10)">더보기 +10</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length} / ${all}</small></div>` : '');
+      `<td>${r.lo != null ? lvNum(r.lo) + ' ~ ' + lvNum(r.hi) : '–'}</td><td class="na">${r.at ? lvTime(r.at) : '–'}</td></tr>`; }).join('') + '</tbody></table></div>' +
+    (all > xs.length ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="lvMore(10)">더보기 +10</button><button type="button" class="pr-chip" onclick="lvMore(1e9)">전체 ${all}개 보기</button><small>${xs.length - fav.length} / ${all}</small></div>` : '');
 }
 // 가로로 넘기는 줄(분류 칩·일차 줄) — 휠로 옆으로, 끌어서 넘기기, 끝 흐림 표시 (2026-10-20 사용자: 기본 스크롤바가 보일 때가 있음)
 function hsMark(el) { const l = el.scrollLeft > 2, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2; el.classList.toggle('hs-more', r); el.classList.toggle('hs-left', l); el.classList.toggle('hs-end', l && !r); }
