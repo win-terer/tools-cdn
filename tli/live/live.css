@@ -12,7 +12,7 @@
     .pr-chip small { color: #7d8794; font-size: 11px; } .pr-chip:hover { border-color: #4a5a78; }
     .pr-chip.on { border-color: #e3b860; color: #f3e3b5; background: #1d1a12; } .pr-chip.on small { color: #c9a95a; }
     .pr-ivs { display: flex; gap: 4px; flex-wrap: wrap; padding: 5px; margin-bottom: 10px; border-radius: 12px; border: 1px solid #3a3220; background: #15130d; }
-    .pr-chip.lock { border-style: dashed; } .pr-src { color: #c9a95a; font-weight: 600; border-bottom: 1px dotted #6b5a2a; cursor: help; }
+    .pr-src { color: #c9a95a; font-weight: 600; border-bottom: 1px dotted #6b5a2a; cursor: help; }
     .pr-iv { flex: 1 1 auto; padding: 8px 12px; border: 0; border-radius: 9px; background: none; color: #c9b98f; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .pr-iv small { font-weight: 400; opacity: .7; } .pr-iv:hover:not([disabled]) { background: #221d12; color: #f3e3b5; }
     .pr-iv.on { background: linear-gradient(180deg, #f0c66a, #d39a3a); color: #1a1205; } .pr-iv[disabled] { opacity: .35; cursor: default; }
@@ -232,6 +232,11 @@
       .pr-ivs { flex-wrap: nowrap; overflow-x: auto; } .pr-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
       .pr-tn { min-width: 160px; }
     }
+    .pr-tnw { display: flex; align-items: center; gap: 4px; } .pr-tnw > a { flex: 1; min-width: 0; }
+    .pr-star { flex: none; width: 24px; height: 24px; padding: 0; background: none; border: 0; color: #4a5568; font-size: 17px; line-height: 1; cursor: pointer; border-radius: 6px; } .pr-star:hover { color: #e3b765; background: #1b2230; }
+    .pr-star.on { color: #f0c24a; }
+    .pr-t tr.pr-fav td { background: rgba(240,194,74,.05); } .pr-t tr.pr-fav + tr:not(.pr-fav) td { border-top: 1px solid #3a3220; }
+
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
