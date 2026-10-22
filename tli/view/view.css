@@ -1287,8 +1287,15 @@
     .vw-gcard .wg-vo { padding: 2px 8px; font-size: 12px; line-height: 1.45; }
     .vw-gcard .wg-vo em { font-size: 10.5px; }
     /* 추억 */
-    .vw-mems { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 10px; }
-    .vw-mem { padding: 10px 12px; border: 1px solid #1f2735; border-radius: 12px; background: #0e131c; } .vw-mem.none { opacity: .55; }
+    .vw-mems { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 8px; }
+    @media (max-width: 1100px) { .vw-mems { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .vw-mems { grid-template-columns: minmax(0, 1fr); } }
+    .vw-mem .wm-ch { padding-bottom: 5px; margin-bottom: 4px; border-bottom: 1px solid #1f2735; } .vw-mem .wm-ch b { font-size: 13px; }
+    .vw-mrow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 4px; align-items: start; padding: 2px 0; }
+    .vw-mrow + .vw-mrow { border-top: 1px dashed #1a2130; }
+    .vw-mk { font-size: 10.5px; color: #6b7685; padding-top: 4px; white-space: nowrap; }
+    .vw-mrow .wg-vo { padding: 2px 6px; font-size: 12px; line-height: 1.45; cursor: default; }
+    .vw-mem { padding: 8px 10px; border: 1px solid #1f2735; border-radius: 12px; background: #0e131c; } .vw-mem.none { opacity: .55; }
     .vw-mlv { margin-left: auto; color: #9aa4b2; font-size: 12px; }
     .wg-vo .vw-mt { margin-left: 6px; flex: none; font-style: normal; }
     /* 석판 */

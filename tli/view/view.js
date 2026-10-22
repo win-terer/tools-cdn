@@ -5719,14 +5719,16 @@ function vwGAll() {
 function vwMems() {
   const parts = [...(wmXPart() ? ['x'] : []), ...MEM_PARTS];
   if (!parts.some(p => wmMem(p))) return vwEmpty('추억을 넣지 않은 빌드입니다');
-  const sec = (nm, list) => list.length ? `<div class="wg-vsec">${nm}</div>` + list.map(e => `<div class="wg-vo"><span>${wgOptHtml(memEff(e), wmTips(e))}</span>${e.mt ? `<i class="tier-chip vw-mt">T${e.mt}</i>` : ''}</div>`).join('') : '';
-  return '<div class="vw-mems">' + parts.map(p => {
+  // 컴팩트 (2026-10-22 사용자: 공간을 너무 차지함) — 구분 머리줄 대신 왼쪽 작은 꼬리표 + 옵션 줄
+  const row = (nm, body) => `<div class="vw-mrow"><span class="vw-mk">${nm}</span><div>${body}</div></div>`;
+  const sec = (nm, list) => list.length ? row(nm, list.map(e => `<div class="wg-vo"><span>${wgOptHtml(memEff(e), wmTips(e))}</span>${e.mt ? `<i class="tier-chip vw-mt">T${e.mt}</i>` : ''}</div>`).join('')) : '';
+  return `<div class="vw-mems" style="--n:${parts.length}">` + parts.map(p => {  // 카드 수만큼 한 줄 (4개면 4개, 사용자 2026-10-22)
     const m = wmMem(p), key = wmKey(p), g = HERO_GRADES.find(x => x[0] === memGrade(key)) || HERO_GRADES[HERO_GRADES.length - 1];
     const label = wmIsX(p) ? '부활 추가 · ' + wmXPart() : p, rv = preset.revival && preset.revival.part === p ? preset.revival : null;
     return `<div class="vw-mem${m ? '' : ' none'}"><div class="wm-ch"><b>${vwEsc(label)}</b><i class="tier-chip tier-${g[3]}">${vwEsc(g[1])}</i>` +
       `<span class="vw-mlv">${WM_NODE[wmIsX(p) ? 'x' : p]} Lv ${m ? memGradeLv(key, m) : 1}</span></div>` +
       (m ? sec('기본', m.basic) + sec('고유', m.unique) + sec('랜덤', m.random) : '<div class="ws-none">비어 있음</div>') +
-      (rv ? `<div class="wg-vsec">부활 옵션</div><div class="wg-vo"><span>${wgOptHtml(rv.effect, (REVIVALS.find(x => x.effect === rv.effect) || {}).tips)}</span></div>` : '') + '</div>';
+      (rv ? row('부활', `<div class="wg-vo"><span>${wgOptHtml(rv.effect, (REVIVALS.find(x => x.effect === rv.effect) || {}).tips)}</span></div>`) : '') + '</div>';
   }).join('') + '</div>';
 }
 
