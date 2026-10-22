@@ -3618,8 +3618,15 @@ function wgBListHtml() {
   } else {
     if (!pool) return '<div class="hrm-empty">블러드 풀 데이터가 없습니다</div>';
     const gc = gr => o.extra.filter(e => optGrade(e.type) === gr).length;
-    pool.opts.forEach((p, i) => {
+    // 순서: 메인(절대자 → 진급 → 초급) · 구분선 · 서브(절대자 → 진급 → 초급) — 같은 묶음 안은 원래 순서(2026-10-22 사용자)
+    const GR = {'절대': 0, '진급': 1, '초급': 2}, isSub = t => /서브/.test(t || '');
+    const ord = pool.opts.map((p, i) => i).sort((x, y) => isSub(pool.opts[x].type) - isSub(pool.opts[y].type) ||
+      (GR[optGrade(pool.opts[x].type)] ?? 9) - (GR[optGrade(pool.opts[y].type)] ?? 9) || x - y);
+    let subOn = false;
+    ord.forEach(i => {
+      const p = pool.opts[i];
       if (!hit(p.effect, p.type)) return; n++;
+      if (isSub(p.type) && !subOn) { subOn = true; if (n > 1) h += '<div class="wg-osep">서브 옵션</div>'; }
       const on = o.extra.some(e => e.effect === p.effect), g = optGrade(p.type), dis = !on && GRADE_LIMITS[g] && gc(g) >= GRADE_LIMITS[g];
       h += `<div class="wg-opt ${WG_GR_ROW[g] || ''}${on ? ' on' : ''}${dis ? ' dis' : ''}"${dis ? '' : ` onclick="wgBToggle('extras',${i})"`}><span>${wgOptHtml(tierEffect({effect: p.effect, tiers: {t0: p.t0, t0p: p.t0p, t2: p.t2}}), p.tips)}</span><em class="${GRADE_CLASS[g] || ''}">${escapeHtml(p.type)}</em></div>`;
     });
