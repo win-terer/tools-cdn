@@ -103,7 +103,7 @@ function lvRenderRaw(onlyTable) {
   const cardMore = LV.cards < LV_TOP && mv.length > LV.cards * 2 ? `<div class="lv-more"><button type="button" class="pr-chip" onclick="LV.cards=${LV_TOP};lvRender()">많이 오른·내린 아이템 ${LV_TOP}개씩 보기</button></div>` : '';
   app.innerHTML = `<div class="pb-hero"><div class="pb-ht"><b>오늘의 시세</b><small>소비 아이템 · 이번 시즌 · 30분마다 갱신 (단위 결정)</small></div>` +
     `<div class="pb-now"><span>오늘</span><b>${lvDate(td)}</b><em>${lvEsc(LSEASON.label)} ${td}일차</em></div>` +
-    `<div class="pb-meta">${got ? `마지막 갱신 <b>${lvTime(got)}</b>` : ''}<br><small>변동 = 어제 평균 대비 지금 가격</small></div>` +
+    `<div class="pb-meta">${got ? `마지막 갱신 <b>${lvTime(got)}</b>` : ''}<br><small>변동 = 어제 평균 대비 지금 가격 · 하루 기준: 한국 시간 오전 9시 (ETor 기준)</small></div>` +
     `<details class="pr-note"><summary>ⓘ 시세 출처</summary><div>중국 트래커 易火 ETor 의 시세 서버에서 30분마다 받습니다. 허가를 받은 자료가 아니라 문제가 되면 내리겠습니다.<br>단위: 최초의 불꽃 결정. 가장 비쌀 때도 ${LV_MIN}결 이하인 아이템은 뺐습니다.</div></details></div>` +
     lvHourHtml() + `<div class="pb-cats">${cats}</div>` +
     sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) + cardMore +
