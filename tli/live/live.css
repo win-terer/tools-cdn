@@ -237,6 +237,47 @@
     .pr-star.on { color: #f0c24a; }
     .pr-t tr.pr-fav td { background: rgba(240,194,74,.05); } .pr-t tr.pr-fav + tr:not(.pr-fav) td { border-top: 1px solid #3a3220; }
 
+    /* 시즌 비교 표 (2026-10-22) */
+    .pr-cmpb.on { border-color: #e3b860; color: #f3e3b5; background: rgba(227,184,96,.12); }
+    .pr-cmpd { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+    .pr-cmpl { color: #9aa4b2; font-size: 12px; margin-right: 2px; } .pr-cmpr { color: #e3b860; font-size: 12.5px; font-weight: 700; margin-left: 6px; }
+    .pr-gauge { display: inline-flex; padding: 3px; gap: 2px; border-radius: 11px; background: #0b0f17; border: 1px solid #263044; }
+    .pr-cmpday { display: flex; align-items: baseline; gap: 1px; padding: 6px 13px; border: 0; border-radius: 3px; background: #151b27; color: #4d5868; cursor: pointer; font: inherit; transition: background .15s, color .15s; }
+    .pr-cmpday:first-child { border-radius: 8px 3px 3px 8px; } .pr-cmpday:last-child { border-radius: 3px 8px 8px 3px; }
+    .pr-cmpday b { font-size: 14px; } .pr-cmpday small { font-size: 10.5px; }
+    .pr-cmpday.on { color: #1a1408; background: linear-gradient(180deg, #e9c46e, #c99a3e); } .pr-cmpday.end { background: linear-gradient(180deg, #ffd98a, #e3b860); box-shadow: 0 0 10px rgba(227,184,96,.45); }
+    .pr-cmpday:not(.on):hover { background: #222a3a; color: #9aa4b2; }
+    .pr-cmp th.off, .pr-cmp td.off { color: #3c4656 !important; background: transparent !important; }
+    .pr-cmp td.pr-cs, .pr-cmp th.pr-cs { text-align: left; color: #7d8794; font-size: 12px; }
+    .pr-cmp tr.cur td.pr-cs { color: #e3b860; font-weight: 700; } .pr-cmp tr.cur td:not(.pr-tn):not(.pr-cavg) { background: rgba(227,184,96,.04); }
+    .pr-cmp tr.pr-cg td { border-top: 1px solid #2a3344; }
+    .pr-cmp td.pct small { font-size: 10px; font-weight: 600; color: #6b7685; margin-right: 4px; }
+    .pr-cmp td.pr-cavg { font-size: 14px; vertical-align: middle; border-left: 1px solid #222b3a; } .pr-cmp td.pr-cavg small { display: block; font-size: 10.5px; color: #6b7685; margin: 0; }
+    .pr-cmp td.pr-tn { vertical-align: middle; } .pr-cmp tr:hover td.pr-tn, .pr-cmp tr:hover td.pr-cavg { background: transparent; }
+    .pr-info { font-style: normal; color: #9ecbff; cursor: help; margin-left: 2px; }
+    @media (max-width: 640px) {
+      .pr-cmpd { flex-wrap: nowrap; gap: 4px; } .pr-cmpday { padding: 5px 9px; } .pr-cmpday small { display: none; } .pr-cmpr { margin-left: 2px; white-space: nowrap; }
+      .pr-cmp td.pr-tn { position: sticky; left: 0; z-index: 1; background: #0d1119; min-width: 130px; } .pr-cmp td.pr-tn .pr-in small { display: none; }
+    }
+    /* 오늘 추천 한 줄 · 오늘 많이 오른 품목 (2026-10-22) */
+    .pk-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 10px; padding: 8px 10px; border-radius: 14px; border: 1px solid #222b3a; background: #0d121b; }
+    .pk-row::-webkit-scrollbar { display: none; }
+    .pk-l { flex: none; font-size: 12px; font-weight: 700; color: #f3e3b5; margin-right: 2px; white-space: nowrap; } .pk-l2 { margin-left: 8px; padding-left: 12px; border-left: 1px solid #2a3344; color: #9ecbff; }
+    .pk-i { flex: none; display: flex; align-items: center; gap: 6px; max-width: 170px; padding: 4px 9px 4px 4px; border-radius: 10px; border: 1px solid #263044; background: #111725; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+    .pk-i:hover { border-color: #e3b860; } .pk-i.sim:hover { border-color: #9ecbff; }
+    .pk-i img { flex: none; width: 28px; height: 28px; border-radius: 7px; background: #0b0f17; object-fit: contain; }
+    .pk-i span { min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+    .pk-i b { font-size: 11.5px; font-weight: 600; color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pk-i em { font-style: normal; font-size: 11.5px; font-weight: 700; color: #7ee07a; }
+    .pt-sec { margin: 0 0 12px; } .pt-h { font-weight: 700; font-size: 14px; color: #ff9d6b; margin: 4px 2px 8px; } .pt-h small { color: #7d8794; font-weight: 500; font-size: 11.5px; margin-left: 6px; }
+    .pt-g { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; }
+    .pt-c { position: relative; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 6px; border-radius: 12px; border: 1px solid #222b3a; background: #0f141e; text-align: center; min-width: 0; }
+    .pt-c.top { border-color: #5a4626; background: linear-gradient(180deg, #1a1610, #0f141e); }
+    .pt-c img { width: 32px; height: 32px; border-radius: 8px; background: #0b0f17; object-fit: contain; }
+    .pt-rk { position: absolute; top: 5px; left: 7px; font-size: 10.5px; font-weight: 700; color: #6b7685; } .pt-c.top .pt-rk { color: #e3b860; }
+    .pt-n { font-size: 11px; font-weight: 600; color: #c9d1d9; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .pt-p { font-size: 15px; font-weight: 800; color: #7ee07a; line-height: 1.1; } .pt-c small { font-size: 10px; color: #6b7685; white-space: nowrap; }
+    @media (max-width: 900px) { .pt-g { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; } .pt-g::-webkit-scrollbar { display: none; } .pt-c { flex: none; width: 104px; } }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
