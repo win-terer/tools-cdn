@@ -285,6 +285,10 @@
     .pt-n { font-size: 11px; font-weight: 600; color: #c9d1d9; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .pt-p { font-size: 15px; font-weight: 800; color: #7ee07a; line-height: 1.1; } .pt-c small { font-size: 10px; color: #6b7685; white-space: nowrap; }
     @media (max-width: 900px) { .pt-g { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; } .pt-g::-webkit-scrollbar { display: none; } .pt-c { flex: none; width: 104px; } }
+    /* 기간 밖 날짜 접은 칸 (2026-10-22) */
+    .pr-cmp th.grp { cursor: pointer; white-space: nowrap; } .pr-cmp th.grp:hover { color: #e3b860 !important; }
+    .pr-cmp td.grp { font-size: 11px; } .pr-cmp td.grp small { margin-left: 3px; font-size: 9.5px; color: #3c4656; }
+    .pr-cmp td.in { font-size: 13.5px; } .pr-cmp td.in.na { font-size: 12px; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
