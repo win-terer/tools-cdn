@@ -2193,8 +2193,17 @@ const slateOptPlain = effect => { const o = slateOptSplit(effect); return (o.nam
 function slateSockLabel(info, ranks) {
   return ranks.map(r => r === 1 && !slateIsNether(info) ? '레전드 중위' : SB_RANK_LABEL[r]).join(' · ');
 }
+// 신마다 하위 직업(재능 보드 1~4) — 신격의 석판 옵션은 자기 신과 그 하위 직업 옵션만 고를 수 있다(2026-10-22 사용자)
+const GOD_SUBS = {
+  '힘의 신': ['용자', '약탈자', '장군', '투사'], '사냥의 여신': ['명사수', '블레이드 러너', '드루이드', '어쌔신'],
+  '지식의 여신': ['마기스터', '미스틱', '엘리멘탈리스트', '예언가'], '전쟁의 신': ['섀도우 댄서', '사무라이', '레인저', '철갑병'],
+  '기만의 여신': ['섀도우 마스터', '초능력자', '어둠의 술사', '언데드'], '기계의 신': ['정비공', '철의 개척자', '연금술사', '장인'],
+};
+function slateGodOf(info) { return info && info.god && !slateIsNether(info) ? Object.keys(GOD_SUBS).find(g => (info.n || '').startsWith(g)) || null : null; }
 function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어가나
   if (ranks.indexOf(slateRank(r)) < 0) return false;
+  const god = slateGodOf(info);   // 신격의 석판: 그 신 + 하위 직업 옵션(+ 직업 표기 없는 공용 옵션)만
+  if (god && r.type && r.type !== god && !GOD_SUBS[god].includes(r.type)) return false;
   return slateIsNether(info) || !/^\[절대자/.test(r.effect || '');
 }
 // 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
