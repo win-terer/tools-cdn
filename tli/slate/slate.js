@@ -235,10 +235,17 @@ const SLATES = {
   260501: {n: '힘의 신의 신격', c: [[0,0]], v: 0, god: 1, sl: [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]},
   394001: {lg: 'nether', n: '명왕의 불완전한 신격: 심판', c: [[0,0],[-3,0]], v: 0, god: 1, boost: {v: 30}, pc: 1, sl: [[1,2,3],[1,2,3]]},
   394002: {lg: 'nether', n: '명왕의 불완전한 신격: 인펙션', c: [[0,0],[1,0]], v: 1, god: 1, spread: {v: -90}, pc: 1, sl: [[1,2,3],[1,2,3]]},
-  394004: {lg: 'nether', n: '명왕의 신격: 심판', c: [[0,0],[-3,0],[-3,3]], v: 1, god: 1, boost: {v: 70}, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
-  394005: {lg: 'nether', n: '명왕의 신격: 인펙션', c: [[0,0],[1,0],[-1,0]], v: 1, god: 1, spread: {v: -50}, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]}, // 원점=가운데 칸, c 순서=게임 옵션 순(가운데→아래→위: 1번=가운데·2번=아래·3번=위 칸), 전염 -50% (세이지 실보드·아이템 카드 확정)
+  394004: {lg: 'nether', n: '명왕의 신격: 심판', c: [[0,0],[-3,0],[-3,3]], v: 1, god: 1, boost: {v: 40, self: -30}, /* SS14 너프: 70% → 40%, 자체 낙인 -30% (tlidb Judgment, 2026-10-22) */ pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
+  394005: {lg: 'nether', n: '명왕의 신격: 인펙션', c: [[0,0],[1,0],[-1,0]], v: 1, god: 1, spread: {v: -88}, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]}, // SS14 너프 -50% → -88% (tlidb Contamination, 2026-10-22). 원점=가운데 칸, c 순서=게임 옵션 순(가운데→아래→위: 1번=가운데·2번=아래·3번=위 칸), 전염 -50% (세이지 실보드·아이템 카드 확정)
   394006: {lg: 'nether', n: '명왕의 신격: 추방', c: [[0,0],[1,1],[2,2]], v: 0, god: 1, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
 };
+// 시즌별 명왕 수치 — SS14 너프(심판 +70%→+40%·자체 낙인 -30%, 인펙션 -50%→-88%). SS13 데이터로 볼 때(지난 시즌 보관 보기·SS13 실측 시험)는 예전 수치로 (2026-10-22)
+(() => {
+  let l = '';  // 빌더(옛)는 SEASON 상수가 이 파일보다 뒤에 선언돼 여기서 읽으면 오류 — 앞서 실린 PD.season_raw 를 본다
+  try { l = (typeof PD !== 'undefined' && PD.season_raw && JSON.parse(PD.season_raw).label) || (typeof window !== 'undefined' && window.TLI_SEASON && window.TLI_SEASON.label) || ''; } catch (e) {}
+  const n = +String(l).replace(/\D/g, '');
+  if (n && n < 14) { SLATES[394004].boost = {v: 70}; SLATES[394005].spread = {v: -50}; }
+})();
 // 신격의 석판 = 신 6종 × 모양 6변형 (id 26xx01~06, tlidb 아이콘 코드 순서는 Z1·Z2·L1·L2·O·T) + 빌더 전용 ㅗ(26xx07)
 // 색은 신마다 고정, 모양은 변형별 테트로미노. 소켓 = 5칸(하위~레전드 중위, 핵심 불가 — 핵심은 계보 전용)
 const GOD_SHAPES = [ // [표시 이름(그림 기준, 2026-10-15 정리 — 예전 Z1·L1·T 는 tlidb 아이콘 코드라 그림과 달랐다), 칸]
@@ -368,8 +375,8 @@ function judgeRegion(cells) {
 }
 // 보드 파생 효과 3종 (배치에서 계산 — 게임 로그에는 결과가 안 실림):
 // ① 들불 번지는 순간(1012) = 상하좌우 인접 석판의 마지막 줄 옵션 복제 (핵심[명칭]·유효 한도 1은 복제 불가)
-// ② boost(심판) = 돌 사이 영역에 걸친 석판의 옵션 강화 (정식 +70%)
-// ③ spread(인펙션) = 자기 옵션을 인접 석판마다 -50%로 복제해 추가 (세이지 실측 — 카드에 '증식 방향: 양쪽' 필드 존재, InfluenceId 11001로 추정되나 다른 값 미관측이라 방향 제한은 미구현)
+// ② boost(심판) = 돌 사이 영역에 걸친 석판의 옵션 강화 (정식 +40% · 자기 낙인 -30%, SS14)
+// ③ spread(인펙션) = 자기 옵션을 인접 석판마다 -88%(SS14, 예전 -50%)로 복제해 추가 (세이지 실측 — 카드에 '증식 방향: 양쪽' 필드 존재, InfluenceId 11001로 추정되나 다른 값 미관측이라 방향 제한은 미구현)
 function slateDerived(bd) {
   const cellsOf = bd.map(s => slateCells(s.u, s.i, s.d) || [s.i]);
   const adjPieces = si => { // si 피스와 변을 맞댄 피스들
@@ -423,7 +430,8 @@ function slateDerived(bd) {
         moth: cp.a === 'dir' ? MOTH_DIRS[(f.f || 0) - 1001] || '?' : null}));
     });
   });
-  const boosted = new Map(); // 피스 순번 → 배지 (+70% 등)
+  const boosted = new Map(); // 피스 순번 → 배지 (+40% 등)
+  const boostV = new Map(); // 피스 순번 → 강화 % (수치에 곱한다)
   const boostPairs = []; // 강화 관계쌍 (심판 → 대상, 호버 연동용)
   const spreads = [];
   bd.forEach((s, si) => {
@@ -433,6 +441,7 @@ function slateDerived(bd) {
       bd.forEach((nb, ni) => {
         if (ni !== si && cellsOf[ni].some(c => region.has(c))) {
           boosted.set(ni, info.boost.v ? '+' + info.boost.v + '%' : '강화');
+          if (info.boost.v) boostV.set(ni, Math.max(boostV.get(ni) || 0, info.boost.v));
           boostPairs.push({si, ni});
         }
       });
@@ -450,7 +459,7 @@ function slateDerived(bd) {
       });
     }
   });
-  return {copies, boosted, spreads, boostPairs};
+  return {copies, boosted, boostV, spreads, boostPairs};
 }
 // 보드(slateBd) → 석판 재능 행 라벨 공통부 — add(nid, src) 콜백으로 밀어넣는다
 // (로그 가져오기와 보드 편집 재생성이 같은 라벨 규칙을 쓰도록)
@@ -461,6 +470,7 @@ function addSlateTalentRows(bd, add) {
     const info = SLATES[s.u];
     const nm = info ? info.n : '#' + s.u;
     const tag = dv.boosted.has(pi) ? nm + ' (심판 ' + dv.boosted.get(pi) + ')' : nm;
+    // 심판 강화(+40%·자기 낙인 -30%)는 이름표로만 — 곱해 보니 SS13 실측 로그(시전 속도 인게임 311% 등)와 어긋났다. 단순 배율이 아니라서 계산엔 넣지 않는다(2026-10-22)
     (s.t || []).filter(Boolean).forEach(nid => add(nid, tag));
   });
   dv.copies.forEach(c => add(c.nid, (AL[bd[c.fi].u] || '') + ' 복제 ← ' + c.from)); // 복제는 기본 수치
