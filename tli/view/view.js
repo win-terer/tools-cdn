@@ -4895,7 +4895,8 @@ function wsbShape() { // 신격 모양 변형 순환 (소켓·위치·회전 유
 }
 function wsbFlip() { const sl = wsbBd()[wsbSel]; if (!sl || !GOD_MIRROR[sl.u] || GOD_MIRROR[sl.u] === sl.u) return; sl.u = GOD_MIRROR[sl.u]; wsbApply(); } // 좌우 반전 (00_slate GOD_MIRROR)
 function wsbDelete() { const bd = wsbBd(); if (!bd[wsbSel]) return; bd.splice(wsbSel, 1); wsbSel = null; wsbSock = null; wsbApply(); }
-function wsbSockPick(si) { wsbSock = wsbSock === si ? null : si; wsbQ = ''; pageRender(); }
+const wsbPickShow = () => (window.requestAnimationFrame || setTimeout)(() => { ['.wsb-pick', '.wsb-sock.on'].forEach(q => { const el = document.querySelector(q); if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'}); }); }); // 고른 소켓과 고르기 창이 둘 다 보이게 // 고르기 창이 화면 밖이면 보이게만(필요할 때만 조금 스크롤)
+function wsbSockPick(si) { wsbSock = wsbSock === si ? null : si; wsbQ = ''; pageRender(); wsbPickShow(); }
 function wsbSockRows() { // 이 소켓 등급에 맞는 석판 옵션
   const sl = wsbBd()[wsbSel], info = SLATES[sl.u], ranks = info.sl[wsbSock], q = wsbQ.trim().toLowerCase();
   const h = SLATE_DB.map((r, ri) => { // 석판 행만 (ALL_DATA 는 로그 가져오기 뒤 전체 행 — 석판 행이 앞자리라 ri 는 같다)
@@ -4921,7 +4922,7 @@ function wsbAssign(ri) {
   sl.t[wsbSock] = sl.t[wsbSock] === nid ? '' : nid; // 다시 누르면 빼기
   const nx = SLATES[sl.u].sl.findIndex((_, k) => !sl.t[k]);
   wsbSock = nx >= 0 ? nx : null; wsbQ = '';
-  wsbApply();
+  wsbApply(); wsbPickShow();
 }
 // 끌어서 옮기기 (pointer — PC·터치 공용). 빌더의 드래그와 같은 규칙(sbMoveDelta)
 document.addEventListener('pointerdown', e => {
@@ -5027,12 +5028,16 @@ function wsbRender() {
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';
     if (info.sl) {
       side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).filter(Boolean).length} / ${info.sl.length}</span></div>` +
+        // 옵션 고르기 창은 고른 소켓 바로 옆에 — 위쪽 소켓은 아래로, 아래쪽 소켓은 위로 펼친다(2026-10-22 사용자: 창이 너무 아래에 뜸)
         info.sl.map((ranks, si) => {
           const nid = (sl.t || [])[si], ri = nid ? SLATEIDX.idx[nid] : undefined;
-          return `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" data-si="${si}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
+          const sock = `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" data-si="${si}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
             `<span>${ri !== undefined ? wsbOptHtml(ALL_DATA[ri]) : '<i>비어 있음 — 눌러서 고르기</i>'}</span></div>`;
-        }).join('') +
-        (wsbSock != null ? `<div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div>` : '') + '</div>';
+          if (wsbSock !== si) return sock;
+          const up = info.sl.length > 2 && si >= Math.ceil(info.sl.length / 2);
+          const pick = `<div class="wsb-pick${up ? ' up' : ''}"><div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div></div>`;
+          return up ? pick + sock : sock + pick;
+        }).join('') + '</div>';
     } else side += '<div class="wg-addbox"><div class="wg-addd">이 석판은 옵션 소켓이 없습니다 (복제·강화 같은 효과만)</div></div>';
   } else {
     side = '<div class="wg-addbox grow"><div class="wg-addh"><b>놓인 석판</b><span>' + bd.length + '개</span></div>' +

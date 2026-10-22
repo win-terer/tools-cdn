@@ -832,6 +832,10 @@
     .wsb-sock:hover { border-color: #3a4a66; }
     .wsb-sock.on { border-color: #e3b860; }
     .wsb-sock small { display: block; color: #6e7a88; font-size: 10.5px; margin-bottom: 2px; }
+    .wsb-pick { margin: -1px 0 8px; padding: 8px; border: 1px solid #e3b86055; border-radius: 10px; background: #0b1019; }
+    .wsb-pick.up { margin: 0 0 4px; }
+    .wsb-pick .ws-filter { margin: 0 0 6px; }
+    .wsb-pick .wg-list { max-height: min(340px, 45vh); overflow-y: auto; }
     .wsb-sock span { color: #c8d2e0; font-size: 12.5px; } .wsb-sock i { color: #4d5868; font-style: normal; }
     .wsb-sock b.m { color: #7db4ff; }
     .wsb-li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; color: #c8d2e0; font-size: 12.5px; }
