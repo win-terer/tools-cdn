@@ -289,6 +289,11 @@
     .pr-cmp th.grp { cursor: pointer; white-space: nowrap; } .pr-cmp th.grp:hover { color: #e3b860 !important; }
     .pr-cmp td.grp { font-size: 11px; } .pr-cmp td.grp small { margin-left: 3px; font-size: 9.5px; color: #3c4656; }
     .pr-cmp td.in { font-size: 13.5px; } .pr-cmp td.in.na { font-size: 12px; }
+    .pr-sechips { display: inline-flex; gap: 4px; padding-left: 6px; border-left: 1px solid #263044; } .pr-tg.sm { padding: 5px 9px; }
+    /* 오늘 일차 (2026-10-22) */
+    .pr-cmpday.today { outline: 2px solid #7ee07a; outline-offset: -2px; } .pr-cmpday.today:not(.on) { color: #7ee07a; }
+    .pr-cmp th.today { color: #7ee07a !important; } .pr-cmp td.today { box-shadow: inset 2px 0 0 rgba(126,224,122,.35), inset -2px 0 0 rgba(126,224,122,.35); }
+    .pr-today { display: block; font-style: normal; font-size: 9.5px; color: #7ee07a; font-weight: 700; line-height: 1; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
