@@ -3937,6 +3937,8 @@ function wgItemPool() { // 이 칸에 들어갈 레전드 [{idx, name, part}] �
 function wgCtx(e) {
   const t = e.target;
   if (t.closest('input, textarea')) return true;
+  const sk = t.closest('.wsb-sock[data-si]');   // 석판 옵션 소켓 — 우클릭하면 그 소켓 비우기
+  if (sk && typeof wsbSockClear === 'function') { wsbSockClear(+sk.dataset.si); return false; }
   const row = t.closest('.wg-opt.on, .wg-vo.on');
   if (row && row.getAttribute('onclick')) { row.click(); return false; }
   const x = t.closest('.wg-pk, .wg-pkr, div'), del = x && x.querySelector(':scope > button[title="빼기"]');
@@ -4783,7 +4785,7 @@ function wmRender() {
   return wmFrame(side, main);
 }
 function wmFrame(side, main) {
-  return '<div class="gbm wsm wmm"><div class="gbm-top"><b class="gbm-title">추억 · 석판 · 정령</b>' + (typeof gbmHelp === 'function' ? gbmHelp('mem') : '') + 
+  return '<div class="gbm wsm wmm" oncontextmenu="return wgCtx(event)"><div class="gbm-top"><b class="gbm-title">추억 · 석판 · 정령</b>' + (typeof gbmHelp === 'function' ? gbmHelp('mem') : '') + 
     '<span class="gbm-keys">왼쪽에서 고를 칸을 누릅니다 <span class="gbm-sep">·</span> 추억 3 · 신격 석판 · 계약 보드</span>' +
     (wmMsg ? '<span class="gbm-msg">' + escapeHtml(wmMsg) + '</span>' : '') + '</div>' +
     `<div class="gbm-body"><div class="gbm-side">${side}</div><div class="gbm-main">${main}</div></div></div>`;
@@ -4876,6 +4878,12 @@ function wsbSockRows() { // 이 소켓 등급에 맞는 석판 옵션
     return `<div class="wg-opt${on ? ' on' : ''}" onclick="wsbAssign(${ri})"><span>${wsbOptHtml(r)}</span><em>${slateSockLabel(info, [slateRank(r)])}</em></div>`;
   }).join('');
   return h || '<div class="hrm-empty">이 등급의 옵션이 없습니다</div>';
+}
+function wsbSockClear(si) { // 소켓 우클릭 — 그 소켓 옵션 빼기(2026-10-22 사용자)
+  if (guardShareView()) return;
+  const sl = wsbBd()[wsbSel]; if (!sl || !sl.t || !sl.t[si]) return;
+  sl.t[si] = ''; wsbSock = si; wsbQ = '';
+  wsbApply();
 }
 function wsbSockSearch(v) { wsbQ = v; const b = document.getElementById('wsbSockList'); if (b) b.innerHTML = wsbSockRows(); }
 function wsbAssign(ri) {
@@ -4994,7 +5002,7 @@ function wsbRender() {
       side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).filter(Boolean).length} / ${info.sl.length}</span></div>` +
         info.sl.map((ranks, si) => {
           const nid = (sl.t || [])[si], ri = nid ? SLATEIDX.idx[nid] : undefined;
-          return `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
+          return `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" data-si="${si}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
             `<span>${ri !== undefined ? wsbOptHtml(ALL_DATA[ri]) : '<i>비어 있음 — 눌러서 고르기</i>'}</span></div>`;
         }).join('') +
         (wsbSock != null ? `<div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div>` : '') + '</div>';

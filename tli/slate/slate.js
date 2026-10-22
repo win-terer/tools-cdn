@@ -1023,6 +1023,12 @@ function wsbSockRows() { // 이 소켓 등급에 맞는 석판 옵션
   }).join('');
   return h || '<div class="hrm-empty">이 등급의 옵션이 없습니다</div>';
 }
+function wsbSockClear(si) { // 소켓 우클릭 — 그 소켓 옵션 빼기(2026-10-22 사용자)
+  if (guardShareView()) return;
+  const sl = wsbBd()[wsbSel]; if (!sl || !sl.t || !sl.t[si]) return;
+  sl.t[si] = ''; wsbSock = si; wsbQ = '';
+  wsbApply();
+}
 function wsbSockSearch(v) { wsbQ = v; const b = document.getElementById('wsbSockList'); if (b) b.innerHTML = wsbSockRows(); }
 function wsbAssign(ri) {
   if (guardShareView()) return;
@@ -1140,7 +1146,7 @@ function wsbRender() {
       side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).filter(Boolean).length} / ${info.sl.length}</span></div>` +
         info.sl.map((ranks, si) => {
           const nid = (sl.t || [])[si], ri = nid ? SLATEIDX.idx[nid] : undefined;
-          return `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
+          return `<div class="wsb-sock${wsbSock === si ? ' on' : ''}" data-si="${si}" onclick="wsbSockPick(${si})"><small>${si + 1}. ${slateSockLabel(info, ranks)}</small>` +
             `<span>${ri !== undefined ? wsbOptHtml(ALL_DATA[ri]) : '<i>비어 있음 — 눌러서 고르기</i>'}</span></div>`;
         }).join('') +
         (wsbSock != null ? `<div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div>` : '') + '</div>';
