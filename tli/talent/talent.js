@@ -84,6 +84,21 @@ function gbRules(pre) {
   const req = xs.map((x, c) => (b.r && b.r[x] != null) ? +b.r[x] : c * 3);
   return (GB_RULES[pre] = {xs, ys, conns, col, max, req, need: i => Math.min(3, max[i])});
 }
+// 노드 최대 포인트 — 제노 프리즘 「범위 내의 모든 (하위|중위|레전드 중위) 재능 추가로 N회 포인트 추가 가능」이면 범위 안 그 등급 노드는 +N (2026-10-22 사용자: 3회면 6포까지)
+function gbMax(pre, i) {
+  const R = gbRules(pre), base = R.max[i], g = gbpOf('p');
+  if (!g || g.b !== pre || !preset.prism) return base;
+  const nid = (BOARD_IDS[pre] || [])[i]; if (!nid || nid === String(g.nd)) return base;
+  const [r, c] = gbRC(nid);
+  if (!(g.c || []).some(([r2, c2]) => r2 === r && c2 === c)) return base;
+  const TN = {'하위': 1, '중위': 3, '레전드 중위': 4}, tier = boardTier(nid);
+  let add = 0;
+  (preset.prism.opts || []).filter(Boolean).forEach(o => {
+    const m = /범위 내의 모든 (레전드 중위|중위|하위) 재능 추가로 (\d+)회 포인트 추가 가능/.exec(prismOptEff(o, preset.prism.name) || '');
+    if (m && TN[m[1]] === tier) add += +m[2];
+  });
+  return base + add;
+}
 // 이 계열에서 손으로 찍을 수 있는 노드(원래 자리)의 포인트 — 역상 반사본(플래그 1)은 제외
 function gbPoints(pre) {
   const ids = BOARD_IDS[pre] || [], pts = ids.map(() => 0);
@@ -130,7 +145,7 @@ function gbWhyNot(pre, i, d, pts, ctx) {
   if (d > 0) {
     if (ctx.off.has(i)) return ctx.broken.has(i) && [preset.gbPrism, preset.gbPrism2].some(g => g && g.b === pre && (BOARD_IDS[pre] || [])[i] === String(g.nd))
       ? '프리즘·역상을 놓은 칸에는 포인트를 넣을 수 없습니다' : '역상 복사본에 가려진 칸입니다';
-    if (pts[i] >= R.max[i]) return '이미 최대(' + R.max[i] + '포인트)입니다';
+    if (pts[i] >= gbMax(pre, i)) return '이미 최대(' + gbMax(pre, i) + '포인트)입니다';
     const c = R.col[i];
     if (before(c) < R.req[c]) return '「' + R.req[c] + '」 열 잠김 — 왼쪽 열에 ' + R.req[c] + '포인트가 필요합니다(지금 ' + before(c) + ')';
     for (const [a, z] of R.conns) {
@@ -989,7 +1004,7 @@ function renderTalentBoard(opt) {
       if (isPrismNode) tipH += '<div class="gb-tno">이 칸에는 포인트를 투자할 수 없습니다</div>';
       else if (freeNode) tipH += '<div class="gb-tfree">선행 조건 없이 바로 투자 가능</div>';
       if (area) tipH += '<div class="gb-tarea">' + (isInv ? '역상 원본 범위' : '프리즘 영향 범위' + (boost ? ' · 프리즘 옵션 적용 대상' : '')) + '</div>';
-      if (boost && !isInv && preset.prism) { // 이 노드가 프리즘에서 받는 몫 — 장착 노드 툴팁의 합계를 노드별로(2026-10-22 사용자)
+      if (boost && !isInv && !isPrismNode && preset.prism) { // 이 노드가 프리즘에서 받는 몫 — 장착 노드 툴팁의 합계를 노드별로(2026-10-22 사용자)
         const TN = {'하위': 1, '중위': 3, '레전드 중위': 4};
         (preset.prism.opts || []).filter(Boolean).forEach(o => {
           const e = prismOptEff(o, preset.prism.name) || '';
@@ -1040,8 +1055,8 @@ function renderTalentBoard(opt) {
         const whyAdd = gbWhyNot(pre, i, 1, ptsEd, ctx);
         if (whyAdd && !(ptsEd[i] > 0)) edCls = ' gb-lock';
         else if (!whyAdd) edCls = ' gb-can';
-        tipH += '<div class="ft-sep"></div><div class="gb-tsub">' + ptsEd[i] + ' / ' + R.max[i] + '포인트 · 클릭 +1 · 우클릭 −1</div>' +
-          (whyAdd && ptsEd[i] < R.max[i] ? '<div class="gb-tno">' + escapeHtml(whyAdd) + '</div>' : '');
+        tipH += '<div class="ft-sep"></div><div class="gb-tsub">' + ptsEd[i] + ' / ' + gbMax(pre, i) + '포인트 · 클릭 +1 · 우클릭 −1</div>' +
+          (whyAdd && ptsEd[i] < gbMax(pre, i) ? '<div class="gb-tno">' + escapeHtml(whyAdd) + '</div>' : '');
         act = ` onclick="gbBump('${pre}',${i},event.shiftKey?-1:1)" oncontextmenu="gbBump('${pre}',${i},-1);return false"`;
       }
       tipH += '</div>';
