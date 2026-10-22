@@ -3353,6 +3353,7 @@ const PACT = JSON.parse(PD.pact_raw || '[]');
 const HERO = JSON.parse(PD.hero_raw || '[]');
 const SERVANT_KO = JSON.parse(PD.servant_raw || '{}'); // servantId → 정령 한글명
 const TARTARUS = JSON.parse(PD.tartarus_raw || '[]'); // 타르타로스 스킬 (SS14, DB 탭 전용)
+const TT_OPTS = JSON.parse(PD.tartarus_opts_raw || '[]'); // 타르타로스 붙는 옵션 공용 목록 — 스킬 opts.drop/empty 가 번호 (2026-10-22)
 const CONSUMS = JSON.parse(PD.consum_raw || '[]'); // 소모품 {n, c, q, d, s:[드롭처]} — 통합 검색 전용 (시세용 수집, 2026-10-20)
 const PACT_TIPS = JSON.parse(PD.pacttips_raw || '{}'); // 정령 용어 툴팁 {용어: 설명}
 const PROTOCOL_KO = JSON.parse(PD.protocol_raw || '{}'); // 모듈 프로토콜: 772 대역 어픽스 → {name, effect}
@@ -12453,8 +12454,20 @@ function ttCards() {
 }
 const ttName = x => String(x.name || '').replace(/\s*\(AI 번역\)$/, '');
 const ttTitle = v => ttName(v[0]).replace(/\s*\d$/, '');
+// 붙을 수 있는 옵션 (tlidb 상세 'Drop'·'Empty Support Skill Slot', 2026-10-22 사용자) — 단계마다 같아 1단계 것, 번호 → TT_OPTS
+const ttOptRows = (a, k) => ((a.opts || {})[k] || []).map(i => TT_OPTS[i]).filter(Boolean);
 function ttSearchText(v) {
-  return [ttTitle(v), v[0].kind, ...(v[0].tags || []), ...v.flatMap(x => [stripHtml(x.simple || ''), stripHtml(x.detail || '')])].join(' ');
+  return [ttTitle(v), v[0].kind, ...(v[0].tags || []), ...v.flatMap(x => [stripHtml(x.simple || ''), stripHtml(x.detail || '')]),
+    ...['drop', 'empty'].flatMap(k => ttOptRows(v[0], k).map(r => stripHtml(r.h)))].join(' ');
+}
+function ttOptsHtml(a, kws) {
+  const od = ttOptRows(a, 'drop'), oe = ttOptRows(a, 'empty');
+  if (!od.length && !oe.length) return '';
+  const txt = [...od, ...oe].map(r => stripHtml(r.h)).join(' ').toLowerCase();
+  const open = (kws || []).some(k => k && txt.includes(String(k).toLowerCase()));  // 검색어가 옵션에 걸리면 펼친 채로
+  const sec = (t, rows) => rows.length ? `<div class="tt-oh">${t} <i>${rows.length}</i></div><ul class="tt-ol">${rows.map(r => `<li class="${r.s ? 'sp' : ''}">${r.h}</li>`).join('')}</ul>` : '';
+  return `<details class="pc-adv tt-opts"${open ? ' open' : ''}><summary>붙을 수 있는 옵션 <small>드롭 ${od.length} · 빈 슬롯 ${oe.length}</small></summary>` +
+    sec('드롭', od) + sec('빈 보조 스킬 슬롯', oe) + '<div class="tt-on">◆ 빨강 = 변형·증폭·한계 돌파 같은 특수 옵션</div></details>';
 }
 function ttCardHtml(v, kws) {
   const a = v[0];
@@ -12469,7 +12482,7 @@ function ttCardHtml(v, kws) {
     `<div class="icard-opt tt-desc">${a.simple || ''}</div>` +
     (a.detail && a.detail !== a.simple ? `<details class="pc-adv"><summary>상세 설명</summary><div class="tt-desc">${a.detail}</div></details>` : '') +
     diff.map(x => `<details class="pc-adv"><summary>${x.tier}단계 — 1단계와 다른 설명</summary><div class="tt-desc">${x.simple || ''}</div></details>`).join('') +
-    '</div>';
+    ttOptsHtml(a, kws) + '</div>';
 }
 function renderTartarus() {
   const box = document.getElementById('ttResults');
