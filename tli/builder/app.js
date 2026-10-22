@@ -663,6 +663,11 @@ function itemPoolsHtml(it) {
     `<details class="icard-pool${p.corr ? ' corr' : ''}"><summary>${esc(p.name)}${p.corr ? ' 침식화 시' : ' 후보'} <small>${p.rows.length}</small></summary>` +
     p.rows.map(r => `<div class="icard-opt">${r[1]}</div>`).join('') + '</details>').join('') + '</div>';
 }
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 히어로·히어로 특성 공용 조각 (2026-10-08) ──
 // 빌더(이 묶음의 맨 앞)와 따로 떨어진 히어로 화면(/tli/hero, tli/hero/hero.js)이 함께 쓴다.
 // 기대하는 바깥 것: HERO(특성 데이터) · preset(활성 프리셋) · persistPreset · renderPreset · guardShareView · escapeHtml · KEY_MAP
@@ -1003,7 +1008,7 @@ function hrRenderModal() {
 }
 function hrLogPick() {
   if (typeof wzFilled === 'function' && wzFilled(preset) &&
-    !confirm(`로그에서 가져오면 새 프리셋이 하나 더 만들어집니다.\n지금 프리셋 [${preset.name || '프리셋 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`)) return;
+    !wtOk(`로그에서 가져오면 새 프리셋이 하나 더 만들어집니다.\n지금 프리셋 [${preset.name || '프리셋 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`, hrLogPick)) return;
   wbLogPick();
 }
 // 좁은 화면에서 트리가 넘치면 '옆으로 밀어서 보기' 표시 + 오른쪽 끝 흐림 (잘린 줄 알았다 — 2026-10-15)
@@ -2192,6 +2197,11 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
   if (ranks.indexOf(slateRank(r)) < 0) return false;
   return slateIsNether(info) || !/^\[절대자/.test(r.effect || '');
 }
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 재능 보드 시뮬레이터 공용 조각 (2026-10-08) ──
 // 빌더(묶음 맨 앞)와 따로 떨어진 재능 화면(/tli/talent, tli/talent/talent.js)이 함께 쓴다.
 // 기대하는 바깥 것: BOARDS · BOARD_IDS · boardTier · boardNodeText · preset · persistPreset · renderPreset ·
@@ -2548,7 +2558,7 @@ function gbPlaceAt(pre, i) {
   const nid = BOARD_IDS[pre][i], [r, c] = gbRC(nid), pos = gbSlots4().indexOf(pre) + 2, old = gbpOf(k);
   if (k === 'i') {
     const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre) || (old && old.b !== pre && (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === old.b && ((e[4] || 0) & 1)));
-    if (has && !confirm('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?')) return;
+    if (has && !wtOk('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?', () => gbPlaceAt(pre, i))) return;
     gbDropMirror(old);
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
@@ -2769,7 +2779,7 @@ function gbClearBoard(pre) {
   if (present.size > 1 && pre === god) { gbMsg = '⚠ 신 보드(1번)는 하위 보드를 모두 비운 뒤에 뺄 수 있습니다'; gbRefresh(); return; }
   if (pre === own && present.size > 2) { gbMsg = '⚠ 2번 보드(' + BOARDS[god].n + '의 하위)는 3·4번 보드를 먼저 비워야 뺄 수 있습니다'; gbRefresh(); return; }
   const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre);
-  if (has && !confirm(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?')) return;
+  if (has && !wtOk(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?', () => gbClearBoard(pre))) return;
   if (preset.gboard) { preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre); if (!preset.gboard.length) delete preset.gboard; }
   ['p', 'i'].forEach(k => { const g = gbpOf(k); if (g && g.b === pre) { gbpSet(k, null); if (k === 'i') delete preset.inverse; } }); // 이 보드에 놓은 프리즘·역상도 내린다 (프리즘 자체는 남김)
   const coreKs = new Set((BOARDS[pre].k || []).flatMap(g => g[1]).map(gbCoreRow).filter(Boolean).map(gbCoreKey));
@@ -3257,6 +3267,11 @@ function renderTalentBoard(opt) {
   wrap.innerHTML = h + '</div>';
   wrap.style.display = '';
 }
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 const DB = JSON.parse(PD.raw);
 const PARTS = PD.parts_js;
 const SKILLS = JSON.parse(PD.skills_raw);
@@ -3851,8 +3866,9 @@ function switchPreset(id) {
 }
 function addPreset() {
   if (guardBuildMode()) return;
-  const nm = prompt('새 프리셋 이름 (예: 초반, 중반, 엔드)', `프리셋 ${presets.list.length + 1}`);
-  if (nm === null) return;
+  wtAskText('새 프리셋 이름 (예: 초반, 중반, 엔드)', `프리셋 ${presets.list.length + 1}`, nm => addPresetNamed(nm), {title: '새 프리셋'});
+}
+function addPresetNamed(nm) {
   const id = Math.max(...presets.list.map(p => p.id)) + 1;
   presets.list.push({id, name: nm.trim() || `프리셋 ${presets.list.length + 1}`, slots: {}, talents: [], skills: {}});
   presets.activeId = id;
@@ -4209,7 +4225,7 @@ async function exportPresetCode() {
     await navigator.clipboard.writeText(code);
     alert(`[${preset.name}] 프리셋 코드가 클립보드에 복사되었습니다. (${code.length.toLocaleString()}자)\n다른 사람에게 붙여넣어 전달하세요.`);
   } catch (e) {
-    prompt('아래 프리셋 코드를 직접 복사하세요 (Ctrl+C)', code); // 클립보드 권한이 없을 때 폴백
+    wtCopyBox('아래 프리셋 코드를 직접 복사하세요', code); // 클립보드 권한이 없을 때 폴백
   }
 }
 
@@ -4243,7 +4259,7 @@ async function exportPresetLink() { // 프리셋을 URL로 공유·보관 (?pcod
     await navigator.clipboard.writeText(shareText);
     alert(`[${preset.name}] 프리셋 링크가 클립보드에 복사되었습니다.\n받는 사람은 링크를 열면 프리셋 보기 화면에서 [내 프리셋으로 가져오기]로 가져갈 수 있습니다. (${expire})`);
   } catch (e) {
-    prompt('아래 내용을 직접 복사하세요 (Ctrl+C)', shareText); // 클립보드 권한 없을 때 폴백
+    wtCopyBox('아래 내용을 직접 복사하세요', shareText); // 클립보드 권한 없을 때 폴백
   }
 }
 
@@ -4257,9 +4273,11 @@ async function addPresetFromCode(code, nameHint) { // 코드 → 새 프리셋�
   renderPreset();
   return {p, missing};
 }
-async function importPresetCode() {
+function importPresetCode() {
   if (guardBuildMode()) return;
-  const code = prompt('프리셋 코드를 붙여넣으세요 (TLP로 시작)');
+  wtAskText('프리셋 코드를 붙여넣으세요 (TLP로 시작)', '', importPresetCodeGo, {title: '프리셋 코드 가져오기'});
+}
+async function importPresetCodeGo(code) {
   if (code === null || !code.trim()) return;
   try {
     const {p, missing} = await addPresetFromCode(code);
@@ -13742,7 +13760,7 @@ async function submitShare() {
       shareList = [];
       const link = location.origin + '/tli/view/?preset=' + d.id; // 공유 링크는 보기 화면 (2026-10-09)
       try { await navigator.clipboard.writeText(link); alert('공유 완료! 링크가 클립보드에 복사되었습니다.\n' + link); }
-      catch (e) { prompt('공유 완료! 아래 링크를 복사해서 나눠주세요.', link); }
+      catch (e) { wtCopyBox('공유 완료! 아래 링크를 복사해서 나눠주세요.', link); }
     }
   } catch (e) { alert((editing ? '수정 실패: ' : '공유 실패: ') + e.message); }
   hideVeil();

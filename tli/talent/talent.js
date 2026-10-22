@@ -1,4 +1,9 @@
 // 생성물 — 고칠 땐 update/src/js/00_talent.js · update/src/page_common.js · update/src/talent_glue.js · update/src/talent_page.js (build_html2.build_tool_pages)
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 재능 보드 시뮬레이터 공용 조각 (2026-10-08) ──
 // 빌더(묶음 맨 앞)와 따로 떨어진 재능 화면(/tli/talent, tli/talent/talent.js)이 함께 쓴다.
 // 기대하는 바깥 것: BOARDS · BOARD_IDS · boardTier · boardNodeText · preset · persistPreset · renderPreset ·
@@ -355,7 +360,7 @@ function gbPlaceAt(pre, i) {
   const nid = BOARD_IDS[pre][i], [r, c] = gbRC(nid), pos = gbSlots4().indexOf(pre) + 2, old = gbpOf(k);
   if (k === 'i') {
     const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre) || (old && old.b !== pre && (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === old.b && ((e[4] || 0) & 1)));
-    if (has && !confirm('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?')) return;
+    if (has && !wtOk('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?', () => gbPlaceAt(pre, i))) return;
     gbDropMirror(old);
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
@@ -576,7 +581,7 @@ function gbClearBoard(pre) {
   if (present.size > 1 && pre === god) { gbMsg = '⚠ 신 보드(1번)는 하위 보드를 모두 비운 뒤에 뺄 수 있습니다'; gbRefresh(); return; }
   if (pre === own && present.size > 2) { gbMsg = '⚠ 2번 보드(' + BOARDS[god].n + '의 하위)는 3·4번 보드를 먼저 비워야 뺄 수 있습니다'; gbRefresh(); return; }
   const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre);
-  if (has && !confirm(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?')) return;
+  if (has && !wtOk(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?', () => gbClearBoard(pre))) return;
   if (preset.gboard) { preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre); if (!preset.gboard.length) delete preset.gboard; }
   ['p', 'i'].forEach(k => { const g = gbpOf(k); if (g && g.b === pre) { gbpSet(k, null); if (k === 'i') delete preset.inverse; } }); // 이 보드에 놓은 프리즘·역상도 내린다 (프리즘 자체는 남김)
   const coreKs = new Set((BOARDS[pre].k || []).flatMap(g => g[1]).map(gbCoreRow).filter(Boolean).map(gbCoreKey));
@@ -1065,6 +1070,11 @@ function renderTalentBoard(opt) {
   wrap.style.display = '';
 }
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 단독 화면(/tli/hero · /tli/talent) 공용 연결부 (2026-10-08) ──
 // 빌더를 통째로 띄우지 않고 기능 조각(00_*.js)과 그 데이터만 싣는다.
 // 빌더2·보기 화면은 빌더와 같은 브라우저 저장소(tlidb_presets_v1)의 활성 빌드를 쓴다.
@@ -1160,7 +1170,7 @@ function hpSoloOver(id) {
       Object.values(dst.skills || {}).some(s => s && s.main && s.main.name === '마령')) {
     alert('그 빌드의 액티브 칸에 마령 스킬이 있어 아이리스가 아닌 히어로로 바꿀 수 없습니다.\n빌더에서 먼저 해당 스킬을 비워주세요.'); return;
   }
-  if (!isNew && !confirm(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`)) return;
+  if (!isNew && !wtOk(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`, () => hpSoloOver(id))) return;
   if (isNew) {
     dst = {id: bs.list.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1, name: HP_SOLO_WHAT[PAGE_SOLO] + ' 연습', slots: {}, talents: [], skills: {}};
     bs.list.push(dst);
@@ -1177,7 +1187,7 @@ function hpToast(html) {
   clearTimeout(hpToast.t); hpToast.t = setTimeout(() => el.classList.remove('on'), 6000);
 }
 function hpSoloReset() {
-  if (!confirm('이 화면에서 찍은 것을 모두 지울까요?')) return;
+  if (!wtOk('이 화면에서 찍은 것을 모두 지울까요?', hpSoloReset)) return;
   presets = {list: [{id: 1, name: '연습판', slots: {}, talents: [], skills: {}}], activeId: 1};
   hpUse(presets.list[0]);
   persistPreset();
@@ -1267,7 +1277,7 @@ function hpBpDel(id) {
     persistPreset(); pageRender(); hpBpDraw();
   };
   const msg = `[${hpBpName(p)}] 빌드를 삭제할까요?`;
-  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else if (confirm(msg)) go();
+  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else wtAsk(msg, go);
 }
 function hpBpPick(id) { hpBpClose(); if (id !== preset.id) hpSwitch(id); }
 document.addEventListener('mousedown', e => {

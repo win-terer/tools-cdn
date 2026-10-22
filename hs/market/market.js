@@ -364,7 +364,7 @@
   }
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); toast(T('copied', text)); }
-    catch (e) { prompt(T('copy_prompt'), text); }
+    catch (e) { wtCopyBox(T('copy_prompt'), text); }
   }
 
   // 남은 기간 표기

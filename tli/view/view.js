@@ -1,4 +1,9 @@
 // 생성물 — 고칠 땐 update/src/js/00_hero.js · update/src/js/00_talent.js · update/src/js/00_skill.js · update/src/js/00_gear.js · update/src/js/00_slate.js · update/src/js/00_pact.js · update/src/js/00_codec.js · update/src/js/00_logbase.js · update/src/js/00_optlines.js · update/src/js/00_seal.js · update/src/page_common.js · update/src/hero_glue.js · update/src/talent_glue.js · update/src/wz_skill.js · update/src/wz_gear.js · update/src/wz_mem.js · update/src/wz_slate.js · update/src/wz_pact.js · update/src/view_glue.js · update/src/view_page.js (build_html2.build_tool_pages)
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 히어로·히어로 특성 공용 조각 (2026-10-08) ──
 // 빌더(이 묶음의 맨 앞)와 따로 떨어진 히어로 화면(/tli/hero, tli/hero/hero.js)이 함께 쓴다.
 // 기대하는 바깥 것: HERO(특성 데이터) · preset(활성 빌드) · persistPreset · renderPreset · guardShareView · escapeHtml · KEY_MAP
@@ -339,7 +344,7 @@ function hrRenderModal() {
 }
 function hrLogPick() {
   if (typeof wzFilled === 'function' && wzFilled(preset) &&
-    !confirm(`로그에서 가져오면 새 빌드가 하나 더 만들어집니다.\n지금 빌드 [${preset.name || '빌드 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`)) return;
+    !wtOk(`로그에서 가져오면 새 빌드가 하나 더 만들어집니다.\n지금 빌드 [${preset.name || '빌드 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`, hrLogPick)) return;
   wbLogPick();
 }
 // 좁은 화면에서 트리가 넘치면 '옆으로 밀어서 보기' 표시 + 오른쪽 끝 흐림 (잘린 줄 알았다 — 2026-10-15)
@@ -476,6 +481,11 @@ const MEM_STAGES = [
   {cat: 'random', type: '랜덤 옵션', max: 2},
 ];
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 재능 보드 시뮬레이터 공용 조각 (2026-10-08) ──
 // 빌더(묶음 맨 앞)와 따로 떨어진 재능 화면(/tli/talent, tli/talent/talent.js)이 함께 쓴다.
 // 기대하는 바깥 것: BOARDS · BOARD_IDS · boardTier · boardNodeText · preset · persistPreset · renderPreset ·
@@ -832,7 +842,7 @@ function gbPlaceAt(pre, i) {
   const nid = BOARD_IDS[pre][i], [r, c] = gbRC(nid), pos = gbSlots4().indexOf(pre) + 2, old = gbpOf(k);
   if (k === 'i') {
     const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre) || (old && old.b !== pre && (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === old.b && ((e[4] || 0) & 1)));
-    if (has && !confirm('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?')) return;
+    if (has && !wtOk('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?', () => gbPlaceAt(pre, i))) return;
     gbDropMirror(old);
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
@@ -1053,7 +1063,7 @@ function gbClearBoard(pre) {
   if (present.size > 1 && pre === god) { gbMsg = '⚠ 신 보드(1번)는 하위 보드를 모두 비운 뒤에 뺄 수 있습니다'; gbRefresh(); return; }
   if (pre === own && present.size > 2) { gbMsg = '⚠ 2번 보드(' + BOARDS[god].n + '의 하위)는 3·4번 보드를 먼저 비워야 뺄 수 있습니다'; gbRefresh(); return; }
   const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre);
-  if (has && !confirm(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?')) return;
+  if (has && !wtOk(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?', () => gbClearBoard(pre))) return;
   if (preset.gboard) { preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre); if (!preset.gboard.length) delete preset.gboard; }
   ['p', 'i'].forEach(k => { const g = gbpOf(k); if (g && g.b === pre) { gbpSet(k, null); if (k === 'i') delete preset.inverse; } }); // 이 보드에 놓은 프리즘·역상도 내린다 (프리즘 자체는 남김)
   const coreKs = new Set((BOARDS[pre].k || []).flatMap(g => g[1]).map(gbCoreRow).filter(Boolean).map(gbCoreKey));
@@ -3268,6 +3278,11 @@ function sealBoxHtml() {
     (over ? '<div class="seal-warn">⚠ 봉인이 100%를 넘어 모든 패시브를 켤 수 없습니다</div>' : '') + '</div>';
 }
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 단독 화면(/tli/hero · /tli/talent) 공용 연결부 (2026-10-08) ──
 // 빌더를 통째로 띄우지 않고 기능 조각(00_*.js)과 그 데이터만 싣는다.
 // 빌더2·보기 화면은 빌더와 같은 브라우저 저장소(tlidb_presets_v1)의 활성 빌드를 쓴다.
@@ -3363,7 +3378,7 @@ function hpSoloOver(id) {
       Object.values(dst.skills || {}).some(s => s && s.main && s.main.name === '마령')) {
     alert('그 빌드의 액티브 칸에 마령 스킬이 있어 아이리스가 아닌 히어로로 바꿀 수 없습니다.\n빌더에서 먼저 해당 스킬을 비워주세요.'); return;
   }
-  if (!isNew && !confirm(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`)) return;
+  if (!isNew && !wtOk(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`, () => hpSoloOver(id))) return;
   if (isNew) {
     dst = {id: bs.list.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1, name: HP_SOLO_WHAT[PAGE_SOLO] + ' 연습', slots: {}, talents: [], skills: {}};
     bs.list.push(dst);
@@ -3380,7 +3395,7 @@ function hpToast(html) {
   clearTimeout(hpToast.t); hpToast.t = setTimeout(() => el.classList.remove('on'), 6000);
 }
 function hpSoloReset() {
-  if (!confirm('이 화면에서 찍은 것을 모두 지울까요?')) return;
+  if (!wtOk('이 화면에서 찍은 것을 모두 지울까요?', hpSoloReset)) return;
   presets = {list: [{id: 1, name: '연습판', slots: {}, talents: [], skills: {}}], activeId: 1};
   hpUse(presets.list[0]);
   persistPreset();
@@ -3470,7 +3485,7 @@ function hpBpDel(id) {
     persistPreset(); pageRender(); hpBpDraw();
   };
   const msg = `[${hpBpName(p)}] 빌드를 삭제할까요?`;
-  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else if (confirm(msg)) go();
+  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else wtAsk(msg, go);
 }
 function hpBpPick(id) { hpBpClose(); if (id !== preset.id) hpSwitch(id); }
 document.addEventListener('mousedown', e => {
@@ -3878,9 +3893,9 @@ const WG_POS = {helmet: [1, 1], chest: [2, 1], neck: [1, 2], glove: [2, 2], belt
 const WG_KIND = {item: '레전드', custom: '제작', blood: '블러드'};
 const wgTwoHand = () => { const w = wgCur('weapon1'); return !!(w && PARTS.TWO_HAND.includes(w.part)); };
 function wgItemIdx(name) { return ITEMS.findIndex(x => x.name === name); }
-function wgReplaceOk(kind) { // 칸에 다른 종류(레전드·제작·블러드)가 있으면 바꿀지 묻는다
+function wgReplaceOk(kind, again) { // 칸에 다른 종류(레전드·제작·블러드)가 있으면 바꿀지 묻는다 — again: 확인 누르면 다시 부를 함수(공통 대화창 wtOk)
   const c = wgCur(wgSlot);
-  return !c || c.kind === kind || confirm('이 칸의 ' + WG_KIND[c.kind] + ' 장비를 ' + WG_KIND[kind] + ' 장비로 바꿀까요?');
+  return !c || c.kind === kind || wtOk('이 칸의 ' + WG_KIND[c.kind] + ' 장비를 ' + WG_KIND[kind] + ' 장비로 바꿀까요?', again);
 }
 function wgSave(nv) { // 칸에 넣기 — 조향·시퀀스·베이스는 빌더와 같은 규칙으로 이어 받는다
   if (!preset.slots) preset.slots = {};
@@ -3935,9 +3950,9 @@ function wgEquipItem(idx) {
   if (wgSlot === 'weapon2' && wgTwoHand()) { wgMsg = '양손 무기를 끼고 있어 이 칸은 쓸 수 없습니다'; pageRender(); return; }
   const cur = wgCur(wgSlot);
   if (cur && cur.kind === 'item' && cur.name === it.name) { wgSave(null); pageRender(); return; } // 다시 누르면 빼기
-  if (!wgReplaceOk('item')) return;
+  if (!wgReplaceOk('item', () => wgEquipItem(idx))) return;
   if (wgSlot === 'weapon1' && PARTS.TWO_HAND.includes(g.part) && wgCur('weapon2')) {
-    if (!confirm('양손 무기를 끼면 무기(방패) 칸이 비워집니다. 진행할까요?')) return;
+    if (!wtOk('양손 무기를 끼면 무기(방패) 칸이 비워집니다. 진행할까요?', () => wgEquipItem(idx))) return;
     preset.slots.weapon2 = null;
   }
   wgSave({kind: 'item', name: it.name, part: g.part, snap: it});
@@ -3983,7 +3998,7 @@ function wgSetPart(pt) {
   const cur = wgCur(wgSlot);
   if (cur && cur.kind === 'custom' && cur.part !== pt) {
     const n = ['basic', 'main', 'sub'].reduce((t, c) => t + cur.opts[c].length, 0);
-    if (n && !confirm('부위를 바꾸면 고른 옵션 ' + n + '개가 지워집니다. 진행할까요?')) return;
+    if (n && !wtOk('부위를 바꾸면 고른 옵션 ' + n + '개가 지워집니다. 진행할까요?', () => wgSetPart(pt))) return;
     wgSave(null);
   }
   if (wgSlot === 'weapon2' && wgTwoHand()) { wgMsg = '양손 무기를 끼고 있어 이 칸은 쓸 수 없습니다'; pageRender(); return; }
@@ -4004,7 +4019,7 @@ const wgBaseLines = b => [...(b.stats || []), ...(b.imps || [])].filter(l => !/\
 function wgSetBase(gid) {
   if (guardShareView()) return;
   const part = wgCraftPart(), cur = wgCur(wgSlot);
-  if (!part || !wgReplaceOk('custom')) { pageRender(); return; }
+  if (!part || !wgReplaceOk('custom', () => wgSetBase(gid))) { pageRender(); return; }
   const v = cur && cur.kind === 'custom' ? cur : {kind: 'custom', part, name: '', opts: {basic: [], main: [], sub: []}};
   if (gid) v.base = String(gid); else delete v.base;
   wgSave(v); wgMsg = ''; pageRender();
@@ -4030,7 +4045,7 @@ function wgToggleOpt(i) {
   const r = wgCraftPool()[i], part = wgCraftPart();
   if (!r || !part) return;
   const cur = wgCur(wgSlot);
-  if (!wgReplaceOk('custom')) return;
+  if (!wgReplaceOk('custom', () => wgToggleOpt(i))) return;
   const v = cur && cur.kind === 'custom' ? cur : {kind: 'custom', part, name: '', opts: {basic: [], main: [], sub: []}};
   const k = rowKey(r);
   for (const c of ['basic', 'main', 'sub']) {
@@ -4114,7 +4129,7 @@ function wgSetAberr(on) {
   if (guardShareView()) return;
   const c = wgCur(wgSlot);
   if (c && c.kind === 'blood' && !!c.aberrant !== on) {
-    if (!confirm('베이스를 바꾸면 고른 기본·추가 옵션이 지워집니다(풀이 달라서). 진행할까요?')) return;
+    if (!wtOk('베이스를 바꾸면 고른 기본·추가 옵션이 지워집니다(풀이 달라서). 진행할까요?', () => wgSetAberr(on))) return;
     const o = c.opts; o.base = []; o.extra = [];
     c.aberrant = on; wgBSave(o);
   }
@@ -4124,7 +4139,7 @@ function wgBToggle(stage, i) {
   if (guardShareView()) return;
   const why = wgBCan();
   if (why) { wgMsg = why; pageRender(); return; }
-  if (!wgReplaceOk('blood')) return;
+  if (!wgReplaceOk('blood', () => wgBToggle(stage, i))) return;
   const o = JSON.parse(JSON.stringify(wgBOpts())), pool = wgBPool(wgBAberr()), part = wgBPart();
   wgMsg = '';
   if (stage === 'bases') {
@@ -4653,7 +4668,7 @@ function wmPickRv(i) {
   if (wmIsX(p)) return;
   if (!wmMem(p)) { wmMsg = '추억을 먼저 만들어 주세요 (옵션을 하나 이상)'; pageRender(); return; }
   const rv = preset.revival;
-  if (rv && rv.part !== p && !confirm('부활 옵션은 추억 하나에만 적용됩니다. ' + rv.part + '에서 ' + p + '로 옮길까요?')) return;
+  if (rv && rv.part !== p && !wtOk('부활 옵션은 추억 하나에만 적용됩니다. ' + rv.part + '에서 ' + p + '로 옮길까요?', () => wmPickRv(i))) return;
   const o = REVIVALS[i];
   if (rv && rv.part === p && rv.effect === o.effect && rv.group === o.group) { delete preset.revival; persistPreset(); pageRender(); return; } // 다시 누르면 빼기
   const prevX = rv ? revivalExtraPart(rv.effect) : null, newX = revivalExtraPart(o.effect);
@@ -5887,7 +5902,7 @@ function vwSeChoose() {
 }
 async function vwSeStage(i) { await vwStage(i); vwSeChoose(); } // 창 안 단계 칩 → 뒤 화면도 그 단계로
 function vwSeStop() { // 수정 그만두기 — 사본을 지우고 공유 글 보기로
-  if (!confirm('공유 글 수정을 그만둘까요? 고치던 내용은 지워지고, 공유 글은 바뀌지 않습니다.')) return;
+  if (!wtOk('공유 글 수정을 그만둘까요? 고치던 내용은 지워지고, 공유 글은 바뀌지 않습니다.', vwSeStop)) return;
   const sid = preset.shareEdit && preset.shareEdit.id;
   try {
     const ps = JSON.parse(localStorage.getItem(PRESETS_KEY) || 'null');

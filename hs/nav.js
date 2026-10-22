@@ -41,6 +41,72 @@
       'white-space:pre-line;pointer-events:none;opacity:0;transition:opacity .08s;word-break:keep-all;overflow-wrap:anywhere}' +
     '.wt-tt.on{opacity:1}';
   (document.head || document.documentElement).appendChild(css);
+  // ④ 대화창 — 시스템 alert·confirm·prompt 대신(2026-10-22 사용자). 빌더처럼 디자인 팝업(uiAlert·uiConfirm·uiPrompt)이 있는 화면은 그걸 쓴다
+  //   wtAsk(문구, 확인 시 할 일, {title, ok, cancel, danger}) · wtAskText(문구, 기본값, 받을 함수(값), {title}) · wtCopyBox(문구, 복사할 글) · alert 는 알림 창으로
+  //   confirm 처럼 값을 바로 돌려주지 못하니 "확인을 누르면 이어서 할 일"을 넘긴다
+  css.textContent +=
+    '.wt-dlg{position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:16px}' +
+    '.wt-dlg-box{width:min(420px,100%);background:#151b27;color:#dfe6ee;border:1px solid #2e3a52;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:18px 18px 14px;' +
+      'font:14px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}' +
+    '.wt-dlg-t{font-weight:700;font-size:15px;margin:0 0 8px;color:#f0f4f8}' +
+    '.wt-dlg-m{white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere;color:#c4ccd6}' +
+    '.wt-dlg-in{display:block;width:100%;box-sizing:border-box;margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid #33405a;background:#0e131c;color:#e6edf3;font:inherit;outline:none}' +
+    '.wt-dlg-in:focus{border-color:#5b7bd5}' +
+    'textarea.wt-dlg-in{min-height:70px;resize:vertical;font-size:12.5px}' +
+    '.wt-dlg-b{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}' +
+    '.wt-dlg-b button{padding:7px 16px;border-radius:8px;border:1px solid #33405a;background:#1d2433;color:#dfe6ee;font:inherit;cursor:pointer}' +
+    '.wt-dlg-b button:hover{background:#263045}' +
+    '.wt-dlg-b button.pri{background:#e8b64c;border-color:#e8b64c;color:#1a1408;font-weight:700}' +
+    '.wt-dlg-b button.pri:hover{background:#f2c565}' +
+    '.wt-dlg-b button.dng{background:#c0453f;border-color:#c0453f;color:#fff}';
+  const dlg = (o) => {   // o: {title, msg, input, def, area, okTxt, cancelTxt(null 이면 확인만), danger, onOk(값), onCancel}
+    const back = document.createElement('div'); back.className = 'wt-dlg';
+    const box = document.createElement('div'); box.className = 'wt-dlg-box'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+    if (o.title) { const t = document.createElement('div'); t.className = 'wt-dlg-t'; t.textContent = o.title; box.appendChild(t); }
+    const m = document.createElement('div'); m.className = 'wt-dlg-m'; m.textContent = String(o.msg == null ? '' : o.msg); box.appendChild(m);
+    let inp = null;
+    if (o.input) { inp = document.createElement(o.area ? 'textarea' : 'input'); inp.className = 'wt-dlg-in'; if (!o.area) inp.type = 'text'; inp.value = o.def || ''; if (o.readOnly) inp.readOnly = true; box.appendChild(inp); }
+    const bar = document.createElement('div'); bar.className = 'wt-dlg-b';
+    const done = (ok) => { back.remove(); document.removeEventListener('keydown', key, true); if (ok) { if (o.onOk) o.onOk(inp ? inp.value : true); } else if (o.onCancel) o.onCancel(); };
+    if (o.cancelTxt !== null) { const c = document.createElement('button'); c.type = 'button'; c.textContent = o.cancelTxt || '취소'; c.onclick = () => done(false); bar.appendChild(c); }
+    const ok = document.createElement('button'); ok.type = 'button'; ok.className = o.danger ? 'dng' : 'pri'; ok.textContent = o.okTxt || '확인'; ok.onclick = () => done(true); bar.appendChild(ok);
+    box.appendChild(bar); back.appendChild(box);
+    back.addEventListener('mousedown', (e) => { if (e.target === back) done(o.cancelTxt === null); });
+    const key = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(o.cancelTxt === null); }
+      else if (e.key === 'Enter' && !(inp && inp.tagName === 'TEXTAREA' && !e.ctrlKey && !e.metaKey)) { e.preventDefault(); e.stopPropagation(); done(true); }
+    };
+    document.addEventListener('keydown', key, true);
+    (document.body || document.documentElement).appendChild(back);
+    setTimeout(() => { if (inp) { inp.focus(); inp.select(); } else ok.focus(); }, 0);
+  };
+  window.wtAsk = (msg, onOk, o) => {
+    o = o || {};
+    if (typeof window.uiConfirm === 'function') return window.uiConfirm(msg, onOk, {title: o.title, ok: o.ok, cancel: o.cancel, onCancel: o.onCancel});
+    dlg({title: o.title || '확인', msg, okTxt: o.ok, cancelTxt: o.cancel, danger: o.danger, onOk: () => onOk && onOk(), onCancel: o.onCancel});
+  };
+  window.wtAskText = (msg, def, onOk, o) => {
+    o = o || {};
+    if (typeof window.uiPrompt === 'function') return window.uiPrompt(msg, def, onOk, {title: o.title});
+    dlg({title: o.title || '입력', msg, input: true, def, onOk});
+  };
+  window.wtCopyBox = (msg, text) => dlg({title: '복사', msg, input: true, area: String(text).length > 60, def: text, readOnly: true, okTxt: '복사', cancelTxt: '닫기',
+    onOk: (v) => { (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).catch(() => { try { const t = document.createElement('textarea'); t.value = v; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); } catch (e) {} }); }});
+  // wtOk(문구, 다시 부를 함수) — `if (!confirm(문구)) return;` 자리에 그대로 쓰는 판. 처음엔 창을 띄우고 false(멈춤),
+  //   확인을 누르면 그 함수를 다시 부르고 이번엔 true 로 통과 — 호출부를 콜백으로 다 뜯어고치지 않아도 된다
+  //   한 동작에 확인이 둘 이상 이어지면(예: 종류 바꾸기 → 양손 무기) 앞에서 누른 확인은 그 동작이 끝날 때까지 기억한다
+  const okSet = new Set();
+  let asks = 0, okAt = 0;
+  window.wtOk = (msg, again, o) => {
+    if (Date.now() - okAt > 30000) okSet.clear();   // ESC 로 닫혀 취소 소식이 없던 기억은 오래 두지 않는다
+    if (okSet.has(msg)) return true;
+    asks++;
+    window.wtAsk(msg, () => { okSet.add(msg); okAt = Date.now(); const n = asks; try { again(); } finally { if (asks === n) okSet.clear(); } },
+      Object.assign({}, o, { onCancel: () => { okSet.clear(); if (o && o.onCancel) o.onCancel(); } }));
+    return false;
+  };
+  // alert — 페이지가 따로 정한 alert(빌더의 디자인 팝업)가 있으면 그쪽이 덮어쓴다(페이지 코드가 nav.js 뒤에 읽힘)
+  window.alert = (msg) => { if (typeof window.uiAlert === 'function') return window.uiAlert(msg); dlg({title: '알림', msg, cancelTxt: null}); };
   if (window.matchMedia && !matchMedia('(hover: hover)').matches) return;   // 터치 기기는 툴팁 없이(기본 그대로)
   let tip = null, cur = null, timer = 0, mx = 0, my = 0;
   const place = () => {

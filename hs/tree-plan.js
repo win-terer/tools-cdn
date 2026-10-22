@@ -415,7 +415,7 @@ document.getElementById('reset').onclick = () => {
 document.getElementById('share').onclick = async (e) => {
   const code = encode();
   const url = location.origin + location.pathname + (code ? '?p=' + code : '');
-  try { await navigator.clipboard.writeText(url); } catch (err) { prompt('URL', url); }
+  try { await navigator.clipboard.writeText(url); } catch (err) { wtCopyBox('URL', url); }
   const b = e.target, old = b.textContent;
   b.textContent = t().shared; setTimeout(() => { b.textContent = old; }, 1200);
 };

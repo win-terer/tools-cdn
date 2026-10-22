@@ -1,4 +1,9 @@
 // 생성물 — 고칠 땐 update/src/void_page.js (build_html2.build_tool_pages)
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // 허공의 성도 시뮬레이터 (/tli/void, 2026-10-16) — 재능 별무리 노드 찍기 · 포인트 · 효과 합계 · 링크 공유
 // 데이터 VOID = {star, main, list:[{page, name, icon, unlock, n, main?, vb, start, nodes:[{id,x,y,r,icon,kind,map?,fn?,extra?}], links:[[자식,부모]]}]}
 // 규칙(사용자 확인 2026-10-16): 노드 = 1포인트(시작 노드는 공짜) · 그윽한(메인) 별무리는 '메인 스타 재능' 전용 포인트 ·
@@ -307,12 +312,12 @@
     } else if (a === 'take') {
       let my = null; try { my = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
       const has = my && my.s && Object.keys(my.s).length;
-      if (has && !confirm('이 파밍 빌드를 내 연습판으로 가져올까요?\n지금 찍어 둔 배치는 덮어씁니다.')) return;
+      if (has && !wtOk('이 파밍 빌드를 내 연습판으로 가져올까요?\n지금 찍어 둔 배치는 덮어씁니다.', () => roAct(a))) return;
       RO = null; save(); toast('내 연습판으로 가져왔습니다');
       history.replaceState(null, '', location.pathname + location.hash); render();
     } else if (a === 'copylink') {
       const u = location.origin + location.pathname + '?s=' + id;
-      (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => prompt('공유 링크', u));
+      (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => wtCopyBox('공유 링크', u));
     } else if (a === 'exit') {
       RO = null; S = CS.map(() => new Set()); load(); undo = [];
       history.replaceState(null, '', location.pathname); document.title = '허공의 성도 시뮬레이터 · 토치라이트 인피니트 · 미니토치DB'; render();
@@ -355,7 +360,7 @@
     if (a === 'upload') return upload();
     if (a === 'back') { view = -1; history.replaceState(null, '', location.pathname + location.search); render(); }
     else if (a === 'undo' && undo.length) { S = undo.pop(); save(); render(); }
-    else if (a === 'reset') { if (!S.some(x => x.size) || confirm('찍은 노드를 모두 지울까요?')) { snap(); S = CS.map(() => new Set()); save(); render(); } }
+    else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); save(); render(); }; if (!S.some(x => x.size)) go(); else wtAsk('찍은 노드를 모두 지울까요?', go); }
     else if (a === 'clear') {
       const hadFree = freeOn(); snap(); S[view] = new Set();
       if (hadFree && !freeOn()) CS.forEach(x => { if (x.ng) S[x.ci] = new Set(); });   // 자유 찍기 노드가 빠짐 → 비 콘텐츠 별무리 초기화
@@ -364,7 +369,7 @@
     else if (a === 'share') {
       if (!S.some(x => x.size)) return toast('찍은 노드가 없습니다');
       const u = location.origin + location.pathname + '?c=' + encode();
-      (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => prompt('공유 링크', u));
+      (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => wtCopyBox('공유 링크', u));
       if (window.wtEv) window.wtEv('void_share');
     }
   });
@@ -412,7 +417,8 @@
     try {
       const got = decode(q);
       const same = got.every((s, i) => s.size === S[i].size && [...s].every(x => S[i].has(x)));
-      if (same || !S.some(x => x.size) || confirm('공유받은 허공의 성도 배치를 불러올까요?\n지금 찍어 둔 배치는 덮어씁니다.')) { S = got; save(); }
+      if (same || !S.some(x => x.size)) { S = got; save(); }
+      else wtAsk('공유받은 허공의 성도 배치를 불러올까요?\n지금 찍어 둔 배치는 덮어씁니다.', () => { S = got; save(); render(); });
     } catch (e) { toast('공유 링크를 읽지 못했습니다'); }
     history.replaceState(null, '', location.pathname + location.hash);
   }

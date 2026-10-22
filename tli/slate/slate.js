@@ -611,6 +611,11 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
   return slateIsNether(info) || !/^\[절대자/.test(r.effect || '');
 }
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 단독 화면(/tli/hero · /tli/talent) 공용 연결부 (2026-10-08) ──
 // 빌더를 통째로 띄우지 않고 기능 조각(00_*.js)과 그 데이터만 싣는다.
 // 빌더2·보기 화면은 빌더와 같은 브라우저 저장소(tlidb_presets_v1)의 활성 빌드를 쓴다.
@@ -706,7 +711,7 @@ function hpSoloOver(id) {
       Object.values(dst.skills || {}).some(s => s && s.main && s.main.name === '마령')) {
     alert('그 빌드의 액티브 칸에 마령 스킬이 있어 아이리스가 아닌 히어로로 바꿀 수 없습니다.\n빌더에서 먼저 해당 스킬을 비워주세요.'); return;
   }
-  if (!isNew && !confirm(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`)) return;
+  if (!isNew && !wtOk(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`, () => hpSoloOver(id))) return;
   if (isNew) {
     dst = {id: bs.list.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1, name: HP_SOLO_WHAT[PAGE_SOLO] + ' 연습', slots: {}, talents: [], skills: {}};
     bs.list.push(dst);
@@ -723,7 +728,7 @@ function hpToast(html) {
   clearTimeout(hpToast.t); hpToast.t = setTimeout(() => el.classList.remove('on'), 6000);
 }
 function hpSoloReset() {
-  if (!confirm('이 화면에서 찍은 것을 모두 지울까요?')) return;
+  if (!wtOk('이 화면에서 찍은 것을 모두 지울까요?', hpSoloReset)) return;
   presets = {list: [{id: 1, name: '연습판', slots: {}, talents: [], skills: {}}], activeId: 1};
   hpUse(presets.list[0]);
   persistPreset();
@@ -813,7 +818,7 @@ function hpBpDel(id) {
     persistPreset(); pageRender(); hpBpDraw();
   };
   const msg = `[${hpBpName(p)}] 빌드를 삭제할까요?`;
-  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else if (confirm(msg)) go();
+  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else wtAsk(msg, go);
 }
 function hpBpPick(id) { hpBpClose(); if (id !== preset.id) hpSwitch(id); }
 document.addEventListener('mousedown', e => {

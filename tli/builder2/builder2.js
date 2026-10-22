@@ -1,5 +1,10 @@
 // 생성물 — 고칠 땐 update/src/js/00_hero.js · update/src/js/00_talent.js · update/src/js/00_skill.js · update/src/js/00_gear.js · update/src/js/00_slate.js · update/src/js/00_pact.js · update/src/js/00_optlines.js · update/src/js/00_seal.js · update/src/page_common.js · update/src/hero_glue.js · update/src/talent_glue.js · update/src/wz_skill.js · update/src/wz_gear.js · update/src/wz_mem.js · update/src/wz_slate.js · update/src/wz_pact.js · update/src/js/00_logbase.js · update/src/js/00_codec.js · update/src/js/02_logimport.js · update/src/wz_build.js · update/src/builder2_page.js · update/src/wz_tour.js (build_html2.build_tool_pages)
 const MAIN_SK_ICON = {"점프 공격":"CommonSkill/128/Icon_Skill_Leapslam","아이스 샷":"CommonSkill/128/Icon_Skill_Iceshot","엠버 해머":"CommonSkill/128/Icon_Skill_Emberslam","멀티 매직 애로우":"CommonSkill/128/Icon_Skill_Prismaticbolt","부활의 함성":"CommonSkill/128/Icon_Skill_Bang","휠윈드":"CommonSkill/128/Icon_Skill_Cyclone","집중 베기":"CommonSkill/128/Icon_Skill_FocusedStrike","스톤 스킨":"CommonSkill/128/Icon_Skill_StoneSkin","썬더 클라우드":"CommonSkill/128/Icon_Skill_Nimbus","점멸":"CommonSkill/128/UI_SkillIcon_Skill_Blink_Icon","포격":"CommonSkill/128/Icon_Skill_Strafe","어둠의 탄환":"CommonSkill/128/Icon_Skill_Shadowbolt","어둠의 늪":"CommonSkill/128/Icon_Skill_Shadowswamp","표식 화살비":"CommonSkill/128/UI_Skill_MarkerArrow_Icon","황소의 분노":"CommonSkill/128/Icon_Skill_WildRage","어둠의 돌격":"CommonSkill/128/UI_SkillIcon_Skill_ShadowDash_Icon","프로스트 쉴드":"CommonSkill/128/Icon_Skill_IceShield","로켓 점프":"CommonSkill/128/Icon_Skill_RocketJump","스플릿 파이어볼":"CommonSkill/128/Icon_Skill_Fireball","블리자드":"CommonSkill/128/Icon_Skill_Blizzard","흐릿한 움직임":"CommonSkill/128/UI_SkillIcon_Skill_Blur_Icon","MP 급증":"CommonSkill/128/Icon_Skill_BoilingMana","프로스트 임팩트":"CommonSkill/128/Icon_Skill_IceCrash","플레임 패스":"CommonSkill/128/Icon_Skill_FlameRoad","폭주의 칼날":"CommonSkill/128/Icon_Skill_ViolentSweep","에너지 펀치":"CommonSkill/128/Icon_Skill_ChargedSmash","번개 사슬":"CommonSkill/128/Icon_Skill_LightningChain","더블 스파이크":"CommonSkill/128/Icon_Skill_DoubleStab","정신 지배":"CommonSkill/128/Icon_Skill_LifeLeech","아이스링":"CommonSkill/128/Icon_Skill_IceRing","분열 사격":"CommonSkill/128/Icon_Skill_SplitArrow","플레임 슬래시":"CommonSkill/128/Icon_Skill_FlameSlash","아이스 블레이드":"CommonSkill/128/Icon_Skill_FrostSlash","프로스트 스파이크":"CommonSkill/128/Icon_Skill_FrostStab","윌트 스파이크":"CommonSkill/128/Icon_Skill_ViperStab","라이트닝 샷":"CommonSkill/128/UI_SkillIcon_Skill_LightningShoot_Icon","부식탄":"CommonSkill/128/Icon_Skill_PoisonBullet","연소 사격":"CommonSkill/128/UI_SkillIcon_Skill_FireShoot_Icon","전광탄":"CommonSkill/128/Icon_Skill_LightningBullet","침식 투척":"CommonSkill/128/Icon_Skill_VenomThrow","연쇄 탄막":"CommonSkill/128/UI_SkillIcon_Skill_ChargedRainOfBullets_Icon","화살비":"CommonSkill/128/UI_SkillIcon_Skill_RainOfArrows_Icon","무자비한 돌격":"CommonSkill/128/Icon_Skill_SavageCharge","얼음 송곳":"CommonSkill/128/Icon_Skill_ConeOfCold","일렉트릭 스파크":"CommonSkill/128/Icon_Skill_SparkBullet","서라운드 블레이드":"CommonSkill/128/UI_SKill_DiffusionBlade_Icon","플레임 코어":"CommonSkill/128/UI_SkillIcon_Skill_FirePile_Icon","라이트닝 스톰":"CommonSkill/128/Icon_Skill_ThunderStorm","플레임 제트":"CommonSkill/128/Icon_Skill_FlameBlast","프로스트 그라운드":"CommonSkill/128/Icon_Skill_IceArea","작열 광선":"CommonSkill/128/UI_SkillIcon_Skill_FireRay_Icon","부식 광선":"CommonSkill/128/UI_SkillIcon_Skill_ChaosRay_Icon","프로스트 트랜스퍼":"CommonSkill/128/Icon_Skill_IceBlink","강제 가동":"CommonSkill/128/UI_SkillIcon_Skill_ForceCharge_Icon","불의 방패":"CommonSkill/128/UI_SkillIcon_Skill_FireShield_Icon","고통의 지연":"CommonSkill/128/UI_SkillIcon_Skill_PainDelay_Icon","방어 버퍼":"CommonSkill/128/UI_SkillIcon_Skill_BufferDefense_Icon","스위프트 윈드":"CommonSkill/128/UI_SkillIcon_Skill_SwiftWind_Icon","분노의 광풍":"CommonSkill/128/UI_SkillIcon_Skill_Bloodlust_Icon","작열 웨이브":"CommonSkill/128/UI_SkillIcon_Skill_BurningWave_Icon","포커스":"CommonSkill/128/UI_SkillIcon_Skill_Concentrate_Icon","비밀의 기원":"CommonSkill/128/UI_SkillIcon_Skill_ArcaneSurge_Icon","조준":"CommonSkill/128/UI_SkillIcon_Skill_Aiming_Icon","질주 이슬":"CommonSkill/128/UI_Skill_jisudilu_Icon","대지 진동":"CommonSkill/128/UI_SkillIcon_Skill_EarthShock_Icon","몰두 사격":"CommonSkill/128/UI_SkillIcon_Skill_FocusedShoot_Icon","폭염술":"CommonSkill/128/UI_SkillIcon_Skill_FireBlast_Icon","썬더볼 과부하":"CommonSkill/128/UI_SkillIcon_Skill_OverloadLightningBall_Icon","맹렬한 함성":"CommonSkill/128/Icon_Skill_WildCry","분노의 함성":"CommonSkill/128/Icon_Skill_RageCry","돌격의 함성":"CommonSkill/128/Icon_Skill_AncestralCry","블랙홀":"CommonSkill/128/Icon_Skill_BlackHole","머신 가드 소환":"CommonSkill/128/UI_SkillIcon_Skill_SummonMechanicalGuard_Icon","스파이더 탱커 소환":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceSpiderTank_Icon","위축":"CommonSkill/128/UI_SkillIcon_Skill_ElementBreak_Icon","감전":"CommonSkill/128/UI_SkillIcon_Skill_Conductivity_Icon","대미지 취약":"CommonSkill/128/UI_SkillIcon_Skill_Vulnerable_Icon","작열":"CommonSkill/128/UI_SkillIcon_Skill_Blazing_Icon","고통의 올가미":"CommonSkill/128/UI_SkillIcon_Skill_EntanglingPain_Icon","본 프로스트":"CommonSkill/128/UI_SkillIcon_Skill_ErodingCold_Icon","사악한 침식":"CommonSkill/128/UI_SkillIcon_Skill_ErodingEvil_Icon","생명 물약":"CommonSkill/128/UI_Skill_shengmingyaoshui_Icon","마력 물약":"CommonSkill/128/UI_Skill_moliyaoshui_Icon","원소 파동":"CommonSkill/128/UI_SkillIcon_Skill_ElementShake_Icon","기계의 행진":"CommonSkill/128/UI_SkillIcon_Skill_MarchOfMachines_Icon","기원":"CommonSkill/128/UI_SkillIcon_Skill_Pray_Icon","어둠의 문":"CommonSkill/128/UI_SkillIcon_Skill_DarkPortal_Icon","번개의 속박":"CommonSkill/128/UI_Skill_ThunderArea_Icon","시크릿 서클":"CommonSkill/128/UI_Skill_SoulStealArea_Icon","서리의 속박":"CommonSkill/128/UI_Skill_FrostTether_Icon","갈증 이슬":"CommonSkill/128/UI_Skill_keyindilu_Icon","진형 조정":"CommonSkill/128/UI_Skill_Regroup_Icon","집중 장전":"CommonSkill/128/UI_Skill_QuickReload_Icon","플래쉬 보우":"CommonSkill/128/UI_Skill_FlashBow_Icon","섀도우 급습":"CommonSkill/128/UI_Skill_CutForward_Icon","절망의 고리":"CommonSkill/128/UI_Skill_DesperateFormation_Icon","얼음 광선":"CommonSkill/128/UI_Skill_IceRay_Icon","나선 공격":"CommonSkill/128/UI_Skill_WhirlingBlade_Icon","복합 물약":"CommonSkill/128/UI_Skill_fuheyaoshui_Icon","문 스트라이크":"CommonSkill/128/UI_Skill_ShadowSlash_Icon","휘몰아치는 돌풍":"CommonSkill/128/UI_Skill_Tornado_Icon","작열탄 관통":"CommonSkill/128/UI_Skill_SabotRounds_Icon","썬더 슬래시":"CommonSkill/128/UI_Skill_ThunderSlash_Icon","라이트닝 스파이크":"CommonSkill/128/UI_Skill_LightningStab_Icon","사악한 유령 출몰":"CommonSkill/128/UI_Skill_Doom_Icon","프로스트 코어":"CommonSkill/128/UI_Skill_FrostCore_Icon","썬더 코어":"CommonSkill/128/UI_Skill_ThunderCore_Icon","칼날의 영령":"CommonSkill/128/UI_Skill_GhostBladeSpirit_Icon","화살의 영령":"CommonSkill/128/UI_Skill_ArrowSpirit_Icon","플라이 팬텀 소환":"CommonSkill/128/UI_Skill_SummonPhantom_Icon","압도적 스매시":"CommonSkill/128/UI_SkillIcon_Skill_SummonMechanicalGuard_Icon","진격의 주먹":"CommonSkill/128/UI_SkillIcon_Skill_SummonMechanicalGuard_Icon","블레이드 샷":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceSpiderTank_Icon","맹렬한 불길":"CommonSkill/128/UI_SkillIcon_Skill_SummonFireElement_Icon","플레임 스핀":"CommonSkill/128/UI_SkillIcon_Skill_SummonFireElement_Icon","화염 분출":"CommonSkill/128/UI_SkillIcon_Skill_SummonFireElement_Icon","화마 승천":"CommonSkill/128/UI_SkillIcon_Skill_SummonFireElement_Icon","빙하의 물결":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceIceElement_Icon","프리징 릴리즈":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceIceElement_Icon","얼음 조소":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceIceElement_Icon","땅을 흔드는 얼음폭풍":"CommonSkill/128/UI_SkillIcon_Skill_SummonIceIceElement_Icon","번개 유성":"CommonSkill/128/UI_SkillIcon_Skill_SummonThunderElement_Icon","라이트닝 애로우":"CommonSkill/128/UI_SkillIcon_Skill_SummonThunderElement_Icon","뇌운의 격동":"CommonSkill/128/UI_SkillIcon_Skill_SummonThunderElement_Icon","천둥 번개":"CommonSkill/128/UI_SkillIcon_Skill_SummonThunderElement_Icon","고성능 광속":"CommonSkill/128/UI_Skill_SummonPhantom_Icon","파멸의 페이저":"CommonSkill/128/UI_Skill_SummonPhantom_Icon","선회하는 칼날":"CommonSkill/128/UI_Skill_BladeRoundabout_Icon","천둥 광선":"CommonSkill/128/UI_Skill_ThunderstormRay_Icon","신법환신":"CommonSkill/128/UI_Skill_QuicklyPhantom_Icon","사격 지원":"CommonSkill/128/UI_Skill_ShootFetters_Icon","생명의 자양분":"CommonSkill/128/UI_Skill_LifeNourish_Icon","눈부신 꽃":"CommonSkill/128/UI_Skill_DazzlingBloom_Icon","추격자의 별빛":"CommonSkill/128/UI_Skill_FollowStar_Icon","조화의 공간":"CommonSkill/128/UI_Skill_TuningField_Icon","악의의 족쇄":"CommonSkill/128/UI_SKill_EvilChain_Icon","균열 공격":"CommonSkill/128/UI_Skill_SummonRockElement_Icon","황금 파편":"CommonSkill/128/UI_Skill_SummonRockElement_Icon","수평 난사":"CommonSkill/128/UI_Skill_SummonRockElement_Icon","바위의 위압":"CommonSkill/128/UI_Skill_SummonRockElement_Icon","진흙투성이":"CommonSkill/128/UI_Skill_SummonRotElement_Icon","몰락의 귀환":"CommonSkill/128/UI_Skill_SummonRotElement_Icon","시든 풀무리":"CommonSkill/128/UI_Skill_SummonRotElement_Icon","가시밭길":"CommonSkill/128/UI_Skill_SummonRotElement_Icon","떠오르는 샛별":"CommonSkill/128/UI_Skill_MinionRising_Icon","문 슬래시":"CommonSkill/128/UI_Skill_ArcSlash_Starter1_Icon","플레임 서펀트":"CommonSkill/128/UI_Skill_FlameSerpent_Starter1_Icon","윈드 슬래시":"CommonSkill/128/UI_Skill_WindSlash_Starter1_Icon","익스플로딩 슬래시":"CommonSkill/128/UI_Skill_PhantomSlash_Starter1_Icon","리벤지":"CommonSkill/128/UI_Skill_Revenge_Icon","파괴의 함성":"CommonSkill/128/UI_Skill_ComboBattleCry_Icon","엔드리스 리벤지":"CommonSkill/128/UI_Skill_EndlessRevenge_Icon","서리발톱":"CommonSkill/128/UI_Skill_ModularGeBuLinJiSi_Icon","불꽃새":"CommonSkill/128/UI_Skill_ModularGeBuLinJiSi_Icon","붕산 일격":"CommonSkill/128/UI_Skill_ModularDiMoErJiangJun_Icon","디스엠버 레인":"CommonSkill/128/UI_Skill_ModularAnYuBiLei_Icon","회전 화염탄":"CommonSkill/128/UI_Skill_ModularAiRenJiJia_Icon","집중 사격":"CommonSkill/128/UI_Skill_ModularAiRenJiJia_Icon","낙석술":"CommonSkill/128/UI_Skill_ModularDiMoFaShi_Icon","번개 소환":"CommonSkill/128/UI_Skill_ModularGeBuLinYuanSuDaZhangLao_Icon","동력 스파이크":"CommonSkill/128/UI_Skill_ModularZhongXingHuiJinJiJia_Icon","응축 스매시":"CommonSkill/128/UI_Skill_ModularZhongXingHuiJinJiJia_Icon","고출력 강타":"CommonSkill/128/UI_Skill_ModularJuXingHuiJinJiJia_Icon","고온 압살":"CommonSkill/128/UI_Skill_ModularJuXingHuiJinJiJia_Icon","휩쓸기":"CommonSkill/128/UI_Skill_ModularShuJingDaZhangLao_Icon","깊은 뿌리":"CommonSkill/128/UI_Skill_ModularShuJingDaZhangLao_Icon","점멸 공격":"CommonSkill/128/UI_Skill_ModularShuRenQiangXiDuiZhang_Icon","폭발 해머":"CommonSkill/128/UI_Skill_ModularShuRenQiangXiDuiZhang_Icon","폭탄 투척":"CommonSkill/128/UI_Skill_ModularShouXiJiXieShi_Icon","방화":"CommonSkill/128/UI_Skill_ModularShouXiJiXieShi_Icon","추억의 그림자":"CommonSkill/128/UI_Skill_ModularLaiAnHuanYing_Icon","함락의 죄":"CommonSkill/128/UI_Skill_ModularLaiAnHuanYing_Icon","영광의 칼날":"CommonSkill/128/UI_Skill_ModularJianShen_Icon","신성한 서약":"CommonSkill/128/UI_Skill_ModularJianShen_Icon","폭군의 참격":"CommonSkill/128/UI_Skill_ModularBaoNueZhe_Icon","황금 포탄":"CommonSkill/128/UI_Skill_ModularYiJiKuangFeng_Icon","모래자갈 투척":"CommonSkill/128/UI_Skill_ModularShaJuRen_Icon","맹염의 천벌":"CommonSkill/128/UI_Skill_ModularYingLingDaXianZhe_Icon","심판의 창":"CommonSkill/128/UI_Skill_ModularYingLingDaXianZhe_Icon","가시 투척":"CommonSkill/128/UI_Skill_ModularZaiJinYiShou_Icon","꼬리 휩쓸기":"CommonSkill/128/UI_Skill_ModularZaiJinYiShou_Icon","스파이크 슬래시":"CommonSkill/128/UI_Skill_ModularChengFaZhe_Icon","더블 블레이드":"CommonSkill/128/UI_Skill_ModularChengFaZhe_Icon","암류":"CommonSkill/128/UI_Skill_ModularXieYingQinShiZhe_Icon","저항 이슬":"CommonSkill/128/UI_Skill_dikangdilu_Icon","견고 이슬":"CommonSkill/128/UI_Skill_jiangudilu_Icon","민첩 이슬":"CommonSkill/128/UI_Skill_lingmindilu_Icon","인내 이슬":"CommonSkill/128/UI_Skill_renxingdilu_Icon","거북 껍데기 에센스":"CommonSkill/128/UI_Skill_luguikeningcui_Icon","전갈 독침 에센스":"CommonSkill/128/UI_Skill_xieweizhenningcui_Icon","부식두꺼비 에센스":"CommonSkill/128/UI_Skill_fuchanchuningcui_Icon","초석버섯 에센스":"CommonSkill/128/UI_Skill_xiaoshiguningcui_Icon","불도마뱀 에센스":"CommonSkill/128/UI_Skill_huoxiyiningcui_Icon","흰코뿔소 에센스":"CommonSkill/128/UI_Skill_baixiniuningcui_Icon","뇌격나무 에센스":"CommonSkill/128/UI_Skill_leijimuningcui_Icon","불길":"CommonSkill/128/UI_SkillIcon_Skill_Blind_Icon","가시의 영역":"CommonSkill/128/UI_Skill_PhysicalLastGround_Icon","조수의 샘":"CommonSkill/128/UI_Skill_Torrent_Icon","유성":"CoreTalentIcon/128/UI_Skill_cometGround_Icon","천둥 지대":"CommonSkill/128/UI_Skill_CurrentField_Icon","심연의 손":"CoreTalentIcon/128/UI_Skill_Nethergrasp_Icon","지휘관의 함성":"CommonSkill/128/UI_Skill_CommanderCry_Icon","고통의 이슬":"CommonSkill/128/UI_Skill_tongchudilu_Icon","무지개빛 나비 에센스":"CommonSkill/128/UI_Skill_hongcaidieningcui_Icon","전광의 물결":"CommonSkill/128/UI_Skill_LightingLastGround_Icon","사이오닉 미사일":"CommonSkill/128/UI_Skill_InsightMissile_Icon","추적 서리 화살":"CommonSkill/128/UI_Skill_TrackingIceArrow_Icon","분열 번개 화살":"CommonSkill/128/UI_Skill_SplitSpear_Icon","달의 여명":"CommonSkill/128/UI_Skill_DawnOfMoon_Icon","작열 유성":"CommonSkill/128/UI_Skill_StarExplosion_Icon","사냥개 송곳니":"CommonSkill/128/UI_Skill_BoneSting_Icon","정체된 하늘":"CommonSkill/128/UI_Skill_jingzhitianqiong_Icon","지고의 강림":"CommonSkill/128/UI_Skill_zhigaojianglin_Icon","무수한 나":"CommonSkill/128/UI_Skill_zhuwozhiwo_Icon"};
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 히어로·히어로 특성 공용 조각 (2026-10-08) ──
 // 빌더(이 묶음의 맨 앞)와 따로 떨어진 히어로 화면(/tli/hero, tli/hero/hero.js)이 함께 쓴다.
 // 기대하는 바깥 것: HERO(특성 데이터) · preset(활성 빌드) · persistPreset · renderPreset · guardShareView · escapeHtml · KEY_MAP
@@ -340,7 +345,7 @@ function hrRenderModal() {
 }
 function hrLogPick() {
   if (typeof wzFilled === 'function' && wzFilled(preset) &&
-    !confirm(`로그에서 가져오면 새 빌드가 하나 더 만들어집니다.\n지금 빌드 [${preset.name || '빌드 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`)) return;
+    !wtOk(`로그에서 가져오면 새 빌드가 하나 더 만들어집니다.\n지금 빌드 [${preset.name || '빌드 ' + preset.id}]는 그대로 남습니다.\n\n계속할까요?`, hrLogPick)) return;
   wbLogPick();
 }
 // 좁은 화면에서 트리가 넘치면 '옆으로 밀어서 보기' 표시 + 오른쪽 끝 흐림 (잘린 줄 알았다 — 2026-10-15)
@@ -477,6 +482,11 @@ const MEM_STAGES = [
   {cat: 'random', type: '랜덤 옵션', max: 2},
 ];
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 재능 보드 시뮬레이터 공용 조각 (2026-10-08) ──
 // 빌더(묶음 맨 앞)와 따로 떨어진 재능 화면(/tli/talent, tli/talent/talent.js)이 함께 쓴다.
 // 기대하는 바깥 것: BOARDS · BOARD_IDS · boardTier · boardNodeText · preset · persistPreset · renderPreset ·
@@ -833,7 +843,7 @@ function gbPlaceAt(pre, i) {
   const nid = BOARD_IDS[pre][i], [r, c] = gbRC(nid), pos = gbSlots4().indexOf(pre) + 2, old = gbpOf(k);
   if (k === 'i') {
     const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre) || (old && old.b !== pre && (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === old.b && ((e[4] || 0) & 1)));
-    if (has && !confirm('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?')) return;
+    if (has && !wtOk('역상을 놓으면 ' + BOARDS[pre].n + ' 보드에 찍은 포인트가 초기화됩니다 (반사로 열 계산이 바뀜). 계속할까요?', () => gbPlaceAt(pre, i))) return;
     gbDropMirror(old);
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
@@ -1054,7 +1064,7 @@ function gbClearBoard(pre) {
   if (present.size > 1 && pre === god) { gbMsg = '⚠ 신 보드(1번)는 하위 보드를 모두 비운 뒤에 뺄 수 있습니다'; gbRefresh(); return; }
   if (pre === own && present.size > 2) { gbMsg = '⚠ 2번 보드(' + BOARDS[god].n + '의 하위)는 3·4번 보드를 먼저 비워야 뺄 수 있습니다'; gbRefresh(); return; }
   const has = (preset.gboard || []).some(e => String(e[0]).slice(0, 2) === pre);
-  if (has && !confirm(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?')) return;
+  if (has && !wtOk(BOARDS[pre].n + ' 보드에 찍은 포인트를 모두 지울까요?', () => gbClearBoard(pre))) return;
   if (preset.gboard) { preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre); if (!preset.gboard.length) delete preset.gboard; }
   ['p', 'i'].forEach(k => { const g = gbpOf(k); if (g && g.b === pre) { gbpSet(k, null); if (k === 'i') delete preset.inverse; } }); // 이 보드에 놓은 프리즘·역상도 내린다 (프리즘 자체는 남김)
   const coreKs = new Set((BOARDS[pre].k || []).flatMap(g => g[1]).map(gbCoreRow).filter(Boolean).map(gbCoreKey));
@@ -2697,6 +2707,11 @@ function sealBoxHtml() {
     (over ? '<div class="seal-warn">⚠ 봉인이 100%를 넘어 모든 패시브를 켤 수 없습니다</div>' : '') + '</div>';
 }
 
+// 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
+if (!window.wtOk) window.wtOk = (m) => confirm(m);
+if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
+if (!window.wtAskText) window.wtAskText = (m, d, ok) => { const v = prompt(m, d); if (v !== null) ok(v); };
+if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 // ── 단독 화면(/tli/hero · /tli/talent) 공용 연결부 (2026-10-08) ──
 // 빌더를 통째로 띄우지 않고 기능 조각(00_*.js)과 그 데이터만 싣는다.
 // 빌더2·보기 화면은 빌더와 같은 브라우저 저장소(tlidb_presets_v1)의 활성 빌드를 쓴다.
@@ -2792,7 +2807,7 @@ function hpSoloOver(id) {
       Object.values(dst.skills || {}).some(s => s && s.main && s.main.name === '마령')) {
     alert('그 빌드의 액티브 칸에 마령 스킬이 있어 아이리스가 아닌 히어로로 바꿀 수 없습니다.\n빌더에서 먼저 해당 스킬을 비워주세요.'); return;
   }
-  if (!isNew && !confirm(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`)) return;
+  if (!isNew && !wtOk(`「${hpBpName(dst)}」의 ${HP_SOLO_WHAT[PAGE_SOLO]}을(를) 이 화면 것으로 바꿀까요?\n장비·스킬 등 나머지는 그대로 둡니다.`, () => hpSoloOver(id))) return;
   if (isNew) {
     dst = {id: bs.list.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1, name: HP_SOLO_WHAT[PAGE_SOLO] + ' 연습', slots: {}, talents: [], skills: {}};
     bs.list.push(dst);
@@ -2809,7 +2824,7 @@ function hpToast(html) {
   clearTimeout(hpToast.t); hpToast.t = setTimeout(() => el.classList.remove('on'), 6000);
 }
 function hpSoloReset() {
-  if (!confirm('이 화면에서 찍은 것을 모두 지울까요?')) return;
+  if (!wtOk('이 화면에서 찍은 것을 모두 지울까요?', hpSoloReset)) return;
   presets = {list: [{id: 1, name: '연습판', slots: {}, talents: [], skills: {}}], activeId: 1};
   hpUse(presets.list[0]);
   persistPreset();
@@ -2899,7 +2914,7 @@ function hpBpDel(id) {
     persistPreset(); pageRender(); hpBpDraw();
   };
   const msg = `[${hpBpName(p)}] 빌드를 삭제할까요?`;
-  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else if (confirm(msg)) go();
+  if (typeof uiConfirm === 'function') uiConfirm(msg, go, {title: '빌드 삭제', ok: '삭제'}); else wtAsk(msg, go);
 }
 function hpBpPick(id) { hpBpClose(); if (id !== preset.id) hpSwitch(id); }
 document.addEventListener('mousedown', e => {
@@ -3307,9 +3322,9 @@ const WG_POS = {helmet: [1, 1], chest: [2, 1], neck: [1, 2], glove: [2, 2], belt
 const WG_KIND = {item: '레전드', custom: '제작', blood: '블러드'};
 const wgTwoHand = () => { const w = wgCur('weapon1'); return !!(w && PARTS.TWO_HAND.includes(w.part)); };
 function wgItemIdx(name) { return ITEMS.findIndex(x => x.name === name); }
-function wgReplaceOk(kind) { // 칸에 다른 종류(레전드·제작·블러드)가 있으면 바꿀지 묻는다
+function wgReplaceOk(kind, again) { // 칸에 다른 종류(레전드·제작·블러드)가 있으면 바꿀지 묻는다 — again: 확인 누르면 다시 부를 함수(공통 대화창 wtOk)
   const c = wgCur(wgSlot);
-  return !c || c.kind === kind || confirm('이 칸의 ' + WG_KIND[c.kind] + ' 장비를 ' + WG_KIND[kind] + ' 장비로 바꿀까요?');
+  return !c || c.kind === kind || wtOk('이 칸의 ' + WG_KIND[c.kind] + ' 장비를 ' + WG_KIND[kind] + ' 장비로 바꿀까요?', again);
 }
 function wgSave(nv) { // 칸에 넣기 — 조향·시퀀스·베이스는 빌더와 같은 규칙으로 이어 받는다
   if (!preset.slots) preset.slots = {};
@@ -3364,9 +3379,9 @@ function wgEquipItem(idx) {
   if (wgSlot === 'weapon2' && wgTwoHand()) { wgMsg = '양손 무기를 끼고 있어 이 칸은 쓸 수 없습니다'; pageRender(); return; }
   const cur = wgCur(wgSlot);
   if (cur && cur.kind === 'item' && cur.name === it.name) { wgSave(null); pageRender(); return; } // 다시 누르면 빼기
-  if (!wgReplaceOk('item')) return;
+  if (!wgReplaceOk('item', () => wgEquipItem(idx))) return;
   if (wgSlot === 'weapon1' && PARTS.TWO_HAND.includes(g.part) && wgCur('weapon2')) {
-    if (!confirm('양손 무기를 끼면 무기(방패) 칸이 비워집니다. 진행할까요?')) return;
+    if (!wtOk('양손 무기를 끼면 무기(방패) 칸이 비워집니다. 진행할까요?', () => wgEquipItem(idx))) return;
     preset.slots.weapon2 = null;
   }
   wgSave({kind: 'item', name: it.name, part: g.part, snap: it});
@@ -3412,7 +3427,7 @@ function wgSetPart(pt) {
   const cur = wgCur(wgSlot);
   if (cur && cur.kind === 'custom' && cur.part !== pt) {
     const n = ['basic', 'main', 'sub'].reduce((t, c) => t + cur.opts[c].length, 0);
-    if (n && !confirm('부위를 바꾸면 고른 옵션 ' + n + '개가 지워집니다. 진행할까요?')) return;
+    if (n && !wtOk('부위를 바꾸면 고른 옵션 ' + n + '개가 지워집니다. 진행할까요?', () => wgSetPart(pt))) return;
     wgSave(null);
   }
   if (wgSlot === 'weapon2' && wgTwoHand()) { wgMsg = '양손 무기를 끼고 있어 이 칸은 쓸 수 없습니다'; pageRender(); return; }
@@ -3433,7 +3448,7 @@ const wgBaseLines = b => [...(b.stats || []), ...(b.imps || [])].filter(l => !/\
 function wgSetBase(gid) {
   if (guardShareView()) return;
   const part = wgCraftPart(), cur = wgCur(wgSlot);
-  if (!part || !wgReplaceOk('custom')) { pageRender(); return; }
+  if (!part || !wgReplaceOk('custom', () => wgSetBase(gid))) { pageRender(); return; }
   const v = cur && cur.kind === 'custom' ? cur : {kind: 'custom', part, name: '', opts: {basic: [], main: [], sub: []}};
   if (gid) v.base = String(gid); else delete v.base;
   wgSave(v); wgMsg = ''; pageRender();
@@ -3459,7 +3474,7 @@ function wgToggleOpt(i) {
   const r = wgCraftPool()[i], part = wgCraftPart();
   if (!r || !part) return;
   const cur = wgCur(wgSlot);
-  if (!wgReplaceOk('custom')) return;
+  if (!wgReplaceOk('custom', () => wgToggleOpt(i))) return;
   const v = cur && cur.kind === 'custom' ? cur : {kind: 'custom', part, name: '', opts: {basic: [], main: [], sub: []}};
   const k = rowKey(r);
   for (const c of ['basic', 'main', 'sub']) {
@@ -3543,7 +3558,7 @@ function wgSetAberr(on) {
   if (guardShareView()) return;
   const c = wgCur(wgSlot);
   if (c && c.kind === 'blood' && !!c.aberrant !== on) {
-    if (!confirm('베이스를 바꾸면 고른 기본·추가 옵션이 지워집니다(풀이 달라서). 진행할까요?')) return;
+    if (!wtOk('베이스를 바꾸면 고른 기본·추가 옵션이 지워집니다(풀이 달라서). 진행할까요?', () => wgSetAberr(on))) return;
     const o = c.opts; o.base = []; o.extra = [];
     c.aberrant = on; wgBSave(o);
   }
@@ -3553,7 +3568,7 @@ function wgBToggle(stage, i) {
   if (guardShareView()) return;
   const why = wgBCan();
   if (why) { wgMsg = why; pageRender(); return; }
-  if (!wgReplaceOk('blood')) return;
+  if (!wgReplaceOk('blood', () => wgBToggle(stage, i))) return;
   const o = JSON.parse(JSON.stringify(wgBOpts())), pool = wgBPool(wgBAberr()), part = wgBPart();
   wgMsg = '';
   if (stage === 'bases') {
@@ -4082,7 +4097,7 @@ function wmPickRv(i) {
   if (wmIsX(p)) return;
   if (!wmMem(p)) { wmMsg = '추억을 먼저 만들어 주세요 (옵션을 하나 이상)'; pageRender(); return; }
   const rv = preset.revival;
-  if (rv && rv.part !== p && !confirm('부활 옵션은 추억 하나에만 적용됩니다. ' + rv.part + '에서 ' + p + '로 옮길까요?')) return;
+  if (rv && rv.part !== p && !wtOk('부활 옵션은 추억 하나에만 적용됩니다. ' + rv.part + '에서 ' + p + '로 옮길까요?', () => wmPickRv(i))) return;
   const o = REVIVALS[i];
   if (rv && rv.part === p && rv.effect === o.effect && rv.group === o.group) { delete preset.revival; persistPreset(); pageRender(); return; } // 다시 누르면 빼기
   const prevX = rv ? revivalExtraPart(rv.effect) : null, newX = revivalExtraPart(o.effect);
@@ -7287,6 +7302,9 @@ function hpBuildActs() {
     '<button type="button" onclick="hpBpClose();wtStart()" title="빌더 화면 사용법을 다시 봅니다">❔ 둘러보기</button>'; // 관리 창은 퇴역 — 이름·삭제는 목록 줄의 ✎·✕, 공유는 보기 화면
 }
 function pageOnSwitch() { heroMsg = ''; gbMsg = ''; gbExtra.clear(); gbSlot = 0; hrView = (preset.hero && preset.hero.hero) || hrView; }
+// 스크롤 자리 기억용 — 요소를 '클래스 + 같은 클래스 중 몇 번째'로 가리킨다(다시 그려도 같은 구조면 같은 요소)
+function wzScPath(el, root) { const c = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(x => x && x !== 'on')[0] : ''; const sel = c ? '.' + CSS.escape(c) : el.tagName.toLowerCase(); return [sel, [...root.querySelectorAll(sel)].indexOf(el)]; }
+function wzScFind(root, path) { try { return root.querySelectorAll(path[0])[path[1]] || null; } catch (e) { return null; } }
 function pageRender() {
   const app = document.getElementById('wzApp');
   if (wzStep === 'list') { app.innerHTML = wzListHtml(); return; }
@@ -7322,7 +7340,16 @@ function pageRender() {
     : wzStep === 'cmt' ? wcRender()
     : `<div class="wz-todo"><b>${WZ_STEPS[i].name} 단계</b><p>${escapeHtml(WZ_STEPS[i].desc)} — 큰 화면 구성을 정하는 중입니다.<br>` +
       '지금은 <a href="/tli/builder/">빌더</a>에서 채워 주세요. 같은 빌드라 여기서 고른 히어로·재능이 그대로 보입니다.</p></div>';
+  // 다시 그려도 안쪽 목록 스크롤은 그대로 — 옵션을 고르거나 뺄 때 맨 위로 튀지 않게. 단계·칸·탭이 바뀔 때만 처음부터(2026-10-22 사용자)
+  const scKey = wzStep + (wzStep === 'gear' && typeof wgSlot !== 'undefined' ? '|' + [wgSlot, wgTab, wgStage, wgBStage, wgMode, wgPart].join('|') : '');
+  const scPos = scKey === pageRender.scKey ? [...app.querySelectorAll('.wz-body *')].filter(el => el.scrollTop > 0).map(el => [wzScPath(el, app), el.scrollTop]) : [];
+  const winY = window.scrollY;
+  pageRender.scKey = scKey;
   app.innerHTML = bar + seBar + '<div class="wz-body">' + body + '</div>';
+  if (scPos.length) {
+    scPos.forEach(([path, top]) => { const el = wzScFind(app, path); if (el) el.scrollTop = top; });
+    if (Math.abs(window.scrollY - winY) > 2) window.scrollTo(0, winY);
+  }
   wzFitHeight();
   if (wzStep === 'hero') { hrModalOpen = true; hrView = hrView || (preset.hero && preset.hero.hero) || SHARE_HEROES[0][0]; hrRenderModal(); }
   else if (wzStep === 'talent') { gbModalOpen = true; gbRenderModal(); }
