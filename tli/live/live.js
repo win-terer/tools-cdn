@@ -2,14 +2,14 @@
 // 오늘의 시세 (/tli/live, 2026-10-20 사용자 — 처음 이름 '실시간 시세', 30분 간격이라 바꿈) — 공개(출입 확인 없음)·메뉴 없음(검증 중). 소비 아이템 이번 시즌 지금 가격.
 // 데이터: LCONSUM(아이템) · LSEASON · LDAYS(이번 시즌 일봉, 묶음) · CHOURS(시간대) + /api/price-now(워커 크론이 30분마다 ETor 한 번에 받기 → 오늘·어제 표본)
 const LV = {cat: '', q: '', sort: 'pct', now: null, more: 10, cards: 6};  // 표 10줄·카드 6장부터 (사용자 2026-10-20: 스크롤이 길다 → 20 → 10)
-const LV_MIN = 3, LV_TOP = 10, DAY = 864e5, DAY_SHIFT = 8 * 3600e3;  // 하루 = KST 01:00 경계(토치 중국 서버 자정, 사용자 2026-10-23)
+const LV_MIN = 3, LV_TOP = 10, DAY = 864e5;
 const lvEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const lvNum = v => v >= 100 ? Math.round(v).toLocaleString('ko-KR') : v >= 10 ? (Math.round(v * 10) / 10) : (Math.round(v * 100) / 100);
 const lvPct = (a, b) => (b - a) / a * 100;
 const lvPctTxt = p => (p > 0 ? '+' : '') + (Math.abs(p) >= 100 ? Math.round(p) : Math.round(p * 10) / 10) + '%';
 const lvIcon = u => String(u || '').replace('https://cdn.tlidb.com/', '/timg/');
 const LV_IMG_ERR = `onerror="if(!this.dataset.o){this.dataset.o=1;this.src=this.src.replace(location.origin+'/timg/','https://cdn.tlidb.com/')}else this.style.visibility='hidden'"`;
-const lvDay = () => Math.floor((Date.now() - LSEASON.start + DAY_SHIFT) / DAY) + 1;
+const lvDay = () => Math.floor((Date.now() - LSEASON.start) / DAY) + 1;
 const lvDate = d => { const k = new Date(LSEASON.start + (d - 1) * DAY + 9 * 3600e3); return `${k.getUTCMonth() + 1}/${k.getUTCDate()}`; };
 const lvTime = ms => { const k = new Date(ms + 9 * 3600e3); return String(k.getUTCHours()).padStart(2, '0') + ':' + String(k.getUTCMinutes()).padStart(2, '0'); };
 
