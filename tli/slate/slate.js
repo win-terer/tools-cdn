@@ -1024,15 +1024,19 @@ function wsbDelete() { const bd = wsbBd(); if (!bd[wsbSel]) return; bd.splice(ws
 const wsbPickShow = () => (window.requestAnimationFrame || setTimeout)(() => { ['.wsb-pick', '.wsb-sock.on'].forEach(q => { const el = document.querySelector(q); if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'}); }); }); // 고른 소켓과 고르기 창이 둘 다 보이게 // 고르기 창이 화면 밖이면 보이게만(필요할 때만 조금 스크롤)
 function wsbSockPick(si) { wsbSock = wsbSock === si ? null : si; wsbQ = ''; pageRender(); wsbPickShow(); }
 function wsbSockRows() { // 이 소켓 등급에 맞는 석판 옵션
-  const sl = wsbBd()[wsbSel], info = SLATES[sl.u], ranks = info.sl[wsbSock], q = wsbQ.trim().toLowerCase();
+  const sl = wsbBd()[wsbSel], info = SLATES[sl.u], fix = wsbIsFix(info, wsbSock), ranks = fix ? null : info.sl[wsbSock], q = wsbQ.trim().toLowerCase();
   const h = SLATE_DB.map((r, ri) => { // 석판 행만 (ALL_DATA 는 로그 가져오기 뒤 전체 행 — 석판 행이 앞자리라 ri 는 같다)
-    if (!(r.nids && r.nids.length) || !slateSockOk(info, r, ranks)) return '';
+    if (!(r.nids && r.nids.length) || !(fix ? wsbFixOk(r) : slateSockOk(info, r, ranks))) return '';
     if (!qHit(q, r.effect, r.type)) return '';
     const on = String((sl.t || [])[wsbSock]) === String(r.nids[0]);
     return `<div class="wg-opt${on ? ' on' : ''}" onclick="wsbAssign(${ri})"><span>${wsbOptHtml(r)}</span><em>${slateSockLabel(info, [slateRank(r)])}</em></div>`;
   }).join('');
   return h || '<div class="hrm-empty">이 등급의 옵션이 없습니다</div>';
 }
+// 명왕 석판 기본 고정 옵션 (2026-10-22 사용자) — 소켓 칸 수 다음 자리(sl.t[c.length], 로그 BaseTalentList 와 같은 자리).
+//   후보 = 명왕 재능 포인트 옵션(90000xxx — 하위·중위·레전드 중위·절대자). '~효과 활성화 시' 낙인(92xxxx)은 소켓 칸 몫이라 뺀다. 전염되지 않는다
+const wsbIsFix = (info, si) => !!(info && info.pc && si === info.c.length);
+const wsbFixOk = r => r.type === '명왕' && /^9000/.test(String(r.nids[0]));
 function wsbSockClear(si) { // 소켓 우클릭 — 그 소켓 옵션 빼기(2026-10-22 사용자)
   if (guardShareView()) return;
   const sl = wsbBd()[wsbSel]; if (!sl || !sl.t || !sl.t[si]) return;
@@ -1046,7 +1050,7 @@ function wsbAssign(ri) {
   while (sl.t.length <= wsbSock) sl.t.push('');
   const nid = String(ALL_DATA[ri].nids[0]);
   sl.t[wsbSock] = sl.t[wsbSock] === nid ? '' : nid; // 다시 누르면 빼기
-  const nx = SLATES[sl.u].sl.findIndex((_, k) => !sl.t[k]);
+  const nx = SLATES[sl.u].sl.findIndex((_, k) => !sl.t[k]);  // 다음 빈 소켓으로 (기본 고정을 고른 뒤에도 소켓 1번부터)
   wsbSock = nx >= 0 ? nx : null; wsbQ = '';
   wsbApply(); wsbPickShow();
 }
@@ -1153,7 +1157,14 @@ function wsbRender() {
       '<button class="wz-btn" onclick="wsbDelete()">삭제</button></div>' +
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';
     if (info.sl) {
-      side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).filter(Boolean).length} / ${info.sl.length}</span></div>` +
+      const fx = info.c.length, fnid = info.pc ? (sl.t || [])[fx] : null, fri = fnid ? SLATEIDX.idx[fnid] : undefined;
+      if (info.pc) { // 명왕: 기본 고정 옵션 칸
+        const sock = `<div class="wsb-sock fix${wsbSock === fx ? ' on' : ''}" data-si="${fx}" onclick="wsbSockPick(${fx})"><small>기본 고정 · 명왕 재능 포인트 (전염 안 됨)</small>` +
+          `<span>${fri !== undefined ? wsbOptHtml(ALL_DATA[fri]) : fnid ? '노드 ' + escapeHtml(fnid) : '<i>비어 있음 — 눌러서 고르기</i>'}</span></div>`;
+        side += `<div class="wg-addbox"><div class="wg-addh"><b>기본 고정 옵션</b><span>${fnid ? 1 : 0} / 1</span></div>` + sock +
+          (wsbSock === fx ? `<div class="wsb-pick"><div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div></div>` : '') + '</div>';
+      }
+      side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).slice(0, info.sl.length).filter(Boolean).length} / ${info.sl.length}</span></div>` +
         // 옵션 고르기 창은 고른 소켓 바로 옆에 — 위쪽 소켓은 아래로, 아래쪽 소켓은 위로 펼친다(2026-10-22 사용자: 창이 너무 아래에 뜸)
         info.sl.map((ranks, si) => {
           const nid = (sl.t || [])[si], ri = nid ? SLATEIDX.idx[nid] : undefined;

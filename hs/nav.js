@@ -122,6 +122,8 @@
     const el = e.target.closest && e.target.closest('[title],[data-wt-tt]');
     if (!el || el === cur) return;
     if (el.namespaceURI !== 'http://www.w3.org/1999/xhtml' && !el.closest('svg')) return;
+    // 화면이 자체 툴팁을 띄우는 요소(재능 보드 노드 tip2·data-h 등)는 건너뛴다 — 같이 떠서 툴팁이 두 개였다(2026-10-22 사용자). title 만 치워 기본 툴팁도 막는다
+    if (el.hasAttribute('data-h') || el.hasAttribute('data-tip') || el.hasAttribute('data-tiph') || (el.classList && el.classList.contains('tip2'))) { if (el.hasAttribute('title')) { el.setAttribute('data-wt-title', el.getAttribute('title')); el.removeAttribute('title'); } return; }
     if (el.hasAttribute('title')) {   // 화면 코드가 title 을 새로 바꿨을 수 있으니 매번 옮긴다
       const t = el.getAttribute('title');
       el.removeAttribute('title');

@@ -4907,15 +4907,19 @@ function wsbDelete() { const bd = wsbBd(); if (!bd[wsbSel]) return; bd.splice(ws
 const wsbPickShow = () => (window.requestAnimationFrame || setTimeout)(() => { ['.wsb-pick', '.wsb-sock.on'].forEach(q => { const el = document.querySelector(q); if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'}); }); }); // 고른 소켓과 고르기 창이 둘 다 보이게 // 고르기 창이 화면 밖이면 보이게만(필요할 때만 조금 스크롤)
 function wsbSockPick(si) { wsbSock = wsbSock === si ? null : si; wsbQ = ''; pageRender(); wsbPickShow(); }
 function wsbSockRows() { // 이 소켓 등급에 맞는 석판 옵션
-  const sl = wsbBd()[wsbSel], info = SLATES[sl.u], ranks = info.sl[wsbSock], q = wsbQ.trim().toLowerCase();
+  const sl = wsbBd()[wsbSel], info = SLATES[sl.u], fix = wsbIsFix(info, wsbSock), ranks = fix ? null : info.sl[wsbSock], q = wsbQ.trim().toLowerCase();
   const h = SLATE_DB.map((r, ri) => { // 석판 행만 (ALL_DATA 는 로그 가져오기 뒤 전체 행 — 석판 행이 앞자리라 ri 는 같다)
-    if (!(r.nids && r.nids.length) || !slateSockOk(info, r, ranks)) return '';
+    if (!(r.nids && r.nids.length) || !(fix ? wsbFixOk(r) : slateSockOk(info, r, ranks))) return '';
     if (!qHit(q, r.effect, r.type)) return '';
     const on = String((sl.t || [])[wsbSock]) === String(r.nids[0]);
     return `<div class="wg-opt${on ? ' on' : ''}" onclick="wsbAssign(${ri})"><span>${wsbOptHtml(r)}</span><em>${slateSockLabel(info, [slateRank(r)])}</em></div>`;
   }).join('');
   return h || '<div class="hrm-empty">이 등급의 옵션이 없습니다</div>';
 }
+// 명왕 석판 기본 고정 옵션 (2026-10-22 사용자) — 소켓 칸 수 다음 자리(sl.t[c.length], 로그 BaseTalentList 와 같은 자리).
+//   후보 = 명왕 재능 포인트 옵션(90000xxx — 하위·중위·레전드 중위·절대자). '~효과 활성화 시' 낙인(92xxxx)은 소켓 칸 몫이라 뺀다. 전염되지 않는다
+const wsbIsFix = (info, si) => !!(info && info.pc && si === info.c.length);
+const wsbFixOk = r => r.type === '명왕' && /^9000/.test(String(r.nids[0]));
 function wsbSockClear(si) { // 소켓 우클릭 — 그 소켓 옵션 빼기(2026-10-22 사용자)
   if (guardShareView()) return;
   const sl = wsbBd()[wsbSel]; if (!sl || !sl.t || !sl.t[si]) return;
@@ -4929,7 +4933,7 @@ function wsbAssign(ri) {
   while (sl.t.length <= wsbSock) sl.t.push('');
   const nid = String(ALL_DATA[ri].nids[0]);
   sl.t[wsbSock] = sl.t[wsbSock] === nid ? '' : nid; // 다시 누르면 빼기
-  const nx = SLATES[sl.u].sl.findIndex((_, k) => !sl.t[k]);
+  const nx = SLATES[sl.u].sl.findIndex((_, k) => !sl.t[k]);  // 다음 빈 소켓으로 (기본 고정을 고른 뒤에도 소켓 1번부터)
   wsbSock = nx >= 0 ? nx : null; wsbQ = '';
   wsbApply(); wsbPickShow();
 }
@@ -5036,7 +5040,14 @@ function wsbRender() {
       '<button class="wz-btn" onclick="wsbDelete()">삭제</button></div>' +
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';
     if (info.sl) {
-      side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).filter(Boolean).length} / ${info.sl.length}</span></div>` +
+      const fx = info.c.length, fnid = info.pc ? (sl.t || [])[fx] : null, fri = fnid ? SLATEIDX.idx[fnid] : undefined;
+      if (info.pc) { // 명왕: 기본 고정 옵션 칸
+        const sock = `<div class="wsb-sock fix${wsbSock === fx ? ' on' : ''}" data-si="${fx}" onclick="wsbSockPick(${fx})"><small>기본 고정 · 명왕 재능 포인트 (전염 안 됨)</small>` +
+          `<span>${fri !== undefined ? wsbOptHtml(ALL_DATA[fri]) : fnid ? '노드 ' + escapeHtml(fnid) : '<i>비어 있음 — 눌러서 고르기</i>'}</span></div>`;
+        side += `<div class="wg-addbox"><div class="wg-addh"><b>기본 고정 옵션</b><span>${fnid ? 1 : 0} / 1</span></div>` + sock +
+          (wsbSock === fx ? `<div class="wsb-pick"><div class="ws-filter"><input type="search" placeholder="옵션 검색" value="${escapeHtml(wsbQ)}" oninput="wsbSockSearch(this.value)"></div><div class="wg-list" id="wsbSockList">${wsbSockRows()}</div></div>` : '') + '</div>';
+      }
+      side += `<div class="wg-addbox grow"><div class="wg-addh"><b>옵션 소켓</b><span>${(sl.t || []).slice(0, info.sl.length).filter(Boolean).length} / ${info.sl.length}</span></div>` +
         // 옵션 고르기 창은 고른 소켓 바로 옆에 — 위쪽 소켓은 아래로, 아래쪽 소켓은 위로 펼친다(2026-10-22 사용자: 창이 너무 아래에 뜸)
         info.sl.map((ranks, si) => {
           const nid = (sl.t || [])[si], ri = nid ? SLATEIDX.idx[nid] : undefined;
@@ -5178,7 +5189,10 @@ function wfTidy(pc) {
 const WCB_PATH = [1, 2, 21, 3, 4, 22, 5, 6, 23, 31];
 // 꽃잎 하나의 모양 — 축 방향(바깥)을 기준으로 [거리, 각도°]. 회전해서 세 꽃잎을 만든다
 const WCB_GEO = {start: [62, -26], 1: [108, -34], 2: [158, -40], 21: [212, -42], 3: [262, -36], 4: [300, -24], 22: [322, -6],
-  5: [318, 14], 6: [296, 30], 23: [256, 40], 31: [150, 24], 40: [108, 40], ext: [[150, 56], [196, 58], [236, 56], [210, 70], [168, 76]]};
+  5: [318, 14], 6: [296, 30], 23: [256, 40], 31: [192, 44], 40: [108, 40],
+  // 운명 칸(미정 숙명 옵션)은 꽃잎 안쪽을 나선으로 돌아 들어간다 — 예전엔 축 바깥(56~76°)으로 뻗어 옆 정령 시작 노드와 겹쳤다(2026-10-22 사용자).
+  //   자리는 세 정령(회전) 모두에서 노드·선·이름표와 안 겹치게 계산해 고름(마지막 노드 31 은 꽃잎 바깥쪽 10~11시 방향으로 [150,24]→[192,44], 미정 숙명 쪽)
+  ext: [[133, -17], [193, -21], [243, -11], [250, 3], [204, 16]]};
 const WCB_AXIS = [-150, -30, 90]; // 정령 1 = 왼쪽 위, 2 = 오른쪽 위, 3 = 아래
 const WCB_TIER = {'내환': '하위 숙명', '중환': '중위 숙명'};
 const WCB_LIMIT_HELP = [ // 게임 '장착 제한' 도움말 (사용자 캡처)
@@ -5280,7 +5294,11 @@ function wdRows() { // 팝업 목록 — 이 자리에 맞는 운명만
   if (!wcbSel) return '';
   const {i, pos} = wcbSel, pc = wpCur(i), q = wdQ.trim().toLowerCase(), cur = (pc.dstD || {})[pos];
   const rows = DST_ROWS.filter(r => wcbFits(pos, r.did, pc) && qHit(q, r.effect));
-  return rows.map(r => `<div class="wg-opt${cur === r.did ? ' here' : ''}" onclick="wcbPut('${r.did}')"><span>${wgOptHtml(r.effect, r.tips)}</span><em>${cur === r.did ? '꽂힘 — 누르면 빼기' : escapeHtml(r.type)}</em></div>`).join('')
+  // 이 빌드의 다른 자리에 이미 꽂은 운명을 맨 위에 (2026-10-22 사용자) — 같은 운명을 여러 정령에 꽂는 일이 많다. 많이 쓴 순
+  const used = {}; (preset.pacts || []).forEach((x, k) => x && Object.entries(x.dstD || {}).forEach(([ps, did]) => { if (!(k === i && +ps === pos)) used[did] = (used[did] || 0) + 1; }));
+  const top = rows.filter(r => used[r.did]).sort((a, b) => used[b.did] - used[a.did]), rest = rows.filter(r => !used[r.did]);
+  const li = r => `<div class="wg-opt${cur === r.did ? ' here' : ''}" onclick="wcbPut('${r.did}')"><span>${wgOptHtml(r.effect, r.tips)}</span><em>${cur === r.did ? '꽂힘 — 누르면 빼기' : used[r.did] ? '이 빌드에서 ×' + used[r.did] : escapeHtml(r.type)}</em></div>`;
+  return (top.length ? '<div class="wg-osep">이 빌드에서 쓰는 운명</div>' + top.map(li).join('') + (rest.length ? '<div class="wg-osep">전체</div>' : '') : '') + rest.map(li).join('')
     || '<div class="hrm-empty">조건에 맞는 운명이 없습니다</div>';
 }
 // 미정 숙명 칸(40)·운명 칸(41~45)은 정령 노드 효과가 없다 — 수집 문구가 깨져 있어("* 1% 소환체 대미지 +6 * 1% 운명 <img …") 깨끗한 문구로
@@ -5315,12 +5333,12 @@ function wcbDstPop() { // 계약 노드 팝업: 원래 노드·꽂힌 운명 / (
     `<div class="ws-filter"><input type="search" placeholder="운명 이름·효과 검색" value="${escapeHtml(wdQ)}" oninput="wdSearch(this.value)"></div>` +
     `<div class="wg-list" id="wdList">${wdRows()}</div>`;
 }
-function wcbGem(xy, rad, r) { // 운명이 꽂힌 자리 — 가운데 보석(하위 파랑·중위 금·미정 보라) + 바깥쪽에 운명 이름
+function wcbGem(xy, rad, r, below) { // 운명이 꽂힌 자리 — 가운데 보석(하위 파랑·중위 금·미정 보라) + 바깥쪽에 운명 이름
   const [x, y] = xy, g = Math.max(6, rad * .62), k = /^\[?미정 숙명/.test(r.effect) ? 'und' : r.type === '중위 숙명' ? 'mid' : 'low';
   const tag = (r.effect.match(/^\[([^\]]+)\]/) || [])[1] || r.effect, nm = (tag.includes(':') ? tag.split(':').pop().trim() : tag).slice(0, 10);
   const dx = x - WCB_C, dy = y - WCB_C, L = Math.hypot(dx, dy) || 1;
   let ox = x + dx / L * (rad + 12), oy = y + dy / L * (rad + 12) + 4, anc = Math.abs(dx / L) < .35 ? 'middle' : dx > 0 ? 'start' : 'end';
-  if ((anc === 'end' && x < 200) || (anc === 'start' && x > 700)) { ox = x; oy = y + rad + 18; anc = 'middle'; } // 판 가장자리면 아래에
+  if (below || (anc === 'end' && x < 200) || (anc === 'start' && x > 700)) { ox = x; oy = y + rad + 12; anc = 'middle'; } // 판 가장자리·운명 칸(서로 가까움 — 세 정령 모두 같은 모양으로)은 아래에
   return `<polygon points="${x},${y - g} ${x + g * .8},${y} ${x},${y + g} ${x - g * .8},${y}" class="wcb-gem ${k}"/>` +
     `<text x="${ox}" y="${oy}" text-anchor="${anc}" class="wcb-dl ${k}">${escapeHtml(nm)}</text>`;
 }
@@ -5345,7 +5363,7 @@ function wcbSvg() {
         (dr ? `<circle cx="${xy[0]}" cy="${xy[1]}" r="${rad + 6}" class="wcb-glow"/>` : '') +
         `<circle cx="${xy[0]}" cy="${xy[1]}" r="${rad}" class="wcb-nc"/>` +
         (icon ? `<image href="${icon}" x="${xy[0] - rad + 3}" y="${xy[1] - rad + 3}" width="${2 * rad - 6}" height="${2 * rad - 6}" class="wcb-ic" ${WCB_ONERR}/>` : '') +
-        (dr ? wcbGem(xy, rad, dr) : /\bdst\b/.test(cls) ? `<text x="${xy[0]}" y="${xy[1] + 4.5}" class="wcb-q">?</text>` : '') + '</g>';
+        (dr ? wcbGem(xy, rad, dr, / ext\b/.test(cls)) : /\bdst\b/.test(cls) ? `<text x="${xy[0]}" y="${xy[1] + 4.5}" class="wcb-q">?</text>` : '') + '</g>';
     };
     const tipOf = (title, body, sub) => '<div class="ft-title">' + escapeHtml(title) + '</div><div class="ft-body">' + escapeHtml(body) + (sub ? '<div class="gb-tsub">' + escapeHtml(sub) + '</div>' : '') + '</div>';
     WCB_PATH.forEach(pos => {
@@ -5363,6 +5381,7 @@ function wcbSvg() {
     });
     // 미정 숙명 칸 + 운명 칸 가지
     const uxy = wcbXY(i, WCB_GEO[40]), ur = dd[40] ? wfRowOf(dd[40]) : null, exts = [41, 42, 43, 44, 45].filter(p => ds[p]);
+    { const o = wcbXY(i, WCB_GEO[31]); lines += `<line x1="${o[0]}" y1="${o[1]}" x2="${uxy[0]}" y2="${uxy[1]}" class="wcb-path"/>`; } // 정령 노드 끝(31)에 미정 숙명이 이어진다 — 별궤도(서브트리 하위 숙명)가 미정 숙명의 운명 칸까지 닿는 걸 보이게(2026-10-22 사용자)
     nodes += node(40, uxy, 12, 'und' + (ur ? ' have' : ''), '', tipOf('미정 숙명 칸', ur ? ur.effect : '대미지 +6% · 소환체 대미지 +6%',
       ur ? '운명 칸 ' + exts.length + '개 (' + (wcbRoll(pc).t === 'mid' ? '중위' : '하위') + ')' : '미정 숙명을 꽂으면 그 옵션만큼 운명 칸이 생깁니다 · 모든 운명 슬롯은 장착 자격을 소모하지 않습니다'), ur);
     exts.forEach((p, k) => {
