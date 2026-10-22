@@ -1160,6 +1160,18 @@ function wsbRender() {
   return `<div class="wsb-pal">${pal}</div>` + (wsbMsg ? `<div class="wsb-warn">${escapeHtml(wsbMsg)}</div>` : '') +
     `<div class="wsb-split"><div class="wsb-left">${wsbBoardHtml()}<div class="wsb-hint">${wsbPal != null ? '<b>' + escapeHtml(SLATES[wsbPal].n) + '</b> — 놓을 빈 칸을 누르세요' : '칸에 마우스를 올리면 옵션 · 피스를 끌어서 옮기기'}</div></div><div class="wg-vright">${side}</div></div>`;
 }
+// 우클릭 — 석판 옵션 소켓·켜진 옵션 줄은 빼기, 석판 화면 안에선 브라우저 메뉴 막기(2026-10-22 사용자).
+//   빌더 단계 틀(wgCtx)이 먼저 처리했으면(defaultPrevented) 건너뛴다 — 단독 석판 화면(/tli/slate)용
+document.addEventListener('contextmenu', e => {
+  if (e.defaultPrevented || !e.target.closest) return;
+  const t = e.target;
+  if (t.closest('input, textarea, a[href]')) return;
+  const sk = t.closest('.wsb-sock[data-si]');
+  if (sk) { e.preventDefault(); wsbSockClear(+sk.dataset.si); return; }
+  const row = t.closest('#wsbSockList .wg-opt.on');
+  if (row) { e.preventDefault(); row.click(); return; }
+  if (t.closest('.gbm, .wsb-board, #wzApp, #slateApp')) e.preventDefault();
+});
 
 // ── /tli/slate 단독 화면 — 석판 시뮬레이터 (2026-10-10, 사용자 요청: 빌더에서 석판 기능만) ──
 // 화면은 빌더 2 의 석판 칸(wz_slate.js wsbRender)을 그대로 쓰고, 오른쪽 아래에 '적용되는 효과'(보드 파생 재능 행 합계)를 붙인다.

@@ -689,6 +689,15 @@ function gbBumpM(pre, row, col, d) { // 역상 복사 칸 찍기 — 로그와 �
   else { const e = preset.gboard[x]; e[1] = (e[1] || 0) + d; if (e[1] <= 0) preset.gboard.splice(x, 1); }
   gbSaved();
 }
+// 프리즘을 옮기거나 빼거나 옵션을 바꿔 최대 포인트가 줄면 넘친 포인트를 줄인다(2026-10-22 사용자: 6 → 3 자동).
+//   프리즘 조작 때만 부른다 — 로그로 가져온 빌드를 아무 저장 때나 깎지 않게
+function gbPzClamp() {
+  (preset.gboard || []).forEach(e => {
+    if ((e[4] || 0) & 1) return;   // 역상 복사 칸은 따로
+    const pre = String(e[0]).slice(0, 2), i = (BOARD_IDS[pre] || []).indexOf(String(e[0]));
+    if (i >= 0 && (e[1] || 0) > gbMax(pre, i)) e[1] = gbMax(pre, i);
+  });
+}
 function gbSaved() {
   if (preset.gboard && !preset.gboard.length) delete preset.gboard;
   gbMsg = '';
@@ -868,6 +877,7 @@ function gbPlaceAt(pre, i) {
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
     preset.prism.pos = pos;
   }
+  gbPzClamp();
   // 장착 노드는 효과가 없다 — 그 자리에 찍은 포인트는 뺀다
   if (preset.gboard) preset.gboard = preset.gboard.filter(e => !(String(e[0]) === nid && !((e[4] || 0) & 1)));
   gbPlace = null;
@@ -881,6 +891,7 @@ function gbPzRemove(k) {
   if (guardShareView()) return;
   if (k === 'i') { gbDropMirror(gbpOf('i')); gbpSet('i', null); delete preset.inverse; }
   else { gbpSet('p', null); delete preset.prism; }
+  gbPzClamp();
   gbPlace = null; gbPzEd = null;
   gbSaved();
 }
@@ -952,6 +963,7 @@ function gbPzSave() {
     const g = gbpOf('p');
     if (g) { const [r, c] = gbRC(g.nd); g.c = gbAreaCells(g.b, r, c, 'p', e.opts); } // 범위 옵션이 바뀌면 칸도 다시
     gbPlace = g ? null : 'p'; // 아직 안 놓았으면 바로 놓기
+    gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
     if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
@@ -5031,6 +5043,18 @@ function wsbRender() {
   return `<div class="wsb-pal">${pal}</div>` + (wsbMsg ? `<div class="wsb-warn">${escapeHtml(wsbMsg)}</div>` : '') +
     `<div class="wsb-split"><div class="wsb-left">${wsbBoardHtml()}<div class="wsb-hint">${wsbPal != null ? '<b>' + escapeHtml(SLATES[wsbPal].n) + '</b> — 놓을 빈 칸을 누르세요' : '칸에 마우스를 올리면 옵션 · 피스를 끌어서 옮기기'}</div></div><div class="wg-vright">${side}</div></div>`;
 }
+// 우클릭 — 석판 옵션 소켓·켜진 옵션 줄은 빼기, 석판 화면 안에선 브라우저 메뉴 막기(2026-10-22 사용자).
+//   빌더 단계 틀(wgCtx)이 먼저 처리했으면(defaultPrevented) 건너뛴다 — 단독 석판 화면(/tli/slate)용
+document.addEventListener('contextmenu', e => {
+  if (e.defaultPrevented || !e.target.closest) return;
+  const t = e.target;
+  if (t.closest('input, textarea, a[href]')) return;
+  const sk = t.closest('.wsb-sock[data-si]');
+  if (sk) { e.preventDefault(); wsbSockClear(+sk.dataset.si); return; }
+  const row = t.closest('#wsbSockList .wg-opt.on');
+  if (row) { e.preventDefault(); row.click(); return; }
+  if (t.closest('.gbm, .wsb-board, #wzApp, #slateApp')) e.preventDefault();
+});
 
 // ── 빌더 2 「추억·석판·정령」 화면의 전투 정령 · 운명 ──
 // 규칙은 공용 조각(00_pact.js)과 빌더 정령 화면과 같다: 정령 3칸, 승급 1~6(승급 보상 표의 그 행).

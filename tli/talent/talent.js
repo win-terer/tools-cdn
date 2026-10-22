@@ -207,6 +207,15 @@ function gbBumpM(pre, row, col, d) { // 역상 복사 칸 찍기 — 로그와 �
   else { const e = preset.gboard[x]; e[1] = (e[1] || 0) + d; if (e[1] <= 0) preset.gboard.splice(x, 1); }
   gbSaved();
 }
+// 프리즘을 옮기거나 빼거나 옵션을 바꿔 최대 포인트가 줄면 넘친 포인트를 줄인다(2026-10-22 사용자: 6 → 3 자동).
+//   프리즘 조작 때만 부른다 — 로그로 가져온 빌드를 아무 저장 때나 깎지 않게
+function gbPzClamp() {
+  (preset.gboard || []).forEach(e => {
+    if ((e[4] || 0) & 1) return;   // 역상 복사 칸은 따로
+    const pre = String(e[0]).slice(0, 2), i = (BOARD_IDS[pre] || []).indexOf(String(e[0]));
+    if (i >= 0 && (e[1] || 0) > gbMax(pre, i)) e[1] = gbMax(pre, i);
+  });
+}
 function gbSaved() {
   if (preset.gboard && !preset.gboard.length) delete preset.gboard;
   gbMsg = '';
@@ -386,6 +395,7 @@ function gbPlaceAt(pre, i) {
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
     preset.prism.pos = pos;
   }
+  gbPzClamp();
   // 장착 노드는 효과가 없다 — 그 자리에 찍은 포인트는 뺀다
   if (preset.gboard) preset.gboard = preset.gboard.filter(e => !(String(e[0]) === nid && !((e[4] || 0) & 1)));
   gbPlace = null;
@@ -399,6 +409,7 @@ function gbPzRemove(k) {
   if (guardShareView()) return;
   if (k === 'i') { gbDropMirror(gbpOf('i')); gbpSet('i', null); delete preset.inverse; }
   else { gbpSet('p', null); delete preset.prism; }
+  gbPzClamp();
   gbPlace = null; gbPzEd = null;
   gbSaved();
 }
@@ -470,6 +481,7 @@ function gbPzSave() {
     const g = gbpOf('p');
     if (g) { const [r, c] = gbRC(g.nd); g.c = gbAreaCells(g.b, r, c, 'p', e.opts); } // 범위 옵션이 바뀌면 칸도 다시
     gbPlace = g ? null : 'p'; // 아직 안 놓았으면 바로 놓기
+    gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
     if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
