@@ -3346,6 +3346,17 @@ function wgItemPool() { // 이 칸에 들어갈 레전드 [{idx, name, part}] �
   seen.forEach(g => { const it = ITEMS[g.idx]; if (it && it.drop) g.txt += ' ' + it.drop.join(' '); }); // 드롭처로도 찾기 (2026-10-20)
   return [...seen.values()];
 }
+// 우클릭(2026-10-22 사용자) — 고른 옵션 줄(밝게 켜진 줄)을 우클릭하면 빠진다 · 위 '고른 옵션' 상자 줄은 그 줄의 ✕ 와 같다.
+//   장비 화면 안에서는 브라우저 메뉴를 띄우지 않는다(검색창은 예외)
+function wgCtx(e) {
+  const t = e.target;
+  if (t.closest('input, textarea')) return true;
+  const row = t.closest('.wg-opt.on, .wg-vo.on');
+  if (row && row.getAttribute('onclick')) { row.click(); return false; }
+  const x = t.closest('.wg-pk, .wg-pkr, div'), del = x && x.querySelector(':scope > button[title="빼기"]');
+  if (del) del.click();
+  return false;
+}
 function wgEquipItem(idx) {
   if (guardShareView()) return;
   const it = ITEMS[idx], g = wgItemPool().find(x => x.idx === idx);
@@ -3983,7 +3994,7 @@ function wgRender() {
         `<button class="wz-btn" onclick="wgClear('${wgSlot}')">비우기</button></div>`
       : cur ? '<div class="wg-acts"><button class="wz-btn" onclick="wgSetMode(\'view\')">‹ 고른 장비 보기</button></div>' : '') +
     '</div>' + (wgMode === 'view' ? '' : `<div class="wg-tabs">${tabs}</div>`) + body; // 탭은 칸 이름 바로 아래 (사용자 요청)
-  return '<div class="gbm wsm wgm"><div class="gbm-top"><b class="gbm-title">장비</b>' + (typeof gbmHelp === 'function' ? gbmHelp('gear') : '') + 
+  return '<div class="gbm wsm wgm" oncontextmenu="return wgCtx(event)"><div class="gbm-top"><b class="gbm-title">장비</b>' + (typeof gbmHelp === 'function' ? gbmHelp('gear') : '') + 
     '<span class="gbm-keys">빈 칸은 레전드·제작·블러드를 고르고, 고른 칸은 옵션을 보며 조향·시퀀스·침식을 정합니다 <span class="gbm-sep">·</span> 옵션 줄을 누르면 침식</span>' +
     (wgMsg ? '<span class="gbm-msg">' + escapeHtml(wgMsg) + '</span>' : '') + '</div>' +
     `<div class="gbm-body"><div class="gbm-side">${side}</div><div class="gbm-main">${main}</div></div></div>`;
