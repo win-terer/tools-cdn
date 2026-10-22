@@ -476,6 +476,8 @@
     .gbm-pzchip button { border: 0; background: none; color: #e6dcff; padding: 6px 10px; font-size: 12.5px; cursor: pointer; }
     .gbm-pzchip.i button { color: #b7f5ea; }
     .gbm-pzchip button.x { padding: 6px 8px; color: #8b949e; border-left: 1px solid rgba(255,255,255,.08); }
+    .gbm-pzchip button.mv { padding: 6px 8px; border-left: 1px solid rgba(255,255,255,.08); }
+    .gbm-pzchip button.mv.on { background: rgba(255,255,255,.14); }
     .gbm-pz[onclick] { cursor: pointer; } .gbm-pz[onclick]:hover { border-color: #5b4a8a; }
     .gbz.gbz-narrow { width: min(560px, 100%); }
     .gbz-core img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #3a4558; }

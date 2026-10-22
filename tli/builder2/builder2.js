@@ -496,6 +496,18 @@ function toggleBoardPanel() {
 // 재능 노드·프리즘 수치는 찍은 포인트에 비례한다 (게임 툴팁 기준: 크리 +15% 노드에 3포인트 = +45%,
 // 프리즘 "MP 봉인 보상 +2%"도 그 노드 3포인트면 +6%) → 문구의 모든 수치를 포인트만큼 곱해 보여준다.
 // "(신격 유효 한도: 1)" 같은 괄호 문구는 배수 대상이 아니라 따로 떼어 둔다.
+// 제노 프리즘 랜덤 옵션 — 옵션 번호(mid) 앞 세 자리 122 = 환영 전용 목록(게임 수치 그대로: 민첩 +10 → 17.5, 맹공 +40% → +100%, 페널티 없음…),
+//   121·123 = 다른 프리즘. 환영이면 122 목록 문구를, 아니면 그 밖의 문구를 쓴다 — 예전엔 일반 수치에 ×1.75 를 곱해 맞지 않았다(2026-10-22 사용자: 17.5 → 30.63)
+const prismIsPh = name => name === '제노 프리즘: 환영';
+const prismMine = (x, ph) => !!(x && x.mid) && (x.mid.slice(0, 3) === '122') === ph;
+function prismOptEff(o, name) { // 고른 옵션을 지금 프리즘 종류의 문구로 (다른 종류 목록에서 고른 옛 저장분은 같은 번호 짝으로 바꿔 읽는다)
+  if (!o || typeof PRISM === 'undefined') return o && o.effect;
+  const ph = prismIsPh(name);
+  if (PRISM.opts.some(x => prismMine(x, ph) && x.effect === o.effect)) return o.effect;
+  const src = PRISM.opts.find(x => x.mid && x.effect === o.effect && (!o.type || x.type === o.type)) || PRISM.opts.find(x => x.mid && x.effect === o.effect);
+  const alt = src && PRISM.opts.find(x => prismMine(x, ph) && x.mid.slice(3) === src.mid.slice(3));
+  return alt ? alt.effect : o.effect;
+}
 function scaleEffect(text, n) {
   if (!(n > 0) || n === 1) return text;
   const holds = [];
@@ -874,6 +886,7 @@ function gbPzStage(i) { if (!gbPzEd) return; if (i > 0 && !gbPzEd.item) { gbMsg 
 function gbPzItem(i) {
   const it = PRISM.items[i]; if (!it || !gbPzEd) return;
   gbPzEd.item = it.name;
+  gbPzEd.opts = gbPzEd.opts.map(o => o ? Object.assign({}, o, {effect: prismOptEff(o, it.name)}) : o); // 환영 ↔ 다른 종류: 같은 옵션의 그 종류 수치로
   const an = gbPzEd.opts[2] && prismAddName(gbPzEd.opts[2].effect);
   if (an && an !== it.talent) gbPzEd.opts[2] = null; // 짝이 안 맞는 추가형 3번 옵션은 해제
   gbPzEd.stage = 1; gbPzEd.q = ''; gbRenderModal();
@@ -893,6 +906,7 @@ function gbPzRows() {
   const curIt = PRISM.items.find(x => x.name === e.item) || {}, seen = new Set(), rows = [];
   PRISM.opts.forEach((o, i) => {
     if (o.slot !== e.stage || !hit(o.effect + ' ' + o.type)) return;
+    if (curIt.name && o.mid && !prismMine(o, prismIsPh(curIt.name))) return; // 환영은 환영 전용 목록만, 다른 종류는 그 밖의 목록만
     const an = e.stage === 3 ? prismAddName(o.effect) : null;
     if (an && an !== curIt.talent) return; // 다른 프리즘용 추가형은 숨김
     const key = o.effect + '|' + o.type; if (seen.has(key)) return; seen.add(key); // 1번 옵션은 같은 문구가 여러 ID
@@ -961,7 +975,8 @@ function gbPzSide() { // 왼쪽 칸 아래 — 어느 보드에 어떤 프리즘
 function gbPzHead(pre, slot) { // 보드 머리 — 이 보드에 놓기·이 보드에 놓인 것 고치기. 다른 보드에서 쓰는 중이면 안 보인다
   if (slot < 1 || guardShareViewQuiet()) return '';
   const pr = preset.prism, gp = gbpOf('p'), gi = gbpOf('i');
-  const chip = (k, lb) => `<span class="gbm-pzchip ${k}"><button onclick="gbPzOpen('${k}')" title="고치기">◆ ${lb}</button><button class="x" onclick="gbPzRemove('${k}')" title="빼기">✕</button></span>`;
+  // ⇄ 옮기기 — 옵션은 그대로 두고 놓을 노드만 다시 고른다(예전엔 ✕로 빼야 해서 만든 옵션까지 지워졌다, 2026-10-22 사용자)
+  const chip = (k, lb) => `<span class="gbm-pzchip ${k}"><button onclick="gbPzOpen('${k}')" title="고치기">◆ ${lb}</button><button class="mv${gbPlace === k ? ' on' : ''}" onclick="gbPlaceMode('${k}')" title="다른 노드·보드로 옮기기">⇄</button><button class="x" onclick="gbPzRemove('${k}')" title="빼기">✕</button></span>`;
   let h = '';
   if (gp && gp.b === pre) h += chip('p', escapeHtml(pr ? pr.name.replace(/^제노 프리즘:\s*/, '') : '프리즘'));
   else if (!gp && !(gi && gi.b === pre)) h += `<button class="gbm-pzadd p" onclick="gbPzAdd('p')">◆ ${pr ? '프리즘 놓기' : '프리즘 추가'}</button>`;
@@ -1447,6 +1462,15 @@ function renderTalentBoard(opt) {
       if (isPrismNode) tipH += '<div class="gb-tno">이 칸에는 포인트를 투자할 수 없습니다</div>';
       else if (freeNode) tipH += '<div class="gb-tfree">선행 조건 없이 바로 투자 가능</div>';
       if (area) tipH += '<div class="gb-tarea">' + (isInv ? '역상 원본 범위' : '프리즘 영향 범위' + (boost ? ' · 프리즘 옵션 적용 대상' : '')) + '</div>';
+      if (boost && !isInv && preset.prism) { // 이 노드가 프리즘에서 받는 몫 — 장착 노드 툴팁의 합계를 노드별로(2026-10-22 사용자)
+        const TN = {'하위': 1, '중위': 3, '레전드 중위': 4};
+        (preset.prism.opts || []).filter(Boolean).forEach(o => {
+          const e = prismOptEff(o, preset.prism.name) || '';
+          const g = /범위 내의 모든 (레전드 중위|중위|하위) 재능 추가 획득:\s*(.+)$/.exec(e), ad = /범위 내의 모든 (레전드 중위|중위|하위) 재능 추가로 (\d+)회 포인트 추가 가능/.exec(e);
+          if (g && TN[g[1]] === tier) tipH += '<div class="gb-tgain">◆ 프리즘: ' + escapeHtml(n ? g[2].trim() + ' × ' + n + '포인트 = ' + scaleEffect(g[2].trim(), n) : '포인트를 넣으면 1포인트당 ' + g[2].trim()) + '</div>';
+          if (ad && TN[ad[1]] === tier) tipH += '<div class="gb-tgain">◆ 프리즘: 이 노드는 ' + ad[2] + '포인트 더 넣을 수 있음</div>';
+        });
+      }
       if (isPrismNode && gpNode.k === 'i') { // 역상 장착 노드 — 반사 비율(로그 실측)을 보여준다
         tipH += '<div class="ft-sep"></div><div class="gb-tpname">◆ 역상</div>' +
           '<div class="gb-tsub">범위 안 노드를 보드 반대편(청록 점선)으로 반사합니다</div>' +
@@ -1458,14 +1482,14 @@ function renderTalentBoard(opt) {
       } else if (isPrismNode) { // 프리즘 옵션 전문 + 범위 안 실제 적용 합계 (보드 아래 상자와 같은 계산)
         const isPhantom = ((preset.prism || {}).name === '제노 프리즘: 환영'); // 랜덤 옵션 효과 +75%
         tipH += '<div class="ft-sep"></div><div class="gb-tpname">◆ ' + escapeHtml((preset.prism || {}).name || '프리즘') + '</div>' +
-          (isPhantom ? '<div class="gb-tsub">고유: 랜덤 옵션의 효과 +75% (수치 옵션에 ×1.75 적용)</div>' : '') +
+          (isPhantom ? '<div class="gb-tsub">고유: 랜덤 옵션의 효과 +75% (옵션 수치에 이미 들어 있음)</div>' : '') +
           ((preset.prism || {}).opts || []).filter(Boolean).map(o => {
-            const e = o.effect || '';
+            const e = prismOptEff(o, (preset.prism || {}).name) || '';
             const mm = /범위 내의 모든 (레전드 중위|중위|하위) 재능 추가 획득:\s*(.+)$/.exec(e);
             if (!mm) return '<div class="gb-tsub">· ' + escapeHtml(e) + '</div>';
             const tt = mm[1] === '하위' ? 1 : mm[1] === '중위' ? 3 : 4, hh = tierOn[tt] || {n: 0, p: 0};
-            const per = isPhantom ? scaleEffect(mm[2].trim(), 1.75) : mm[2].trim();
-            return '<div class="gb-tsub">· ' + escapeHtml(isPhantom ? e.replace(mm[2].trim(), per) : e) + '</div>' +
+            const per = mm[2].trim();
+            return '<div class="gb-tsub">· ' + escapeHtml(e) + '</div>' +
               '<div class="gb-tgain">→ 범위 내 ' + escapeHtml(mm[1]) + ' 재능 ' + hh.n + '개 · ' + hh.p + '포인트 = ' +
               escapeHtml(hh.p ? scaleEffect(per, hh.p) : '(찍은 노드 없음)') + '</div>';
           }).join('');
@@ -2458,15 +2482,12 @@ function presetOptionLines() {
   });
   Object.values(preset.mems || {}).forEach(m => ['basic', 'unique', 'random'].forEach(k => (m[k] || []).forEach(o => add('추억', o.mt && typeof memEff === 'function' ? memEff(o) : optEff(o)))));
   if (preset.prism) {
-    // 제노 프리즘: 환영 — 고유 옵션이 "해당 프리즘의 랜덤 옵션의 효과 +75%" (사용자 확인).
-    // 효과 수치형 옵션에만 ×1.75 — 범위 확장(3×4 직사각형)·횟수(2회 포인트) 문구는 곱하면 안 된다
-    const amp = preset.prism.name === '제노 프리즘: 환영' ? 1.75 : 1;
-    const ampable = e => !/직사각형|포인트 추가 가능|영향 범위/.test(e || '');
+    // 제노 프리즘: 환영 — "랜덤 옵션의 효과 +75%"는 환영 전용 옵션 목록 수치에 이미 들어 있다 → 곱하지 않고 그 문구를 쓴다(prismOptEff, 2026-10-22)
     // "범위 내의 모든 X 재능 추가 획득: …"은 범위 안에서 실제로 찍은 그 등급 포인트만큼 곱한다
     const gain = prismGainOn();
     (preset.prism.opts || []).forEach(o => {
       if (!o) return;
-      let e = amp !== 1 && ampable(o.effect) ? scaleEffect(o.effect, amp) : o.effect;
+      let e = prismOptEff(o, preset.prism.name);
       const mm = /범위 내의 모든 (레전드 중위|중위|하위) 재능 추가 획득:\s*(.+)$/.exec(e || '');
       if (mm && gain) {
         const t = mm[1] === '하위' ? 1 : mm[1] === '중위' ? 3 : 4;
