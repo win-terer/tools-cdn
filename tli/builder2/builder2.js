@@ -2330,7 +2330,9 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
   if (ranks.indexOf(slateRank(r)) < 0) return false;
   const god = slateGodOf(info);   // 신격의 석판: 그 신 + 하위 직업 옵션(+ 직업 표기 없는 공용 옵션)만
   if (god && r.type && r.type !== god && !GOD_SUBS[god].includes(r.type)) return false;
-  return slateIsNether(info) || !/^\[절대자/.test(r.effect || '');
+  // 명왕 석판: 핵심 재능(이름 붙은 옵션)·새로운 신 옵션은 빼고 (2026-10-22 사용자)
+  if (slateIsNether(info)) return r.type !== '새로운 신' && !slateOptSplit(r.effect).name;
+  return !/^\[절대자/.test(r.effect || '');
 }
 
 // ── 전투 정령 · 운명 공용 조각 (2026-10-08) ──
