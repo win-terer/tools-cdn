@@ -278,6 +278,7 @@
     .pt-n { font-size: 11px; font-weight: 600; color: #c9d1d9; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .pt-p { font-size: 15px; font-weight: 800; color: #7ee07a; line-height: 1.1; } .pt-c small { font-size: 10px; color: #6b7685; white-space: nowrap; }
     @media (max-width: 900px) { .pt-g { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; } .pt-g::-webkit-scrollbar { display: none; } .pt-c { flex: none; width: 104px; } }
+    .pr-sech .pr-nofav { margin: 0 4px; float: none; white-space: nowrap; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
