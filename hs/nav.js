@@ -22,6 +22,58 @@
     go(0);
   });
 })();
+// 사이트 공통 겉모양(2026-10-22 사용자: 툴팁·스크롤·셀렉트는 기본 말고 커스텀으로 공통, 셀렉트는 검색되게)
+//   ① 셀렉트 — /wtselect.js(검색 되는 드롭다운, 나중에 그린 select 도 저절로)를 모든 페이지에 · 빼려면 select 에 data-no-wtsel
+//   ② 스크롤바 — 얇은 어두운 막대. 페이지가 따로 정한 모양(:where 라 우선순위 0)이 있으면 그쪽이 이긴다
+//   ③ 툴팁 — title 속성을 커스텀 말풍선으로(마우스를 올리는 순간 title 을 data-wt-tt 로 옮겨 기본 툴팁이 안 뜬다)
+(() => {
+  if (!window.__wtselLoaded && window.wtScript) window.wtScript('/wtselect.js');
+  const css = document.createElement('style');
+  css.textContent =
+    ':where(html){scrollbar-width:thin;scrollbar-color:#3a4458 transparent}' +
+    ':where(*)::-webkit-scrollbar{width:9px;height:9px}' +
+    ':where(*)::-webkit-scrollbar-track{background:transparent}' +
+    ':where(*)::-webkit-scrollbar-thumb{background:#3a4458;border-radius:6px;border:2px solid transparent;background-clip:padding-box}' +
+    ':where(*)::-webkit-scrollbar-thumb:hover{background:#52607a;background-clip:padding-box}' +
+    ':where(*)::-webkit-scrollbar-corner{background:transparent}' +
+    '.wt-tt{position:fixed;z-index:100001;max-width:min(360px,calc(100vw - 16px));padding:6px 10px;border-radius:8px;background:#141a26;color:#dfe6ee;' +
+      'border:1px solid #2e3a52;box-shadow:0 6px 20px rgba(0,0,0,.45);font:12.5px/1.45 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;' +
+      'white-space:pre-line;pointer-events:none;opacity:0;transition:opacity .08s;word-break:keep-all;overflow-wrap:anywhere}' +
+    '.wt-tt.on{opacity:1}';
+  (document.head || document.documentElement).appendChild(css);
+  if (window.matchMedia && !matchMedia('(hover: hover)').matches) return;   // 터치 기기는 툴팁 없이(기본 그대로)
+  let tip = null, cur = null, timer = 0, mx = 0, my = 0;
+  const place = () => {
+    if (!tip || !cur) return;
+    const w = tip.offsetWidth, h = tip.offsetHeight, W = innerWidth, H = innerHeight;
+    let x = mx + 12, y = my + 18;
+    if (x + w > W - 8) x = Math.max(8, W - w - 8);
+    if (y + h > H - 8) y = Math.max(8, my - h - 12);
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  };
+  const hide = () => { clearTimeout(timer); cur = null; if (tip) tip.classList.remove('on'); };
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest && e.target.closest('[title],[data-wt-tt]');
+    if (!el || el === cur) return;
+    if (el.namespaceURI !== 'http://www.w3.org/1999/xhtml' && !el.closest('svg')) return;
+    if (el.hasAttribute('title')) {   // 화면 코드가 title 을 새로 바꿨을 수 있으니 매번 옮긴다
+      const t = el.getAttribute('title');
+      el.removeAttribute('title');
+      if (t) el.setAttribute('data-wt-tt', t); else return;
+    }
+    const txt = el.getAttribute('data-wt-tt');
+    if (!txt) return;
+    hide(); cur = el;
+    timer = setTimeout(() => {
+      if (cur !== el || !el.isConnected) return;
+      if (!tip) { tip = document.createElement('div'); tip.className = 'wt-tt'; document.body.appendChild(tip); }
+      tip.textContent = txt; place(); tip.classList.add('on');
+    }, 250);
+  }, true);
+  document.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; if (tip && tip.classList.contains('on')) place(); }, { passive: true });
+  document.addEventListener('mouseout', (e) => { if (cur && (!e.relatedTarget || !cur.contains(e.relatedTarget))) hide(); }, true);
+  ['mousedown', 'wheel', 'keydown'].forEach((k) => document.addEventListener(k, hide, { passive: true, capture: true }));
+})();
 (() => {
   const path = location.pathname;
   const isTli = path.indexOf('/tli') === 0;

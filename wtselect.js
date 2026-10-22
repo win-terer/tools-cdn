@@ -21,6 +21,7 @@
     '.wtsel-btn{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;' +
       'cursor:pointer;text-align:left;font:inherit;white-space:nowrap}' +
     '.wtsel-btn .wtsel-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.wtsel-btn[style*="width: 100%"] .wtsel-lbl{flex:1 1 auto;min-width:0}' +
     '.wtsel-btn .wtsel-arw{flex:none;width:.6em;height:.6em;margin-left:2px;border-right:2px solid currentColor;' +
       'border-bottom:2px solid currentColor;transform:rotate(45deg);opacity:.6;transition:transform .12s}' +
     '.wtsel.open .wtsel-btn .wtsel-arw{transform:rotate(-135deg)}' +
@@ -88,6 +89,12 @@
     // 인라인 폭 지정(예: pageSize 의 margin-left)이나 클래스 폭을 최대한 잇는다
     var scs = getComputedStyle(sel);
     if (px(scs.width) && sel.style.width) wrap.style.width = sel.style.width;
+    else if (sel.offsetWidth) {   // 클래스로 폭을 준 select(빌더 width:100% 등) — 부모를 꽉 채우면 100%, 아니면 원래 폭 이상(2026-10-22)
+      var pr = sel.parentElement, pcs = pr && getComputedStyle(pr);
+      var inner = pr ? pr.clientWidth - parseFloat(pcs.paddingLeft || 0) - parseFloat(pcs.paddingRight || 0) : 0;
+      if (inner && sel.offsetWidth >= inner - 2 && pcs.display !== 'flex' && pcs.display !== 'inline-flex') wrap.style.width = '100%';
+      else wrap.style.minWidth = sel.offsetWidth + 'px';
+    }
     if (sel.style.marginLeft) wrap.style.marginLeft = sel.style.marginLeft;
     if (sel.style.marginRight) wrap.style.marginRight = sel.style.marginRight;
     var snap = snapshot(sel);   // 숨기기 전에 겉모양을 떠 둔다
@@ -95,6 +102,7 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'wtsel-btn';
+    if (wrap.style.width || wrap.style.minWidth) btn.style.width = '100%';
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
     if (sel.getAttribute('aria-label')) btn.setAttribute('aria-label', sel.getAttribute('aria-label'));
@@ -297,6 +305,22 @@
     document.addEventListener('DOMContentLoaded', function () { enhanceAll(); });
   } else {
     enhanceAll();
+  }
+  // 화면을 나중에 그리는 페이지(빌더 등)의 select 도 저절로 — 새로 붙은 노드만 모아 다음 프레임에 한 번(2026-10-22 사용자: 사이트 전체 커스텀)
+  if (window.MutationObserver) {
+    var pend = [], queued = false;
+    var flush = function () {
+      queued = false;
+      var ns = pend; pend = [];
+      ns.forEach(function (n) {
+        if (!n.isConnected) return;
+        if (n.tagName === 'SELECT') build(n); else if (n.querySelectorAll) n.querySelectorAll('select').forEach(build);
+      });
+    };
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1 && (n.tagName === 'SELECT' || (n.firstElementChild && n.getElementsByTagName('select').length))) pend.push(n); }); });
+      if (pend.length && !queued) { queued = true; requestAnimationFrame(flush); }
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
   // 페이지가 select 를 통째로 새로 그릴 때 대비해 전역으로 노출
   window.wtSelectEnhance = enhanceAll;
