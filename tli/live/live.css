@@ -239,14 +239,21 @@
 
     /* 시즌 비교 표 (2026-10-22) */
     .pr-cmpb.on { border-color: #e3b860; color: #f3e3b5; background: rgba(227,184,96,.12); }
-    .pr-cmpd { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
-    .pr-cmpl { color: #9aa4b2; font-size: 12px; margin-right: 2px; } .pr-cmpr { color: #e3b860; font-size: 12.5px; font-weight: 700; margin-left: 6px; }
-    .pr-gauge { display: inline-flex; padding: 3px; gap: 2px; border-radius: 11px; background: #0b0f17; border: 1px solid #263044; }
-    .pr-cmpday { display: flex; align-items: baseline; gap: 1px; padding: 6px 13px; border: 0; border-radius: 3px; background: #151b27; color: #4d5868; cursor: pointer; font: inherit; transition: background .15s, color .15s; }
-    .pr-cmpday:first-child { border-radius: 8px 3px 3px 8px; } .pr-cmpday:last-child { border-radius: 3px 8px 8px 3px; }
-    .pr-cmpday b { font-size: 14px; } .pr-cmpday small { font-size: 10.5px; }
-    .pr-cmpday.on { color: #1a1408; background: linear-gradient(180deg, #e9c46e, #c99a3e); } .pr-cmpday.end { background: linear-gradient(180deg, #ffd98a, #e3b860); box-shadow: 0 0 10px rgba(227,184,96,.45); }
+    .pr-cmpr { color: #e3b860; font-size: 12.5px; font-weight: 700; margin-left: 6px; }
+    .pr-tools { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 10px; }
+    .pr-tgs { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+    .pr-tg { padding: 5px 11px; border-radius: 999px; border: 1px solid #263044; background: #0d121b; color: #8b949e; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .pr-tg:hover { border-color: #3a4558; color: #c9d1d9; } .pr-tg.on { border-color: #e3b860; color: #f3e3b5; background: rgba(227,184,96,.12); } .pr-tg small { color: #ffb38a; margin-left: 2px; }
+    .pr-cmpd { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .pr-gauge { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: #0b0f17; border: 1px solid #263044; touch-action: none; user-select: none; }
+    .pr-cmpday { width: 28px; padding: 5px 0; border: 0; border-radius: 3px; background: #151b27; color: #4d5868; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; transition: background .12s, color .12s; }
+    .pr-cmpday:first-child { border-radius: 7px 3px 3px 7px; } .pr-cmpday:last-child { border-radius: 3px 7px 7px 3px; }
+    .pr-cmpday.on { color: #1a1408; background: linear-gradient(180deg, #e9c46e, #c99a3e); } .pr-cmpday.end { background: linear-gradient(180deg, #ffd98a, #e3b860); box-shadow: 0 0 8px rgba(227,184,96,.45); }
     .pr-cmpday:not(.on):hover { background: #222a3a; color: #9aa4b2; }
+    .pr-cmp th, .pr-cmp td { padding-left: 4px; padding-right: 4px; } .pr-cmp td { font-size: 12px; } .pr-cmp th { font-size: 11.5px; }
+    .pr-cmp td.pr-tn { min-width: 0; width: 170px; max-width: 190px; } .pr-cmp td.pr-tn .pr-in b { white-space: normal; font-size: 12.5px; } .pr-cmp td.pr-tn img { width: 30px; height: 30px; }
+    .pr-cmp td.pct, .pr-cmp td.pr-cavg { padding-left: 8px; padding-right: 8px; }
+    .pr-cmp td.cut { text-decoration: line-through; opacity: .45; } .pr-cmp tr.odd td.pr-cs { color: #5d6878; }
     .pr-cmp th.off, .pr-cmp td.off { color: #3c4656 !important; background: transparent !important; }
     .pr-cmp td.pr-cs, .pr-cmp th.pr-cs { text-align: left; color: #7d8794; font-size: 12px; }
     .pr-cmp tr.cur td.pr-cs { color: #e3b860; font-weight: 700; } .pr-cmp tr.cur td:not(.pr-tn):not(.pr-cavg) { background: rgba(227,184,96,.04); }
@@ -256,7 +263,7 @@
     .pr-cmp td.pr-tn { vertical-align: middle; } .pr-cmp tr:hover td.pr-tn, .pr-cmp tr:hover td.pr-cavg { background: transparent; }
     .pr-info { font-style: normal; color: #9ecbff; cursor: help; margin-left: 2px; }
     @media (max-width: 640px) {
-      .pr-cmpd { flex-wrap: nowrap; gap: 4px; } .pr-cmpday { padding: 5px 9px; } .pr-cmpday small { display: none; } .pr-cmpr { margin-left: 2px; white-space: nowrap; }
+      .pr-cmpd { flex-wrap: wrap; gap: 4px; max-width: 100%; } .pr-gauge { overflow-x: auto; max-width: 100%; } .pr-cmpday { width: 22px; font-size: 11.5px; } .pr-cmpr { white-space: nowrap; } .pr-tgs { margin-left: 0; }
       .pr-cmp td.pr-tn { position: sticky; left: 0; z-index: 1; background: #0d1119; min-width: 130px; } .pr-cmp td.pr-tn .pr-in small { display: none; }
     }
     /* 오늘 추천 한 줄 · 오늘 많이 오른 품목 (2026-10-22) */
@@ -278,7 +285,6 @@
     .pt-n { font-size: 11px; font-weight: 600; color: #c9d1d9; line-height: 1.25; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .pt-p { font-size: 15px; font-weight: 800; color: #7ee07a; line-height: 1.1; } .pt-c small { font-size: 10px; color: #6b7685; white-space: nowrap; }
     @media (max-width: 900px) { .pt-g { display: flex; overflow-x: auto; scrollbar-width: none; gap: 6px; } .pt-g::-webkit-scrollbar { display: none; } .pt-c { flex: none; width: 104px; } }
-    .pr-sech .pr-nofav { margin: 0 4px; float: none; white-space: nowrap; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
