@@ -307,6 +307,22 @@
     @media (max-width: 760px) { .pn-now { flex-direction: column; align-items: flex-start; gap: 4px; } .pn-clock { font-size: 18px; } }
     .pn-daily { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 8px 0 4px; font-size: 12.5px; color: #aab4c2; cursor: help; font-variant-numeric: tabular-nums; }
     .pn-daily b { font-weight: 700; } .pn-daily b.up { color: #7ee07a; } .pn-daily b.dn { color: #ff8a80; }
+    .pn-t td.pn-rk { text-align: center; color: #7d8794; font-weight: 700; width: 28px; } .pn-t td.pn-rk.top { color: #f0c66a; }
+    .pn-t th:nth-child(2) { text-align: left; } .pn-t td small { font-size: 11px; font-weight: 700; margin-left: 4px; } .pn-t td small.up { color: #7ee07a; } .pn-t td small.dn { color: #ff8a80; }
+    .pn-t td.pct.up { color: #7ee07a; } .pn-t td.pct.dn { color: #ff8a80; } .pn-t td.big { font-size: 15px; }
+    .pn-t small.pn-t, .pn-t td small.pn-t { display: block; margin: 0; color: #7d8794; font-weight: 400; font-size: 10.5px; }
+    .pn-t td.pn-bs { text-align: left; font-size: 12px; color: #aab4c2; } .pn-t td.pn-bs span { margin-right: 10px; } .pn-t td.pn-bs b.up { color: #7ee07a; } .pn-t td.pn-bs b.dn { color: #ff8a80; }
+    .pn-t td.pn-act { text-align: left; } .pn-t td.pn-act .pb-act { margin-right: 4px; } .pn-t small.pn-goal { color: #cdb8ff; font-weight: 400; margin: 0; }
+    .pn-t td small.pn-d { color: #7d8794; font-weight: 400; } .pn-t small.pn-avg { display: block; color: #7d8794; font-size: 10px; font-weight: 400; }
+    .pn-t td.pn-now2 { text-align: left; } .pn-t td.pn-now2 b { color: #f3e3b5; } .pn-t td.pn-now2 div { margin-top: 4px; }
+    .pn-t small.pn-tm { display: inline; margin-left: 4px; color: #7d8794; font-weight: 400; font-size: 10.5px; }
+    .pn-t td.pr-cavg small { display: block; margin: 2px 0 0; color: #7d8794; font-weight: 400; font-size: 10.5px; } .pn-t small.pn-w { display: inline !important; color: #f3b35a !important; }
+    .pn-now { flex-wrap: wrap; } .pn-ph { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+    .pb-hero .pn-tips { margin: 0; flex-basis: 100%; order: 5; }
+    .pn-sub { color: #7d8794; font-size: 12px; margin-left: 8px; } .pn-noh { display: block; color: #8b949e; font-size: 12px; margin: -4px 2px 8px; } .pn-noh b { color: #c9d1d9; }
+    .pn-more { text-align: center; margin: 10px 0 0; }
+    .pt-c.pn-hit { box-shadow: inset 0 0 0 1.5px rgba(126,224,122,.6); } .pt-p.dn { color: #ff8a80 !important; }
+    span.pk-i { cursor: default; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
