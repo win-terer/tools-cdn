@@ -298,6 +298,15 @@
     .pr-cmp th.today { color: #c9d1d9 !important; }
     .pr-today { display: block; width: max-content; margin: 2px 0 0 auto; padding: 0 5px; border-radius: 999px; background: rgba(126,224,122,.16); font-style: normal; font-size: 9.5px; line-height: 14px; color: #8fe8a0; font-weight: 700; }
     .pr-cmp td.today { background-color: rgba(126,224,122,.045); }
+    /* 🌙 밤샘 회전 (2026-10-23) */
+    .pn-now { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 10px; border-radius: 14px; background: linear-gradient(90deg, #17142a, #0d1117 75%); border: 1px solid #3d3670; font-size: 13.5px; line-height: 1.6; color: #d6dbe3; }
+    .pn-now b { color: #f3e3b5; } .pn-clock { flex: none; font-size: 22px; font-weight: 800; color: #cdb8ff; font-variant-numeric: tabular-nums; }
+    .pn-ph .pr-chip small { color: #ff9e7a; font-weight: 700; }
+    .pn-tips { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 2px 10px; font-size: 12.5px; color: #9aa4b2; } .pn-tips b { color: #c9d1d9; margin-right: 4px; }
+    .pn-old { margin: 4px 0 14px; } .pn-old .pr-chip { font-size: 12px; }
+    @media (max-width: 760px) { .pn-now { flex-direction: column; align-items: flex-start; gap: 4px; } .pn-clock { font-size: 18px; } }
+    .pn-daily { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 8px 0 4px; font-size: 12.5px; color: #aab4c2; cursor: help; font-variant-numeric: tabular-nums; }
+    .pn-daily b { font-weight: 700; } .pn-daily b.up { color: #7ee07a; } .pn-daily b.dn { color: #ff8a80; }
     /* 실시간 시세 (/tli/live, 2026-10-20) — price.css 위에 */
     .lv-card { padding: 10px 12px; } .lv-card .pg-f2 { margin-top: 8px; padding-left: 34px; }
     .lv-big { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 800; line-height: 1.1; }
