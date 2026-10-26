@@ -13,6 +13,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 (function () {
   'use strict';
   const ICON = 'https://cdn.tlidb.com/UI/Textures/Common/Icon/TalentPoint/128/';
+  // tlidb 원본에서 403 나는 아이콘(2026-10-26 18개) — 워커 프록시로 건진 사본 /tli/void/img/ 로
+  const ICON_LOC = new Set('Currency_08 Currency_09 Currency_10 GameplayBlackSail_07 GameplayBlackSail_09 GameplayEternal_01 GameplayEternal_02 GameplayEternal_03 GameplayEternal_04 GameplayFrozenCanvas_01 GameplayTycoon_01 GameplayTycoon_02 Gear_01 Gear_05 Gear_14 Monster_02 Mystic_03 Mystic_05'.split(' ').map(s => 'UI_TalentPoint_Round_' + s + '_128.webp'));
+  const icon = f => (ICON_LOC.has(f) ? '/tli/void/img/' : ICON) + f;
   const KEY = 'tli_solo_void_v1';
   const nodeText = n => (n.map || []).concat(n.fn || []).join('\n');
   const NOPRE = /이전 노드를 우선 활성화하지 않음/;
@@ -179,10 +182,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div><ul>${body}</ul></div>`;
   }
   function listView() {
-    const cards = CS.map(c => {
+    // 공유 글 보기에서는 찍은 별무리만 (2026-10-26 사용자)
+    const cards = CS.filter(c => !RO || S[c.ci].size).map(c => {
       const k = S[c.ci].size;
       return `<button class="vc-card${k ? ' used' : ''}${c.main ? ' main' : ''}" data-open="${c.ci}">
-        <img src="${ICON + c.icon}" alt="" loading="lazy">
+        <img src="${icon(c.icon)}" alt="" loading="lazy">
         <span class="vc-cn"><b>${esc(c.name)}</b>${c.unlock ? `<small>${esc(c.unlock)}</small>` : ''}</span>
         <span class="vc-cu"><b>${k}</b>/${c.n}${c.main ? '<em>메인</em>' : ''}${freeHere(c) ? '<em class="free">자유</em>' : ''}<i style="--p:${Math.round(100 * k / Math.max(1, c.n))}%"></i></span>
       </button>`;
@@ -200,12 +204,12 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       const st = n.id === c.start ? 'start' : set.has(n.id) ? 'on' : (freeHere(c) || (c.par.get(n.id) || []).some(p => on(c, p))) ? 'next' : 'off';
       const r = n.r;
       return `<g class="vc-n ${st}${n.extra ? ' extra' : ''}${n.id === FREE_ID && c.main ? ' free' : ''}" data-id="${n.id}" transform="translate(${n.x} ${n.y})">
-        <circle class="ring" r="${r + 7}"/><image href="${ICON + n.icon}" x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}"/></g>`;
+        <circle class="ring" r="${r + 7}"/><image href="${icon(n.icon)}" x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}"/></g>`;
     }).join('');
     const k = set.size;
     return top() + `<div class="vc-head">
         <button class="vc-btn" data-act="back">← 목록</button>
-        <img src="${ICON + c.icon}" alt=""><b>${esc(c.name)}</b>
+        <img src="${icon(c.icon)}" alt=""><b>${esc(c.name)}</b>
         <span class="vc-cnt">${k} / ${c.n}${c.main ? ' · 메인 스타 재능' : ''}</span>${freeHere(c) ? '<span class="vc-free">자유 찍기 — 이전 노드 없이 찍을 수 있습니다</span>' : ''}
         <button class="vc-btn" data-act="clear"${k ? '' : ' disabled'}>이 별무리 비우기</button>
         <span class="vc-hint">노드를 누르면 시작 노드까지 길이 함께 찍히고, 찍힌 노드를 누르거나 우클릭하면 그 아래 가지까지 빠집니다</span>

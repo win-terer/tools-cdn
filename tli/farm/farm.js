@@ -3,6 +3,9 @@
 (function () {
   'use strict';
   const ICON = 'https://cdn.tlidb.com/UI/Textures/Common/Icon/TalentPoint/128/';
+  // tlidb 원본에서 403 나는 아이콘(2026-10-26 18개) — 워커 프록시로 건진 사본 /tli/void/img/ 로
+  const ICON_LOC = new Set('Currency_08 Currency_09 Currency_10 GameplayBlackSail_07 GameplayBlackSail_09 GameplayEternal_01 GameplayEternal_02 GameplayEternal_03 GameplayEternal_04 GameplayFrozenCanvas_01 GameplayTycoon_01 GameplayTycoon_02 Gear_01 Gear_05 Gear_14 Monster_02 Mystic_03 Mystic_05'.split(' ').map(s => 'UI_TalentPoint_Round_' + s + '_128.webp'));
+  const icon = f => (ICON_LOC.has(f) ? '/tli/void/img/' : ICON) + f;
   const app = document.getElementById('farmApp');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const BYKEY = new Map(VOID.list.map(c => [Math.floor(+c.start / 100), c]));
@@ -17,7 +20,7 @@
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t"><b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
       <div class="fm-m"><span data-noi18n>👤 ${esc(x.author)}</span><span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
-      <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
+      <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${icon(c.icon)}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
     </a>`;
   }
