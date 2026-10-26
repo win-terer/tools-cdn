@@ -151,13 +151,15 @@
   if (isTli && window.MutationObserver) {
     const T0 = 'https://cdn.tlidb.com/';
     // 코드가 tlidb 주소를 넣으면 사본으로 — 사본이 없어 원래 주소로 되돌린 그림(tback)은 다시 건드리지 않는다
-    const fix = (im) => { const s = im.getAttribute('src'); if (!s || s.indexOf(T0) !== 0 || (im.dataset.tback && s === im.dataset.tsrc)) return; im.dataset.tsrc = s; delete im.dataset.tback; im.setAttribute('src', '/timg/' + s.slice(T0.length)); };
-    const scan = (n) => { if (n.nodeType !== 1) return; if (n.tagName === 'IMG') fix(n); else if (n.getElementsByTagName) for (const im of n.getElementsByTagName('img')) fix(im); };
-    new MutationObserver((ms) => { for (const m of ms) { if (m.type === 'attributes') { if (m.target.tagName === 'IMG') fix(m.target); } else m.addedNodes.forEach(scan); } })
-      .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+    //   SVG <image href> 도 (2026-10-26 사용자: 허공의 성도 노드·정령 계약 보드 그림이 <img> 가 아니라 빠져 엑박)
+    const isIm = (n) => n.tagName === 'IMG' || n.tagName === 'image';
+    const fix = (im) => { const a = im.tagName === 'IMG' ? 'src' : 'href', s = im.getAttribute(a); if (!s || s.indexOf(T0) !== 0 || (im.dataset.tback && s === im.dataset.tsrc)) return; im.dataset.tsrc = s; delete im.dataset.tback; im.setAttribute(a, '/timg/' + s.slice(T0.length)); };
+    const scan = (n) => { if (n.nodeType !== 1) return; if (isIm(n)) fix(n); else if (n.querySelectorAll) for (const im of n.querySelectorAll('img,image')) fix(im); };
+    new MutationObserver((ms) => { for (const m of ms) { if (m.type === 'attributes') { if (isIm(m.target)) fix(m.target); } else m.addedNodes.forEach(scan); } })
+      .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'href'] });
     scan(document.documentElement);   // nav.js 보다 먼저 들어 있던 그림
     document.addEventListener('DOMContentLoaded', () => scan(document.documentElement));
-    document.addEventListener('error', (e) => { const im = e.target; if (im && im.tagName === 'IMG' && im.dataset.tsrc && !im.dataset.tback) { im.dataset.tback = 1; im.setAttribute('src', im.dataset.tsrc); } }, true);
+    document.addEventListener('error', (e) => { const im = e.target; if (im && im.tagName && isIm(im) && im.dataset && im.dataset.tsrc && !im.dataset.tback) { im.dataset.tback = 1; im.setAttribute(im.tagName === 'IMG' ? 'src' : 'href', im.dataset.tsrc); } }, true);
   }
   // 토치 영어판 (2026-10-16) — 패치노트(한국어 정리본)·지난 시즌 보관본 빼고 토치 화면 전부. 영어 모드면 번역기(/tli/i18n/i18n.js)가
   // 그려진 글자를 사전으로 바꾼다. 번역이 끝날 때까지 본문을 감춰 한국어가 번쩍이지 않게(최대 4초).
