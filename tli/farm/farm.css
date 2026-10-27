@@ -40,6 +40,8 @@
     .vc-cap { color: #9aa4b2; font-size: 12px; letter-spacing: .06em; margin-bottom: 6px; }
     .vc-sum ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 13px; line-height: 1.45; }
     .vc-sum li { padding-left: 10px; position: relative; } .vc-sum li::before { content: '·'; position: absolute; left: 0; color: #59636e; }
+    .vc-sum li.vc-sh { padding: 7px 0 0; margin-top: 4px; border-top: 1px solid #222b3a; color: #8b96a5; font-size: 11.5px; font-weight: 700; } .vc-sum li.vc-sh::before { content: none; }
+    .vc-sum li.vc-sh:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
     .vc-sum li.vc-empty::before { content: none; } .vc-empty { color: #59636e; font-size: 13px; padding-left: 0; }
     .vc-sum li em { display: block; font-style: normal; color: #ffb37a; font-size: 11.5px; }
     .vc-x { color: #9aa4b2; font-size: 12px; }

@@ -195,11 +195,12 @@
       { href: '/tli/db/?tab=skill',    label: '스킬',        match: /^\/tli\/db/, tab: 'skill' },
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
     ] },
-    { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void)/, kids: [
+    { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void|blood)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
       { href: '/tli/hero/',    label: '히어로',    match: /^\/tli\/hero/ },
       { href: '/tli/talent/',  label: '재능 보드', match: /^\/tli\/talent/ },
       { href: '/tli/slate/',   label: '석판',      match: /^\/tli\/slate/ },
+      { href: '/tli/blood/',   label: '봉합',      match: /^\/tli\/blood/ },   // 봉합(블러드 장비) 시뮬레이터 (2026-10-28 메뉴 추가)
       { href: '/tli/void/',    label: '허공의 성도', match: /^\/tli\/void/ },   // 재능 별무리 시뮬레이터 (2026-10-16, 사용자: 빌더 아래로)
     ] },
     // 빌드 공유 — 히어로 빌드(/tli/share) · 파밍 빌드(허공의 성도 배치, /tli/farm) (2026-10-16 사용자)

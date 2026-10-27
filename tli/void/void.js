@@ -109,28 +109,31 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
 
   // ── 효과 합계 — 같은 문구는 숫자를 더하고(숫자 1개·'추가/별도' 아닐 때), 아니면 같은 줄끼리 ×n ──
-  function summary(only) {
+  function merge(lines) {
     const g = new Map();
-    CS.forEach(c => {
-      if (only != null && c.ci !== only) return;
-      S[c.ci].forEach(id => {
-        const n = c.by.get(id);
-        (n.map || []).concat(n.fn || []).forEach(line => {
-          const nums = line.match(/[+\-]?\d+(?:\.\d+)?/g) || [];
-          // '추가'·'별도' 수치는 곱연산이라 더하지 않고 같은 줄끼리 ×n 으로만 묶는다
-          const add = nums.length === 1 && !/추가|별도/.test(line);
-          const tpl = add ? line.replace(/[+\-]?\d+(?:\.\d+)?/, '\u0000') : line;
-          const e = g.get(tpl) || { tpl, v: 0, k: 0, sign: /^[+\-]/.test(nums[0] || '') };
-          if (add) e.v += parseFloat(nums[0]);
-          e.k++; g.set(tpl, e);
-        });
-      });
+    lines.forEach(line => {
+      const nums = line.match(/[+\-]?\d+(?:\.\d+)?/g) || [];
+      // '추가'·'별도' 수치는 곱연산이라 더하지 않고 같은 줄끼리 ×n 으로만 묶는다
+      const add = nums.length === 1 && !/추가|별도/.test(line);
+      const tpl = add ? line.replace(/[+\-]?\d+(?:\.\d+)?/, '\u0000') : line;
+      const e = g.get(tpl) || { tpl, v: 0, k: 0, sign: /^[+\-]/.test(nums[0] || '') };
+      if (add) e.v += parseFloat(nums[0]);
+      e.k++; g.set(tpl, e);
     });
     return [...g.values()].map(e => {
       if (!e.tpl.includes('\u0000')) return { t: e.tpl, k: e.k, x: e.k > 1 };
       const v = Math.round(e.v * 100) / 100;
       return { t: e.tpl.replace('\u0000', (e.sign && v >= 0 ? '+' : '') + v), k: e.k };
     });
+  }
+  const nodeLines = c => [...S[c.ci]].flatMap(id => { const n = c.by.get(id); return (n.map || []).concat(n.fn || []); });
+  // 전체 합계는 별무리별·탐침·나침반 묶음으로 나눠 구분선과 제목을 단다 (2026-10-28 사용자)
+  function summary(only) {
+    if (only != null) { const c = CS.find(x => x.ci === only); return c ? [{ rows: merge(nodeLines(c)) }] : []; }
+    const out = CS.filter(c => S[c.ci].size).map(c => ({ h: c.name, rows: merge(nodeLines(c)) }));
+    const gl = [PBY.get(G.p)].concat(G.c.map(id => CBY.get(id))).filter(Boolean).flatMap(it => it.e);
+    if (gl.length) out.push({ h: '탐침 · 나침반', rows: merge(gl) });
+    return out.filter(x => x.rows.length);
   }
 
   // ── 공유 코드: [판 1] + 별무리마다 (key, 개수, id 끝자리 차이…) varint → base64url ──
@@ -187,8 +190,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       </div></div>` + roBar();
   }
   function sumBox(only) {
-    const rows = summary(only);
-    const body = rows.length ? rows.map(r => `<li>${hl(r.t).replace(/\n/g, '<br>')}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</li>`).join('')
+    const li = r => `<li>${hl(r.t).replace(/\n/g, '<br>')}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</li>`;
+    const gs = summary(only);
+    const body = gs.length ? gs.map(x => (x.h ? `<li class="vc-sh">${esc(x.h)}</li>` : '') + x.rows.map(li).join('')).join('')
       : '<li class="vc-empty">찍은 노드가 없습니다</li>';
     return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div><ul>${body}</ul></div>`;
   }
