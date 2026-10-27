@@ -39,10 +39,18 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   let S = CS.map(() => new Set());
   // 나침반 4칸·탐침 1칸 (2026-10-27 사용자) — 아이템 id, 0 = 빈칸. 공유 코드에는 GKEY 묶음으로 뒤에 붙는다
   const GKEY = 9000, CBY = new Map(VOID_GEAR.c.map(x => [x.id, x])), PBY = new Map(VOID_GEAR.p.map(x => [x.id, x]));
-  const emptyG = () => ({ p: 0, c: [0, 0, 0, 0] });
+  // 정령 3칸 (2026-10-28 사용자) — 드롭 정령만, 칸마다 정령 id(s)·승급 단계(l). 공유 코드에는 PKEY 묶음(id·단계 ×3)
+  const PKEY = 9001, PETBY = new Map((typeof VOID_PET === 'object' ? VOID_PET : []).map(x => [x.id, x]));
+  const petMax = id => Math.max(1, (PETBY.get(id) || { a: [] }).a.length);
+  const emptyG = () => ({ p: 0, c: [0, 0, 0, 0], s: [0, 0, 0], l: [0, 0, 0] });
   // 같은 나침반은 한 칸에만 (2026-10-27 사용자) — 저장본·공유 코드에 겹친 게 있으면 뒤 칸을 비운다
-  const normG = g => { const seen = new Set(); return { p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; if (!CBY.has(v) || seen.has(v)) return 0; seen.add(v); return v; }).filter(x => x).concat([0, 0, 0, 0]).slice(0, 4) }; };   // 빈칸은 뒤로 — 위 칸이 비면 아래 나침반이 올라온다
-  const hasG = g => !!(g.p || g.c.some(x => x));
+  const normG = g => { const seen = new Set(); return { p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; if (!CBY.has(v) || seen.has(v)) return 0; seen.add(v); return v; }).filter(x => x).concat([0, 0, 0, 0]).slice(0, 4), ...normS(g) }; };
+  // 같은 정령은 한 칸에만, 빈칸은 뒤로. 단계는 1~최대(없거나 넘치면 최대)
+  const normS = g => { const seen = new Set(), ps = [];
+    [0, 1, 2].forEach(i => { const v = +((g && g.s) || [])[i], lv = +((g && g.l) || [])[i]; if (!PETBY.has(v) || seen.has(v)) return; seen.add(v); ps.push([v, lv >= 1 && lv <= petMax(v) ? lv : petMax(v)]); });
+    while (ps.length < 3) ps.push([0, 0]);
+    return { s: ps.map(x => x[0]), l: ps.map(x => x[1]) }; };   // 빈칸은 뒤로 — 위 칸이 비면 아래 나침반이 올라온다
+  const hasG = g => !!(g.p || g.c.some(x => x) || (g.s || []).some(x => x));
   let G = emptyG();
   let M = '';   // 메모 500자 이내 — 연습판에 저장되고 파밍 빌드 공유 때 글과 함께 올라간다 (2026-10-27 사용자)
   let view = -1;            // -1 = 목록, 아니면 별무리 번호
@@ -140,6 +148,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       .sort((a, z) => z.p - a.p);
     const gi = [PBY.get(G.p)].concat(G.c.map(id => CBY.get(id))).filter(Boolean);
     const gl = gi.flatMap(it => it.e);
+    const pi = G.s.map((id, j) => [PETBY.get(id), G.l[j]]).filter(x => x[0]);
+    const pl = pi.flatMap(([pt, lv]) => (pt.a[lv - 1] || []).concat(pt.nd));
+    if (pl.length) out.push({ key: 'pt', h: '정령', ic: pi[0][0].i, p: -1, n: pi.length, rows: merge(pl) });   // 정령은 한 묶음, 탐침·나침반 앞
     if (gl.length) out.push({ key: 'g', h: '탐침 · 나침반', ic: gi[0].i, p: -1, n: gi.length, rows: merge(gl) });   // 탐침·나침반은 한 묶음·맨 뒤
     return out.filter(x => x.rows.length);
   }
@@ -152,7 +163,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (!ids.length) return;
       vi(c.key); vi(ids.length); let p = 0; ids.forEach(x => { vi(x - p); p = x; });
     });
-    if (hasG(G)) { vi(GKEY); vi(5); [G.p].concat(G.c).forEach(vi); }   // 서버(voidPts)·옛 화면은 모르는 key 로 보고 건너뛴다
+    if (G.p || G.c.some(x => x)) { vi(GKEY); vi(5); [G.p].concat(G.c).forEach(vi); }
+    if (G.s.some(x => x)) { vi(PKEY); vi(6); G.s.forEach((id, j) => { vi(id); vi(id ? G.l[j] : 0); }); }   // 서버(voidPts)·옛 화면은 모르는 key 로 보고 건너뛴다
     return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function decode(code) {
@@ -160,17 +172,18 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     let i = 0; const vi = () => { let n = 0, sh = 0, x; do { x = b[i++]; if (x == null) throw 0; n |= (x & 127) << sh; sh += 7; } while (x & 128); return n; };
     if (vi() !== 1) throw 0;
     const out = CS.map(() => new Set());
-    let g = null;
+    const g = {};
     while (i < b.length) {
       const key = vi(), k = vi();
-      if (key === GKEY) { const a = []; for (let j = 0; j < k; j++) a.push(vi()); g = normG({ p: a[0], c: a.slice(1) }); continue; }
+      if (key === GKEY) { const a = []; for (let j = 0; j < k; j++) a.push(vi()); g.p = a[0]; g.c = a.slice(1); continue; }
+      if (key === PKEY) { const a = []; for (let j = 0; j < k; j++) a.push(vi()); g.s = [a[0], a[2], a[4]]; g.l = [a[1], a[3], a[5]]; continue; }
       const c = BYKEY.get(key); let p = 0;
       for (let j = 0; j < k; j++) { p += vi(); if (c) { const id = String(+c.start + p); if (c.by.has(id) && id !== c.start) out[c.ci].add(id); } }
     }
     const keep = S; S = out;   // 그윽한(자유 찍기 노드) 먼저 정리해야 비 콘텐츠 별무리 판정이 맞다
     CS.filter(c => c.main).concat(CS.filter(c => !c.main)).forEach(prune);
     S = keep;
-    out.g = g || emptyG();
+    out.g = normG(g);
     return out;
   }
 
@@ -203,9 +216,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (sumSel != null && !all.some(x => x.key === sumSel)) sumSel = null;
     const gs = only == null && sumSel != null ? all.filter(x => x.key === sumSel) : all;
     const tabs = only == null && all.length > 1 ? `<div class="vc-stabs"><button class="vc-stab vc-sall${sumSel == null ? ' on' : ''}" data-act="sumsel" data-k="">전체</button>${all.map(x =>
-      `<button class="vc-stab${sumSel === x.key ? ' on' : ''}" data-act="sumsel" data-k="${x.key}" title="${esc(x.h)} · ${x.key === 'g' ? x.n + '개' : '노드 ' + x.n + '개 · ' + x.p + '포인트'}"${x.key === 'g' ? ' data-g' : ''}><img src="${esc(x.ic)}" alt=""><b>${x.n}</b></button>`).join('')}</div>` : '';
-    const body = gs.length ? gs.map(x => x.key === 'g'
-        ? `<li class="vc-sh vc-shg"><img src="${esc(x.ic)}" alt="">${esc(x.h)}</li>` + x.rows.map(r => li(r).replace('<li>', '<li class="vc-lg">')).join('')
+      `<button class="vc-stab${sumSel === x.key ? ' on' : ''}" data-act="sumsel" data-k="${x.key}" title="${esc(x.h)} · ${x.p < 0 ? x.n + '개' : '노드 ' + x.n + '개 · ' + x.p + '포인트'}"${x.key === 'g' ? ' data-g' : x.key === 'pt' ? ' data-pt' : ''}><img src="${esc(x.ic)}" alt=""><b>${x.n}</b></button>`).join('')}</div>` : '';
+    const body = gs.length ? gs.map(x => x.key === 'g' || x.key === 'pt'
+        ? `<li class="vc-sh ${x.key === 'g' ? 'vc-shg' : 'vc-shp'}"><img src="${esc(x.ic)}" alt="">${esc(x.h)}</li>` + x.rows.map(r => li(r).replace('<li>', `<li class="${x.key === 'g' ? 'vc-lg' : 'vc-lp'}">`)).join('')
         : (x.h ? `<li class="vc-sh">${esc(x.h)}</li>` : '') + x.rows.map(li).join('')).join('')
       : '<li class="vc-empty">찍은 노드가 없습니다</li>';
     return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div>${tabs}<ul>${body}</ul></div>`;
@@ -218,13 +231,54 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   // 탐침 1칸·나침반 4칸 — 누르면 고르는 창 (공유 글 보기에서는 고른 칸만, 고르기 없음)
   const gItem = it => `<img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><span class="vc-gt"><b class="q${it.q}">${esc(it.n)}</b>${it.e.map(l => `<small>${hl(l)}</small>`).join('')}</span>`;
   function gearBox() {
-    if (RO && !hasG(G)) return '';
+    if (RO && !G.p && !G.c.some(x => x)) return '';
     const row = (k, i, id) => {
       const it = (k === 'p' ? PBY : CBY).get(id);
       if (RO && !it) return '';
       return `<div class="vc-gw"><button class="vc-gs${it ? ' on' : ''}"${RO ? ' disabled' : ` data-act="gpick" data-k="${k}" data-i="${i}"`}${it && !RO ? ' title="누르면 바꾸기 · 우클릭하면 비우기"' : ''}>${it ? gItem(it) : `<span class="vc-gph">＋ ${k === 'p' ? '탐침' : '나침반 ' + (i + 1)} 고르기</span>`}</button>${it && !RO ? `<button class="vc-gx" data-act="gclear" data-k="${k}" data-i="${i}" aria-label="비우기" title="비우기">✕</button>` : ''}</div>`;
     };
     return `<div class="vc-sum vc-gear"><div class="vc-cap">탐침 · 나침반</div>${row('p', 0, G.p)}${G.c.map((id, i) => row('c', i, id)).join('')}</div>`;
+  }
+  // 정령 3칸 — 칸을 누르면 고르기, 옆 단계 칸에서 승급 단계 (공유 글 보기에서는 고른 칸만)
+  // 칸에는 이름 + 고유 효과(승급 첫 줄)만, 고르기 창은 최고 승급 효과 전부
+  const pItem = (pt, lv, brief) => `<img class="q${pt.q}" src="${esc(pt.i)}" alt="" loading="lazy"><span class="vc-gt"><b class="q${pt.q}">${esc(pt.n)}</b>${(pt.a[(lv || pt.a.length) - 1] || []).slice(0, brief ? 1 : 9).map(l => `<small>${hl(l)}</small>`).join('')}</span>`;
+  function petBox() {
+    if (!PETBY.size || (RO && !G.s.some(x => x))) return '';
+    const row = i => {
+      const id = G.s[i], pt = PETBY.get(id), lv = G.l[i];
+      if (RO && !pt) return '';
+      const sel = pt ? (RO ? `<span class="vc-plv">승급 ${lv}</span>` : `<select class="vc-plv" data-i="${i}" title="승급 단계">${pt.a.map((_, j) => `<option value="${j + 1}"${j + 1 === lv ? ' selected' : ''}>승급 ${j + 1}</option>`).join('')}</select>`) : '';
+      return `<div class="vc-gw vc-pw"><button class="vc-gs${pt ? ' on' : ''}"${RO ? ' disabled' : ` data-act="ppick" data-i="${i}"`}${pt && !RO ? ' title="누르면 바꾸기 · 우클릭하면 비우기"' : ''}>${pt ? pItem(pt, lv, 1) : `<span class="vc-gph">＋ 정령 ${i + 1} 고르기</span>`}</button>${pt ? `<span class="vc-pct">${sel}${!RO ? `<button class="vc-gx" data-act="pclear" data-i="${i}" aria-label="비우기" title="비우기">✕</button>` : ''}</span>` : ''}</div>`;
+    };
+    return `<div class="vc-sum vc-gear vc-pets"><div class="vc-cap">정령 <small>드롭 정령</small></div>${[0, 1, 2].map(row).join('')}</div>`;
+  }
+  function pClear(i) {
+    if (RO || !G.s[i]) return;
+    snap(); G.s[i] = 0; G = normG(G); save(); render();
+  }
+  function pPicker(i) {
+    const cur = G.s[i], other = new Set(G.s.filter((x, j) => j !== i && x));
+    const flat = VOID_PET.map(pt => ({ id: pt.id, n: pt.n, e: pt.a[pt.a.length - 1].concat(pt.nd) }));
+    const w = gRecs(flat), GR = { 100: '레전드', 3: '레어', 2: '매직' };
+    const btn = (pt, tags) => `<button type="button" class="vc-gs${pt.id === cur ? ' cur' : ''}${tags ? ' rec' : ''}"${other.has(pt.id) ? ' disabled title="이미 다른 칸에 넣은 정령입니다"' : ''} data-pid="${pt.id}" data-s="${esc((pt.n + ' ' + pt.a.flat().concat(pt.nd).join(' ')).toLowerCase())}">${pItem(pt)}${tags ? `<em class="vc-gr">${tags.map(esc).join(' · ')}</em>` : ''}</button>`;
+    const rec = VOID_PET.filter(pt => w.has(pt.id)).sort((a, z) => w.get(z.id).n - w.get(a.id).n || z.q - a.q);
+    const groups = [100, 3, 2].map(q => { const l = VOID_PET.filter(pt => pt.q === q); return l.length ? `<div class="vc-gh">${GR[q]}</div>${l.map(pt => btn(pt)).join('')}` : ''; }).join('');
+    const d = document.createElement('div'); d.className = 'vc-dim';
+    d.innerHTML = `<div class="vc-dlg vc-gpk"><b>정령 ${i + 1}번 칸 고르기 <small>드롭 정령 · 효과는 최고 승급 기준</small></b>
+      <div class="vc-gq"><input type="search" placeholder="이름·효과 검색" autocomplete="off"><button type="button" class="vc-btn" data-pid="0"${cur ? '' : ' disabled'}>비우기</button><button type="button" class="vc-btn" data-x>닫기</button></div>
+      <div class="vc-gl">${rec.length ? `<div class="vc-gh">찍은 재능 관련 추천</div>${rec.map(pt => btn(pt, w.get(pt.id).t)).join('')}` : ''}${groups}</div></div>`;
+    document.body.appendChild(d);
+    const close = () => d.remove(), inp = d.querySelector('input');
+    d.addEventListener('click', e => {
+      if (e.target === d || e.target.closest('[data-x]')) return close();
+      const b = e.target.closest('[data-pid]'); if (!b || b.disabled) return;
+      const v = +b.dataset.pid;
+      snap(); G.s[i] = v; G.l[i] = v ? petMax(v) : 0;
+      G = normG(G); close(); save(); render();
+    });
+    inp.addEventListener('input', () => { const q = inp.value.trim().toLowerCase(); d.querySelectorAll('.vc-gl > [data-s]').forEach(b => { b.hidden = !!q && !b.dataset.s.includes(q); }); d.querySelectorAll('.vc-gh').forEach(h => { h.hidden = !!q; }); });
+    d.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    inp.focus();
   }
   function memoBox() {
     if (RO) { const m = (RO.item.memo || '').trim(); return m ? `<div class="vc-sum vc-memo"><div class="vc-cap">메모</div><div class="vc-mt" data-noi18n>${esc(m)}</div></div>` : ''; }
@@ -288,7 +342,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         <span class="vc-cu"><b>${k}</b>/${c.n}${c.main ? '<em>메인</em>' : ''}${freeHere(c) ? '<em class="free">자유</em>' : ''}<i style="--p:${Math.round(100 * k / Math.max(1, c.n))}%"></i></span>
       </button>`;
     }).join('');
-    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div><div class="vc-side">${gearBox()}${memoBox()}${sumBox(null)}</div></div>
+    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div><div class="vc-side">${gearBox()}${petBox()}${memoBox()}${sumBox(null)}</div></div>
       <p class="vc-note">노드 1개 = 스타 재능 1 (시작 노드는 무료) · 그윽한 재능 별무리는 메인 스타 재능 ${VOID.main}포인트로만 찍습니다 · 최대 포인트는 tlidb 기준(스타 재능 ${VOID.star})이며 바뀔 수 있습니다.</p>`;
   }
   function nodeView(c) {
@@ -395,7 +449,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (r.vmsg) alert('글은 올라갔지만 영상은 등록하지 못했습니다: ' + r.vmsg);
       location.href = location.pathname + '?s=' + r.id;
       return '';
-    }, `현재 찍은 배치${hasG(G) ? '·탐침·나침반' : ''}${M.trim() ? '·메모' : ''}가 그대로 올라갑니다. 영상은 관리자가 확인한 뒤 보입니다.`);
+    }, `현재 찍은 배치${G.p || G.c.some(x => x) ? '·탐침·나침반' : ''}${G.s.some(x => x) ? '·정령' : ''}${M.trim() ? '·메모' : ''}가 그대로 올라갑니다. 영상은 관리자가 확인한 뒤 보입니다.`);
   }
   async function openShared(id) {
     const r = await api('/api/vshare?id=' + encodeURIComponent(id));
@@ -464,9 +518,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (a === 'sumsel') { sumSel = t.dataset.k || null; render(); return; }
     if (a === 'back') { view = -1; history.replaceState(null, '', location.pathname + location.search); render(); }
     else if (a === 'undo' && undo.length) popUndo();
-    else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); G = emptyG(); save(); render(); }; if (!S.some(x => x.size) && !hasG(G)) go(); else wtAsk('찍은 노드와 나침반·탐침을 모두 지울까요?', go); }
+    else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); G = emptyG(); save(); render(); }; if (!S.some(x => x.size) && !hasG(G)) go(); else wtAsk('찍은 노드와 나침반·탐침·정령을 모두 지울까요?', go); }
     else if (a === 'gpick') gPicker(t.dataset.k, +t.dataset.i);
     else if (a === 'gclear') gClear(t.dataset.k, +t.dataset.i);
+    else if (a === 'ppick') pPicker(+t.dataset.i);
+    else if (a === 'pclear') pClear(+t.dataset.i);
     else if (a === 'clear') {
       const hadFree = freeOn(); snap(); S[view] = new Set();
       if (hadFree && !freeOn()) CS.forEach(x => { if (x.ng) S[x.ci] = new Set(); });   // 자유 찍기 노드가 빠짐 → 비 콘텐츠 별무리 초기화
@@ -479,6 +535,10 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (window.wtEv) window.wtEv('void_share');
     }
   });
+  app.addEventListener('change', e => {
+    const t = e.target.closest('select.vc-plv'); if (!t || RO) return;
+    const i = +t.dataset.i; snap(); G.l[i] = +t.value; G = normG(G); save(); render();
+  });
   app.addEventListener('input', e => {
     if (!e.target.matches('.vc-memo textarea')) return;
     M = e.target.value.slice(0, 500); save();
@@ -488,6 +548,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   app.addEventListener('contextmenu', e => {
     const gs = e.target.closest('.vc-gs[data-act=gpick].on');
     if (gs) { e.preventDefault(); gClear(gs.dataset.k, +gs.dataset.i); return; }
+    const ps = e.target.closest('.vc-gs[data-act=ppick].on');
+    if (ps) { e.preventDefault(); pClear(+ps.dataset.i); return; }
     if (view < 0 || !e.target.closest('.vc-tree')) return;
     e.preventDefault();
     const g = e.target.closest('.vc-n'); if (!g) return;
