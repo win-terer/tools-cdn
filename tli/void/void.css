@@ -28,6 +28,9 @@
     .vc-cu em { font-style: normal; color: #c89bff; font-size: 11px; margin-left: 4px; }
     .vc-cu i { display: block; width: 64px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, #e8c860 var(--p), #222b3a var(--p)); }
     .vc-grid > .vc-card.main { grid-column: 1 / -1; }
+    .vc-pk { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 10px; margin-top: 6px; }
+    .vc-pk > span { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 9px; background: #171d2b; border: 1px solid #3a3150; color: #c9d1d9; font-size: 12.5px; line-height: 1.4; }
+    .vc-card .vc-pk img { width: 30px; height: 30px; } .vc-cn .vc-pk b.vc-num { color: #7ee0c3; font-size: inherit; }
     .vc-card.main .vc-cu i { background: linear-gradient(90deg, #c89bff var(--p), #222b3a var(--p)); }
     .vc-note { color: #7d8794; font-size: 12px; margin: 12px 4px 0; }
     /* 합계·정보 */
@@ -102,7 +105,9 @@
     .vc-dlg { width: min(440px, 100%); background: #121826; border: 1px solid #2f3a4d; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; color: #e6edf3; }
     .vc-dlg > b { color: #f3e3b5; font-size: 16px; }
     .vc-dlg label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #9aa4b2; } .vc-dlg label i { font-style: normal; color: #59636e; }
-    .vc-dlg input:not([type=checkbox]) { background: #0b0f17; border: 1px solid #2f3a4d; border-radius: 8px; color: #e6edf3; padding: 8px 10px; font: inherit; font-size: 14px; }
+    .vc-dlg textarea, .vc-memo textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+    .vc-dlg input:not([type=checkbox]), .vc-dlg textarea, .vc-memo textarea { background: #0b0f17; border: 1px solid #2f3a4d; border-radius: 8px; color: #e6edf3; padding: 8px 10px; font: inherit; font-size: 14px; }
+    .vc-dlg textarea:focus, .vc-memo textarea:focus { outline: none; border-color: #e8c860; }
     .vc-dlg input:focus { outline: none; border-color: #e8c860; }
     .vc-dlg .vc-chk { flex-direction: row; align-items: center; gap: 8px; color: #c9d1d9; }
     .vc-dn { margin: 0; color: #7d8794; font-size: 12px; } .vc-err { margin: 0; color: #ff7b72; font-size: 12.5px; min-height: 1em; }
@@ -125,3 +130,23 @@
     .fm-empty { grid-column: 1 / -1; padding: 40px; text-align: center; }
     .fm-morebar { display: flex; justify-content: center; margin-top: 12px; }
     @media (max-width: 520px) { .vc-body #farmApp { width: calc(100% - 20px); margin-top: 10px; } .fm-grid { grid-template-columns: 1fr; } .fm-q { width: 100%; } .vc-acts { width: 100%; } }
+    /* 탐침·나침반 칸 (2026-10-27) */
+    .vc-gear { display: flex; flex-direction: column; gap: 6px; }
+    .vc-gs { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 6px 8px;
+      background: #0b0f17; border: 1px dashed #2f3a4d; border-radius: 9px; min-height: 46px; }
+    .vc-gs.on { border-style: solid; border-color: #2f3a4d; } .vc-gs[data-act]:hover, .vc-gl .vc-gs:hover { border-color: #e8c860; }
+    .vc-gs:disabled { cursor: default; opacity: 1; }
+    .vc-gs img { width: 36px; height: 36px; flex: none; border-radius: 6px; border: 1px solid #2f3a4d; background: #121826; }
+    .vc-gs img.q2 { border-color: #3a5a9a; } .vc-gs img.q3 { border-color: #6b4aa0; } .vc-gs img.q100 { border-color: #a0702a; }
+    .vc-gt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .vc-gt > b { font-size: 13px; color: #e6edf3; } .vc-gt b.q2 { color: #8fb4ff; } .vc-gt b.q3 { color: #c89bff; } .vc-gt b.q100 { color: #ffb15a; }
+    .vc-gt small { color: #9aa4b2; font-size: 12px; line-height: 1.4; }
+    .vc-gph { color: #59636e; font-size: 13px; }
+    .vc-gpk { width: min(560px, 100%); max-height: calc(100vh - 32px); }
+    .vc-gq { display: flex; gap: 6px; } .vc-gq input { flex: 1; min-width: 0; }
+    .vc-gl { display: flex; flex-direction: column; gap: 5px; overflow: auto; min-height: 0; }
+    .vc-gl > .vc-gs { flex: none; } .vc-gl > [hidden] { display: none; }
+    .vc-gl .vc-gs.cur { border-color: #e8c860; border-style: solid; background: #1d1a12; }
+    .vc-memo textarea { width: 100%; box-sizing: border-box; }
+    .vc-memo .vc-cap { display: flex; justify-content: space-between; } .vc-memo .vc-cap small { color: #59636e; letter-spacing: 0; }
+    .vc-mt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.55; color: #c9d1d9; }

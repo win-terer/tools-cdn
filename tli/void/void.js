@@ -36,12 +36,20 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
 
   // ── 상태: 별무리별 찍은 노드 id 집합 (시작 노드는 넣지 않는다 — 늘 켜진 것으로 본다) ──
   let S = CS.map(() => new Set());
+  // 나침반 4칸·탐침 1칸 (2026-10-27 사용자) — 아이템 id, 0 = 빈칸. 공유 코드에는 GKEY 묶음으로 뒤에 붙는다
+  const GKEY = 9000, CBY = new Map(VOID_GEAR.c.map(x => [x.id, x])), PBY = new Map(VOID_GEAR.p.map(x => [x.id, x]));
+  const emptyG = () => ({ p: 0, c: [0, 0, 0, 0] });
+  const normG = g => ({ p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; return CBY.has(v) ? v : 0; }) });
+  const hasG = g => !!(g.p || g.c.some(x => x));
+  let G = emptyG();
+  let M = '';   // 메모 500자 이내 — 연습판에 저장되고 파밍 빌드 공유 때 글과 함께 올라간다 (2026-10-27 사용자)
   let view = -1;            // -1 = 목록, 아니면 별무리 번호
   let undo = [];
-  const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (o && o.s) S = CS.map(c => new Set((o.s[c.key] || []).filter(id => c.by.has(id) && id !== c.start))); } catch (e) {} };
+  const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (o && o.s) S = CS.map(c => new Set((o.s[c.key] || []).filter(id => c.by.has(id) && id !== c.start))); if (o && o.g) G = normG(o.g); if (o && typeof o.m === 'string') M = o.m.slice(0, 500); } catch (e) {} };
   let RO = null;   // 공유 글 보기 중(?s=) — {item, liked, admin, vwait} · 이때 S 는 공유 배치이고 저장하지 않는다
-  const save = () => { if (RO) return; try { const s = {}; CS.forEach(c => { if (S[c.ci].size) s[c.key] = [...S[c.ci]]; }); localStorage.setItem(KEY, JSON.stringify({ v: 1, s })); } catch (e) {} };
-  const snap = () => { undo.push(S.map(x => new Set(x))); if (undo.length > 50) undo.shift(); };
+  const save = () => { if (RO) return; try { const s = {}; CS.forEach(c => { if (S[c.ci].size) s[c.key] = [...S[c.ci]]; }); const o = { v: 1, s }; if (hasG(G)) o.g = G; if (M) o.m = M; localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
+  const snap = () => { const a = S.map(x => new Set(x)); a.g = normG(G); undo.push(a); if (undo.length > 50) undo.shift(); };
+  const popUndo = () => { const a = undo.pop(); S = a; if (a.g) G = a.g; save(); render(); };
 
   // ── 포인트 ──
   const nodeCost = (c, n) => c.main ? { m: 1, s: n.extra || 0 } : { m: 0, s: 1 + (n.extra || 0) };
@@ -132,6 +140,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (!ids.length) return;
       vi(c.key); vi(ids.length); let p = 0; ids.forEach(x => { vi(x - p); p = x; });
     });
+    if (hasG(G)) { vi(GKEY); vi(5); [G.p].concat(G.c).forEach(vi); }   // 서버(voidPts)·옛 화면은 모르는 key 로 보고 건너뛴다
     return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function decode(code) {
@@ -139,13 +148,17 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     let i = 0; const vi = () => { let n = 0, sh = 0, x; do { x = b[i++]; if (x == null) throw 0; n |= (x & 127) << sh; sh += 7; } while (x & 128); return n; };
     if (vi() !== 1) throw 0;
     const out = CS.map(() => new Set());
+    let g = null;
     while (i < b.length) {
-      const c = BYKEY.get(vi()), k = vi(); let p = 0;
+      const key = vi(), k = vi();
+      if (key === GKEY) { const a = []; for (let j = 0; j < k; j++) a.push(vi()); g = normG({ p: a[0], c: a.slice(1) }); continue; }
+      const c = BYKEY.get(key); let p = 0;
       for (let j = 0; j < k; j++) { p += vi(); if (c) { const id = String(+c.start + p); if (c.by.has(id) && id !== c.start) out[c.ci].add(id); } }
     }
     const keep = S; S = out;   // 그윽한(자유 찍기 노드) 먼저 정리해야 비 콘텐츠 별무리 판정이 맞다
     CS.filter(c => c.main).concat(CS.filter(c => !c.main)).forEach(prune);
     S = keep;
+    out.g = g || emptyG();
     return out;
   }
 
@@ -178,6 +191,45 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       : '<li class="vc-empty">찍은 노드가 없습니다</li>';
     return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div><ul>${body}</ul></div>`;
   }
+  // 그윽한 별무리 카드에 찍은 대형 노드(핵심)를 아이콘·효과로 바로 보여 준다 (2026-10-27 사용자)
+  function bigPicks(c) {
+    const ns = c.nodes.filter(n => n.kind === '대형 노드' && S[c.ci].has(n.id));
+    return ns.length ? `<span class="vc-pk">${ns.map(n => `<span><img src="${ICON + n.icon}" alt=""><span>${hl(nodeText(n).replace(/\n+/g, ' · '))}</span></span>`).join('')}</span>` : '';
+  }
+  // 탐침 1칸·나침반 4칸 — 누르면 고르는 창 (공유 글 보기에서는 고른 칸만, 고르기 없음)
+  const gItem = it => `<img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><span class="vc-gt"><b class="q${it.q}">${esc(it.n)}</b>${it.e.map(l => `<small>${hl(l)}</small>`).join('')}</span>`;
+  function gearBox() {
+    if (RO && !hasG(G)) return '';
+    const row = (k, i, id) => {
+      const it = (k === 'p' ? PBY : CBY).get(id);
+      if (RO && !it) return '';
+      return `<button class="vc-gs${it ? ' on' : ''}"${RO ? ' disabled' : ` data-act="gpick" data-k="${k}" data-i="${i}"`}>${it ? gItem(it) : `<span class="vc-gph">＋ ${k === 'p' ? '탐침' : '나침반 ' + (i + 1)} 고르기</span>`}</button>`;
+    };
+    return `<div class="vc-sum vc-gear"><div class="vc-cap">탐침 · 나침반</div>${row('p', 0, G.p)}${G.c.map((id, i) => row('c', i, id)).join('')}</div>`;
+  }
+  function memoBox() {
+    if (RO) { const m = (RO.item.memo || '').trim(); return m ? `<div class="vc-sum vc-memo"><div class="vc-cap">메모</div><div class="vc-mt" data-noi18n>${esc(m)}</div></div>` : ''; }
+    return `<div class="vc-sum vc-memo"><div class="vc-cap">메모 <small id="vcMn">${M.length} / 500</small></div>
+      <textarea maxlength="500" rows="3" placeholder="파밍 순서·나침반 조합 같은 메모 (공유할 때 함께 올라갑니다)">${esc(M)}</textarea></div>`;
+  }
+  function gPicker(k, i) {
+    const list = k === 'p' ? VOID_GEAR.p : VOID_GEAR.c, cur = k === 'p' ? G.p : G.c[i];
+    const d = document.createElement('div'); d.className = 'vc-dim';
+    d.innerHTML = `<div class="vc-dlg vc-gpk"><b>${k === 'p' ? '탐침' : '나침반 ' + (i + 1) + '번 칸'} 고르기</b>
+      <div class="vc-gq"><input type="search" placeholder="이름·효과 검색" autocomplete="off"><button type="button" class="vc-btn" data-gid="0"${cur ? '' : ' disabled'}>비우기</button><button type="button" class="vc-btn" data-x>닫기</button></div>
+      <div class="vc-gl">${list.map(it => `<button type="button" class="vc-gs${it.id === cur ? ' cur' : ''}" data-gid="${it.id}" data-s="${esc((it.n + ' ' + it.e.join(' ')).toLowerCase())}">${gItem(it)}</button>`).join('')}</div></div>`;
+    document.body.appendChild(d);
+    const close = () => d.remove(), inp = d.querySelector('input');
+    d.addEventListener('click', e => {
+      if (e.target === d || e.target.closest('[data-x]')) return close();
+      const b = e.target.closest('[data-gid]'); if (!b) return;
+      snap(); if (k === 'p') G.p = +b.dataset.gid; else G.c[i] = +b.dataset.gid;
+      close(); save(); render();
+    });
+    inp.addEventListener('input', () => { const q = inp.value.trim().toLowerCase(); d.querySelectorAll('.vc-gl > [data-s]').forEach(b => { b.hidden = !!q && !b.dataset.s.includes(q); }); });
+    d.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    inp.focus();
+  }
   function listView() {
     // 공유 글 보기에서는 찍은 별무리만 (2026-10-26 사용자)
     // 그윽한 재능 별무리는 맨 위 한 줄에 따로 고정, 나머지는 찍은 별무리 먼저 (원래 순서 유지) (2026-10-27 사용자)
@@ -187,11 +239,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       const k = S[c.ci].size;
       return `<button class="vc-card${k ? ' used' : ''}${c.main ? ' main' : ''}" data-open="${c.ci}">
         <img src="${ICON + c.icon}" alt="" loading="lazy">
-        <span class="vc-cn"><b>${esc(c.name)}</b>${c.unlock ? `<small>${esc(c.unlock)}</small>` : ''}</span>
+        <span class="vc-cn"><b>${esc(c.name)}</b>${c.unlock ? `<small>${esc(c.unlock)}</small>` : ''}${c.main ? bigPicks(c) : ''}</span>
         <span class="vc-cu"><b>${k}</b>/${c.n}${c.main ? '<em>메인</em>' : ''}${freeHere(c) ? '<em class="free">자유</em>' : ''}<i style="--p:${Math.round(100 * k / Math.max(1, c.n))}%"></i></span>
       </button>`;
     }).join('');
-    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div>${sumBox(null)}</div>
+    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div><div class="vc-side">${gearBox()}${memoBox()}${sumBox(null)}</div></div>
       <p class="vc-note">노드 1개 = 스타 재능 1 (시작 노드는 무료) · 그윽한 재능 별무리는 메인 스타 재능 ${VOID.main}포인트로만 찍습니다 · 최대 포인트는 tlidb 기준(스타 재능 ${VOID.star})이며 바뀔 수 있습니다.</p>`;
   }
   function nodeView(c) {
@@ -262,6 +314,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const d = document.createElement('div'); d.className = 'vc-dim';
     d.innerHTML = `<form class="vc-dlg"><b>${title}</b>${fields.map(f => f.type === 'check'
         ? `<label class="vc-chk"><input type="checkbox" name="${f.k}"${f.value ? ' checked' : ''}> ${f.label}</label>`
+        : f.type === 'area' ? `<label><span>${f.label}${f.opt ? ' <i>(선택)</i>' : ''}</span><textarea name="${f.k}" maxlength="500" rows="4">${esc(f.value || '')}</textarea></label>`
         : `<label><span>${f.label}${f.opt ? ' <i>(선택)</i>' : ''}</span><input name="${f.k}" type="${f.type || 'text'}" value="${esc(f.value || '')}" placeholder="${esc(f.ph || '')}" autocomplete="off"></label>`).join('')}
       ${note ? `<p class="vc-dn">${note}</p>` : ''}<p class="vc-err"></p>
       <div class="vc-dact"><button type="button" class="vc-btn" data-x>취소</button><button class="vc-btn vc-share">${okLabel}</button></div></form>`;
@@ -286,7 +339,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       { k: 'pwd', label: '삭제·수정 비밀번호', type: 'password', value: me.pwd || '', ph: '4~20자' },
       { k: 'video', label: '가이드 영상 (유튜브 주소)', opt: 1, ph: 'https://youtu.be/…' },
     ], '올리기', async v => {
-      const r = await api('/api/vshare', { title: v.title, author: v.author, pwd: v.pwd, code: encode(), video: v.video || undefined });
+      const r = await api('/api/vshare', { title: v.title, author: v.author, pwd: v.pwd, code: encode(), memo: M.trim() || undefined, video: v.video || undefined });
       if (!r.ok) {
         if (r.dup) { location.href = location.pathname + '?s=' + r.dup; return ''; }
         return r.error;
@@ -297,12 +350,12 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (r.vmsg) alert('글은 올라갔지만 영상은 등록하지 못했습니다: ' + r.vmsg);
       location.href = location.pathname + '?s=' + r.id;
       return '';
-    }, '현재 찍은 배치가 그대로 올라갑니다. 영상은 관리자가 확인한 뒤 보입니다.');
+    }, `현재 찍은 배치${hasG(G) ? '·탐침·나침반' : ''}${M.trim() ? '·메모' : ''}가 그대로 올라갑니다. 영상은 관리자가 확인한 뒤 보입니다.`);
   }
   async function openShared(id) {
     const r = await api('/api/vshare?id=' + encodeURIComponent(id));
     if (!r.ok) { toast(r.error || '파밍 빌드를 불러오지 못했습니다'); return false; }
-    try { S = decode(r.item.code); } catch (e) { toast('배치 코드를 읽지 못했습니다'); return false; }
+    try { S = decode(r.item.code); G = S.g; } catch (e) { toast('배치 코드를 읽지 못했습니다'); return false; }
     RO = r; undo = [];
     document.title = r.item.title + ' · 허공의 성도 파밍 빌드 · 미니토치DB';
     return true;
@@ -317,13 +370,13 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       let my = null; try { my = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
       const has = my && my.s && Object.keys(my.s).length;
       if (has && !wtOk('이 파밍 빌드를 내 연습판으로 가져올까요?\n지금 찍어 둔 배치는 덮어씁니다.', () => roAct(a))) return;
-      RO = null; save(); toast('내 연습판으로 가져왔습니다');
+      M = (RO.item.memo || '').slice(0, 500); RO = null; save(); toast('내 연습판으로 가져왔습니다');
       history.replaceState(null, '', location.pathname + location.hash); render();
     } else if (a === 'copylink') {
       const u = location.origin + location.pathname + '?s=' + id;
       (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => wtCopyBox('공유 링크', u));
     } else if (a === 'exit') {
-      RO = null; S = CS.map(() => new Set()); load(); undo = [];
+      RO = null; S = CS.map(() => new Set()); G = emptyG(); M = ''; load(); undo = [];
       history.replaceState(null, '', location.pathname); document.title = '허공의 성도 시뮬레이터 · 토치라이트 인피니트 · 미니토치DB'; render();
     } else if (a === 'vreq') {
       dialog('🎬 가이드 영상 추가', [{ k: 'video', label: '유튜브 주소', ph: 'https://youtu.be/…' }, { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }],
@@ -331,16 +384,17 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         '작성자만 요청할 수 있고, 관리자가 확인한 뒤 글에 붙습니다.');
     } else if (a === 'edit') {
       dialog('글 수정', [{ k: 'title', label: '제목', value: it.title }, { k: 'author', label: '작성자', value: it.author },
-        { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }, { k: 'cur', label: '배치를 내 연습판의 지금 배치로 바꾸기', type: 'check' }],
+        { k: 'memo', label: '메모 (500자 이내)', type: 'area', value: it.memo || '', opt: 1 },
+        { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }, { k: 'cur', label: '배치를 내 연습판의 지금 배치(탐침·나침반 포함)로 바꾸기', type: 'check' }],
         '저장', async v => {
           let code;
           if (v.cur) {
             let my = null; try { my = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-            const keep = S; S = CS.map(c => new Set(((my && my.s && my.s[c.key]) || []).filter(x => c.by.has(x))));
-            code = S.some(x => x.size) ? encode() : null; S = keep;
+            const keep = S, keepG = G; S = CS.map(c => new Set(((my && my.s && my.s[c.key]) || []).filter(x => c.by.has(x)))); G = normG(my && my.g);
+            code = S.some(x => x.size) ? encode() : null; S = keep; G = keepG;
             if (!code) return '내 연습판에 찍은 노드가 없습니다.';
           }
-          const r = await api('/api/vshare/edit', { id, pwd: RO.admin ? undefined : v.pwd, title: v.title, author: v.author, code });
+          const r = await api('/api/vshare/edit', { id, pwd: RO.admin ? undefined : v.pwd, title: v.title, author: v.author, memo: v.memo, code });
           if (!r.ok) return r.error;
           setMine(id, v.pwd); await openShared(id); render(); toast('수정했습니다'); return '';
         });
@@ -363,8 +417,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (RO && ['like', 'take', 'copylink', 'exit', 'vreq', 'edit', 'del'].includes(a)) return roAct(a);
     if (a === 'upload') return upload();
     if (a === 'back') { view = -1; history.replaceState(null, '', location.pathname + location.search); render(); }
-    else if (a === 'undo' && undo.length) { S = undo.pop(); save(); render(); }
-    else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); save(); render(); }; if (!S.some(x => x.size)) go(); else wtAsk('찍은 노드를 모두 지울까요?', go); }
+    else if (a === 'undo' && undo.length) popUndo();
+    else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); G = emptyG(); save(); render(); }; if (!S.some(x => x.size) && !hasG(G)) go(); else wtAsk('찍은 노드와 나침반·탐침을 모두 지울까요?', go); }
+    else if (a === 'gpick') gPicker(t.dataset.k, +t.dataset.i);
     else if (a === 'clear') {
       const hadFree = freeOn(); snap(); S[view] = new Set();
       if (hadFree && !freeOn()) CS.forEach(x => { if (x.ng) S[x.ci] = new Set(); });   // 자유 찍기 노드가 빠짐 → 비 콘텐츠 별무리 초기화
@@ -376,6 +431,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => wtCopyBox('공유 링크', u));
       if (window.wtEv) window.wtEv('void_share');
     }
+  });
+  app.addEventListener('input', e => {
+    if (!e.target.matches('.vc-memo textarea')) return;
+    M = e.target.value.slice(0, 500); save();
+    const n = document.getElementById('vcMn'); if (n) n.textContent = M.length + ' / 500';
   });
   // 우클릭 = 포인트 빼기(찍힌 노드와 그 아래 가지) — 노드 화면에선 브라우저 메뉴를 막는다 (2026-10-16)
   app.addEventListener('contextmenu', e => {
@@ -409,7 +469,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   });
   app.addEventListener('mouseout', e => { if (e.target.closest('.vc-n')) { const tip = document.getElementById('vcTip'); if (tip) tip.classList.remove('on'); } });
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && undo.length) { e.preventDefault(); S = undo.pop(); save(); render(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && undo.length) { e.preventDefault(); popUndo(); }
     else if (e.key === 'Escape' && view >= 0) { view = -1; history.replaceState(null, '', location.pathname); render(); }
   });
 
@@ -420,9 +480,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   if (q) {
     try {
       const got = decode(q);
-      const same = got.every((s, i) => s.size === S[i].size && [...s].every(x => S[i].has(x)));
-      if (same || !S.some(x => x.size)) { S = got; save(); }
-      else wtAsk('공유받은 허공의 성도 배치를 불러올까요?\n지금 찍어 둔 배치는 덮어씁니다.', () => { S = got; save(); render(); });
+      const same = got.every((s, i) => s.size === S[i].size && [...s].every(x => S[i].has(x))) && JSON.stringify(got.g) === JSON.stringify(G);
+      if (same || (!S.some(x => x.size) && !hasG(G))) { S = got; G = got.g; save(); }
+      else wtAsk('공유받은 허공의 성도 배치를 불러올까요?\n지금 찍어 둔 배치는 덮어씁니다.', () => { S = got; G = got.g; save(); render(); });
     } catch (e) { toast('공유 링크를 읽지 못했습니다'); }
     history.replaceState(null, '', location.pathname + location.hash);
   }
