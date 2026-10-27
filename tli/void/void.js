@@ -18,7 +18,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   const NOPRE = /이전 노드를 우선 활성화하지 않음/;
   const app = document.getElementById('voidApp');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const hl = s => esc(s).replace(/([+\-]?\d+(?:\.\d+)?%?)/g, '<b class="vc-num">$1</b>');
+  // 숫자 강조 — 플러스는 옅은 초록, 마이너스는 옅은 빨강(파스텔), 부호 없는 숫자는 옅은 하늘색 (2026-10-28 사용자)
+  const hl = s => esc(s).replace(/([+\-]?)(\d+(?:\.\d+)?%?)/g, (m, sg, v) => `<b class="vc-num${sg === '+' ? ' up' : sg === '-' ? ' dn' : ''}">${m}</b>`);
 
   // ── 별무리 준비: 부모·자식 표, 노드 찾기 ──
   const CS = VOID.list.map((c, ci) => {

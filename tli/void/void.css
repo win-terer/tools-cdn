@@ -30,7 +30,7 @@
     .vc-grid > .vc-card.main { grid-column: 1 / -1; }
     .vc-pk { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 10px; margin-top: 6px; }
     .vc-pk > span { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 9px; background: #171d2b; border: 1px solid #3a3150; color: #c9d1d9; font-size: 12.5px; line-height: 1.4; }
-    .vc-card .vc-pk img { width: 30px; height: 30px; } .vc-cn .vc-pk b.vc-num { color: #7ee0c3; font-size: inherit; }
+    .vc-card .vc-pk img { width: 30px; height: 30px; } .vc-cn .vc-pk b.vc-num { color: #a9cdf5; font-size: inherit; } .vc-cn .vc-pk b.vc-num.up { color: #9fe3b0; } .vc-cn .vc-pk b.vc-num.dn { color: #f5a3a3; }
     .vc-card.main .vc-cu i { background: linear-gradient(90deg, #c89bff var(--p), #222b3a var(--p)); }
     .vc-note { color: #7d8794; font-size: 12px; margin: 12px 4px 0; }
     /* 합계·정보 */
@@ -53,7 +53,7 @@
     .vc-sum li.vc-empty::before { content: none; } .vc-empty { color: #59636e; font-size: 13px; padding-left: 0; }
     .vc-sum li em { display: block; font-style: normal; color: #ffb37a; font-size: 11.5px; }
     .vc-x { color: #9aa4b2; font-size: 12px; }
-    .vc-num { color: #7ee0c3; font-weight: 600; }
+    .vc-num { color: #a9cdf5; font-weight: 600; } .vc-num.up { color: #9fe3b0; } .vc-num.dn { color: #f5a3a3; }
     .vc-ik { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
     .vc-ik b { color: #f3e3b5; font-size: 14px; } .vc-ik small { color: #9aa4b2; font-size: 12px; white-space: nowrap; }
     .vc-info > div, .vc-tip > div { font-size: 13px; line-height: 1.5; }
