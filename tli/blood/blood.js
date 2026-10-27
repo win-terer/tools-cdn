@@ -427,7 +427,7 @@ function blItemListHtml() {
   const list = BLOOD_LEG.filter(it => it.set === set && qHit(q, it.n, it.src, ...it.o.map(o => o[0])));
   return list.map(it => `<div class="bl-opt${blItem === it.n ? ' on' : ''}" onclick="blSetItem('${esc(it.n).replace(/'/g, "\\'")}')">` +
     (it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : '') +
-    `<span><b>${esc(it.n)}</b><br><small style="color:#7d8794">${esc(it.src)} · 옵션 ${blItemLines(it)}줄${it.r ? ' (랜덤 ' + (it.rn || 1) + ')' : ''}${blItemCap(it) <= 1 ? ' · 1개만' : ''}</small></span></div>`).join('') ||
+    `<span><b>${esc(it.n)}</b><br><small style="color:#7d8794">${esc(it.src)} · 옵션 ${blItemLines(it)}줄${it.r ? ' (랜덤 ' + (it.rn || 1) + ')' : ''}${blItemCap(it) <= 1 ? ' · 1개만' : ''}${it.su ? ' · ' + esc(it.su) : ''}</small></span></div>`).join('') ||
     '<div class="bl-note">조건에 맞는 레전드가 없습니다</div>';
 }
 function blActHtml() {
@@ -452,7 +452,7 @@ function blActHtml() {
         '</div><div class="bl-row"><button class="bl-go sub" onclick="blDropCand()">고르지 않고 닫기</button></div>';
     } else {
       const why = blCoreWhy();
-      h += '<div class="bl-note">메인·서브 6칸이 다 찬 뒤, 고른 레전드의 옵션 중 무작위 3개가 후보로 나옵니다. 레전드 옵션은 최대 2개이고 한 장비에서만 넣을 수 있습니다.</div>' +
+      h += '<div class="bl-note">메인·서브 6칸이 다 찬 뒤, 고른 레전드의 옵션 중 무작위 3개가 후보로 나옵니다. 레전드 옵션은 최대 2개이고 한 장비에서만 넣을 수 있습니다. 목록은 핵심 장기가 있는 레전드만입니다.</div>' +
         (S.lock ? `<div class="bl-row"><small class="bl-note">추출 중인 장비: <b>${esc(S.lock)}</b> (같은 장비만)</small></div>` : '') +
         `<div class="bl-row"><button class="bl-go" onclick="blUseCore()"${why ? ' disabled' : ''}>핵심 장기 쓰기</button>` +
         (!S.lock && blItem ? `<small class="bl-note">고른 장비: <b style="color:#f3e3b5">${esc(blItem)}</b></small>` : '') + '</div>' +
