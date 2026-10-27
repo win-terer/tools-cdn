@@ -213,10 +213,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   function sumBox(only) {
     const li = r => `<li>${hl(r.t).replace(/\n/g, '<br>')}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</li>`;
     const all = summary(only);
-    if (sumSel != null && !all.some(x => x.key === sumSel)) sumSel = null;
-    const gs = only == null && sumSel != null ? all.filter(x => x.key === sumSel) : all;
-    const tabs = only == null && all.length > 1 ? `<div class="vc-stabs"><button class="vc-stab vc-sall${sumSel == null ? ' on' : ''}" data-act="sumsel" data-k="">전체</button>${all.map(x =>
-      `<button class="vc-stab${sumSel === x.key ? ' on' : ''}" data-act="sumsel" data-k="${x.key}" title="${esc(x.h)} · ${x.p < 0 ? x.n + '개' : '노드 ' + x.n + '개 · ' + x.p + '포인트'}"${x.key === 'g' ? ' data-g' : x.key === 'pt' ? ' data-pt' : ''}><img src="${esc(x.ic)}" alt=""><b>${x.n}</b></button>`).join('')}</div>` : '';
+    // 처음엔 포인트 가장 많이 쓴 별무리(맨 앞) — [전체]를 누르면 'all' (2026-10-28 사용자)
+    const sel = only != null || sumSel === 'all' || all.length < 2 ? null : all.some(x => x.key === sumSel) ? sumSel : all[0].key;
+    const gs = sel != null ? all.filter(x => x.key === sel) : all;
+    const tabs = only == null && all.length > 1 ? `<div class="vc-stabs"><button class="vc-stab vc-sall${sel == null ? ' on' : ''}" data-act="sumsel" data-k="all">전체</button>${all.map(x =>
+      `<button class="vc-stab${sel === x.key ? ' on' : ''}" data-act="sumsel" data-k="${x.key}" title="${esc(x.h)} · ${x.p < 0 ? x.n + '개' : '노드 ' + x.n + '개 · ' + x.p + '포인트'}"${x.key === 'g' ? ' data-g' : x.key === 'pt' ? ' data-pt' : ''}><img src="${esc(x.ic)}" alt=""><b>${x.n}</b></button>`).join('')}</div>` : '';
     const body = gs.length ? gs.map(x => x.key === 'g' || x.key === 'pt'
         ? `<li class="vc-sh ${x.key === 'g' ? 'vc-shg' : 'vc-shp'}"><img src="${esc(x.ic)}" alt="">${esc(x.h)}</li>` + x.rows.map(r => li(r).replace('<li>', `<li class="${x.key === 'g' ? 'vc-lg' : 'vc-lp'}">`)).join('')
         : (x.h ? `<li class="vc-sh">${esc(x.h)}</li>` : '') + x.rows.map(li).join('')).join('')
@@ -230,27 +231,42 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   // 탐침 1칸·나침반 4칸 — 누르면 고르는 창 (공유 글 보기에서는 고른 칸만, 고르기 없음)
   const gItem = it => `<img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><span class="vc-gt"><b class="q${it.q}">${esc(it.n)}</b>${it.e.map(l => `<small>${hl(l)}</small>`).join('')}</span>`;
+  // 가로 5칸 — 탐침 1(왼쪽, 구분선) + 나침반 4, 그림만 · 이름·효과는 마우스 올리면 툴팁 (2026-10-28 사용자)
   function gearBox() {
     if (RO && !G.p && !G.c.some(x => x)) return '';
-    const row = (k, i, id) => {
+    const slot = (k, i, id) => {
       const it = (k === 'p' ? PBY : CBY).get(id);
       if (RO && !it) return '';
-      return `<div class="vc-gw"><button class="vc-gs${it ? ' on' : ''}"${RO ? ' disabled' : ` data-act="gpick" data-k="${k}" data-i="${i}"`}${it && !RO ? ' title="누르면 바꾸기 · 우클릭하면 비우기"' : ''}>${it ? gItem(it) : `<span class="vc-gph">＋ ${k === 'p' ? '탐침' : '나침반 ' + (i + 1)} 고르기</span>`}</button>${it && !RO ? `<button class="vc-gx" data-act="gclear" data-k="${k}" data-i="${i}" aria-label="비우기" title="비우기">✕</button>` : ''}</div>`;
+      const nm = k === 'p' ? '탐침' : '나침반 ' + (i + 1);
+      return it ? `<button class="vc-ps vc-pg on q${it.q}${k === 'p' ? ' probe' : ''}" data-tk="${k}" data-ti="${i}"${RO ? '' : ` data-act="gpick" data-k="${k}" data-i="${i}"`} aria-label="${esc(it.n)}"><img src="${esc(it.i)}" alt="" loading="lazy"></button>`
+        : `<button class="vc-ps vc-pg${k === 'p' ? ' probe' : ''}" data-act="gpick" data-k="${k}" data-i="${i}" aria-label="${nm} 고르기"><span>＋</span><small>${k === 'p' ? '탐침' : '나침반'}</small></button>`;
     };
-    return `<div class="vc-sum vc-gear"><div class="vc-cap">탐침 · 나침반</div>${row('p', 0, G.p)}${G.c.map((id, i) => row('c', i, id)).join('')}</div>`;
+    return `<div class="vc-sum vc-gear"><div class="vc-cap">탐침 · 나침반${RO ? '' : ' <small>누르면 고르기, 우클릭 비우기</small>'}</div><div class="vc-prow vc-grow">${slot('p', 0, G.p)}${G.c.map((id, i) => slot('c', i, id)).join('')}</div></div>`;
+  }
+  function gearTip(k, i) {
+    const it = (k === 'p' ? PBY : CBY).get(k === 'p' ? G.p : G.c[i]); if (!it) return '';
+    return `<div class="vc-ptt-h"><b class="q${it.q}">${esc(it.n)}</b><small>${k === 'p' ? '탐침' : '나침반 ' + (i + 1)}</small></div>${it.e.map(l => `<div>${hl(l)}</div>`).join('')}`;
   }
   // 정령 3칸 — 칸을 누르면 고르기, 옆 단계 칸에서 승급 단계 (공유 글 보기에서는 고른 칸만)
   // 칸에는 이름 + 고유 효과(승급 첫 줄)만, 고르기 창은 최고 승급 효과 전부
   const pItem = (pt, lv, brief) => `<img class="q${pt.q}" src="${esc(pt.i)}" alt="" loading="lazy"><span class="vc-gt"><b class="q${pt.q}">${esc(pt.n)}</b>${(pt.a[(lv || pt.a.length) - 1] || []).slice(0, brief ? 1 : 9).map(l => `<small>${hl(l)}</small>`).join('')}</span>`;
+  // 가로 3칸 — 초상화 + 5시 방향 승급 숫자만, 이름·효과는 마우스 올리면 툴팁 (2026-10-28 사용자)
   function petBox() {
     if (!PETBY.size || (RO && !G.s.some(x => x))) return '';
-    const row = i => {
+    const slot = i => {
       const id = G.s[i], pt = PETBY.get(id), lv = G.l[i];
       if (RO && !pt) return '';
-      const sel = pt ? (RO ? `<span class="vc-plv">승급 ${lv}</span>` : `<select class="vc-plv" data-i="${i}" title="승급 단계">${pt.a.map((_, j) => `<option value="${j + 1}"${j + 1 === lv ? ' selected' : ''}>승급 ${j + 1}</option>`).join('')}</select>`) : '';
-      return `<div class="vc-gw vc-pw"><button class="vc-gs${pt ? ' on' : ''}"${RO ? ' disabled' : ` data-act="ppick" data-i="${i}"`}${pt && !RO ? ' title="누르면 바꾸기 · 우클릭하면 비우기"' : ''}>${pt ? pItem(pt, lv, 1) : `<span class="vc-gph">＋ 정령 ${i + 1} 고르기</span>`}</button>${pt ? `<span class="vc-pct">${sel}${!RO ? `<button class="vc-gx" data-act="pclear" data-i="${i}" aria-label="비우기" title="비우기">✕</button>` : ''}</span>` : ''}</div>`;
+      return pt ? `<button class="vc-ps on q${pt.q}" data-pi="${i}"${RO ? '' : ` data-act="ppick" data-i="${i}"`} aria-label="${esc(pt.n)} 승급 ${lv}"><img src="${esc(pt.i)}" alt="" loading="lazy"><b>${lv}</b></button>`
+        : `<button class="vc-ps" data-act="ppick" data-i="${i}" aria-label="정령 ${i + 1} 고르기"><span>＋</span></button>`;
     };
-    return `<div class="vc-sum vc-gear vc-pets"><div class="vc-cap">정령 <small>드롭 정령</small></div>${[0, 1, 2].map(row).join('')}</div>`;
+    return `<div class="vc-sum vc-pets"><div class="vc-cap">정령 <small>드롭 정령${RO ? '' : ' · 누르면 고르기·승급, 우클릭 비우기'}</small></div><div class="vc-prow">${[0, 1, 2].map(slot).join('')}</div></div>`;
+  }
+  function petTip(i) {
+    const pt = PETBY.get(G.s[i]), lv = G.l[i]; if (!pt) return '';
+    const GR = { 100: '레전드', 3: '레어', 2: '매직' };
+    return `<div class="vc-ptt-h"><b class="q${pt.q}">${esc(pt.n)}</b><small>${GR[pt.q] || ''} · 승급 ${lv} / ${pt.a.length}</small></div>`
+      + ((pt.a[lv - 1] || []).length ? `<div class="vc-ptt-s">승급 효과</div>${pt.a[lv - 1].map(l => `<div>${hl(l)}</div>`).join('')}` : '')
+      + (pt.nd.length ? `<div class="vc-ptt-s">계약 노드</div>${merge(pt.nd).map(r => `<div>${hl(r.t)}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</div>`).join('')}` : '');
   }
   function pClear(i) {
     if (RO || !G.s[i]) return;
@@ -258,7 +274,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   function pPicker(i) {
     const cur = G.s[i], other = new Set(G.s.filter((x, j) => j !== i && x));
-    const flat = VOID_PET.map(pt => ({ id: pt.id, n: pt.n, e: pt.a[pt.a.length - 1].concat(pt.nd) }));
+    const flat = VOID_PET.map(pt => ({ id: pt.id, n: pt.n, e: (pt.a[pt.a.length - 1] || []).concat(pt.nd) }));
     const w = gRecs(flat), GR = { 100: '레전드', 3: '레어', 2: '매직' };
     const btn = (pt, tags) => `<button type="button" class="vc-gs${pt.id === cur ? ' cur' : ''}${tags ? ' rec' : ''}"${other.has(pt.id) ? ' disabled title="이미 다른 칸에 넣은 정령입니다"' : ''} data-pid="${pt.id}" data-s="${esc((pt.n + ' ' + pt.a.flat().concat(pt.nd).join(' ')).toLowerCase())}">${pItem(pt)}${tags ? `<em class="vc-gr">${tags.map(esc).join(' · ')}</em>` : ''}</button>`;
     const rec = VOID_PET.filter(pt => w.has(pt.id)).sort((a, z) => w.get(z.id).n - w.get(a.id).n || z.q - a.q);
@@ -266,11 +282,14 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const d = document.createElement('div'); d.className = 'vc-dim';
     d.innerHTML = `<div class="vc-dlg vc-gpk"><b>정령 ${i + 1}번 칸 고르기 <small>드롭 정령 · 효과는 최고 승급 기준</small></b>
       <div class="vc-gq"><input type="search" placeholder="이름·효과 검색" autocomplete="off"><button type="button" class="vc-btn" data-pid="0"${cur ? '' : ' disabled'}>비우기</button><button type="button" class="vc-btn" data-x>닫기</button></div>
+      ${cur ? `<div class="vc-plvs"><span>${esc(PETBY.get(cur).n)} 승급</span>${PETBY.get(cur).a.map((_, j) => `<button type="button" class="vc-btn${G.l[i] === j + 1 ? ' on' : ''}" data-plv="${j + 1}">${j + 1}</button>`).join('')}</div>` : ''}
       <div class="vc-gl">${rec.length ? `<div class="vc-gh">찍은 재능 관련 추천</div>${rec.map(pt => btn(pt, w.get(pt.id).t)).join('')}` : ''}${groups}</div></div>`;
     document.body.appendChild(d);
     const close = () => d.remove(), inp = d.querySelector('input');
     d.addEventListener('click', e => {
       if (e.target === d || e.target.closest('[data-x]')) return close();
+      const lb = e.target.closest('[data-plv]');
+      if (lb) { snap(); G.l[i] = +lb.dataset.plv; G = normG(G); close(); save(); render(); return; }
       const b = e.target.closest('[data-pid]'); if (!b || b.disabled) return;
       const v = +b.dataset.pid;
       snap(); G.s[i] = v; G.l[i] = v ? petMax(v) : 0;
@@ -342,7 +361,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         <span class="vc-cu"><b>${k}</b>/${c.n}${c.main ? '<em>메인</em>' : ''}${freeHere(c) ? '<em class="free">자유</em>' : ''}<i style="--p:${Math.round(100 * k / Math.max(1, c.n))}%"></i></span>
       </button>`;
     }).join('');
-    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div><div class="vc-side">${gearBox()}${petBox()}${memoBox()}${sumBox(null)}</div></div>
+    return top() + `<div class="vc-wrap"><div class="vc-grid">${cards}</div><div class="vc-side">${petBox()}${gearBox()}${memoBox()}${sumBox(null)}</div></div>
       <p class="vc-note">노드 1개 = 스타 재능 1 (시작 노드는 무료) · 그윽한 재능 별무리는 메인 스타 재능 ${VOID.main}포인트로만 찍습니다 · 최대 포인트는 tlidb 기준(스타 재능 ${VOID.star})이며 바뀔 수 있습니다.</p>`;
   }
   function nodeView(c) {
@@ -535,10 +554,6 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (window.wtEv) window.wtEv('void_share');
     }
   });
-  app.addEventListener('change', e => {
-    const t = e.target.closest('select.vc-plv'); if (!t || RO) return;
-    const i = +t.dataset.i; snap(); G.l[i] = +t.value; G = normG(G); save(); render();
-  });
   app.addEventListener('input', e => {
     if (!e.target.matches('.vc-memo textarea')) return;
     M = e.target.value.slice(0, 500); save();
@@ -546,9 +561,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   });
   // 우클릭 = 포인트 빼기(찍힌 노드와 그 아래 가지) — 노드 화면에선 브라우저 메뉴를 막는다 (2026-10-16)
   app.addEventListener('contextmenu', e => {
-    const gs = e.target.closest('.vc-gs[data-act=gpick].on');
+    const gs = e.target.closest('.vc-ps[data-act=gpick].on');
     if (gs) { e.preventDefault(); gClear(gs.dataset.k, +gs.dataset.i); return; }
-    const ps = e.target.closest('.vc-gs[data-act=ppick].on');
+    const ps = e.target.closest('.vc-ps[data-act=ppick].on');
     if (ps) { e.preventDefault(); pClear(+ps.dataset.i); return; }
     if (view < 0 || !e.target.closest('.vc-tree')) return;
     e.preventDefault();
@@ -560,6 +575,21 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   app.addEventListener('mousedown', e => { if (e.detail > 1 && e.target.closest('.vc-tree, .vc-card')) e.preventDefault(); });
   app.addEventListener('dragstart', e => { if (e.target.closest('.vc-tree')) e.preventDefault(); });
   function showInfo(c, n) { const el = document.getElementById('vcInfo'); if (el && n) el.innerHTML = info(c, n); }
+  // 정령 칸 툴팁 — 마우스 올리면 이름·승급·효과 (터치 기기는 누르면 고르기 창)
+  let ptip = null;
+  app.addEventListener('mouseover', e => {
+    const b = e.target.closest('.vc-ps.on');
+    if (!b) { if (ptip) ptip.classList.remove('on'); return; }
+    if (!ptip) { ptip = document.createElement('div'); ptip.className = 'vc-ptt'; document.body.appendChild(ptip); }
+    ptip.innerHTML = b.dataset.tk ? gearTip(b.dataset.tk, +b.dataset.ti) : petTip(+b.dataset.pi);
+    ptip.classList.toggle('g', !!b.dataset.tk); ptip.classList.add('on');
+    const r = b.getBoundingClientRect(), w = ptip.offsetWidth, h = ptip.offsetHeight;
+    let x = Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)), y = r.bottom + 8;
+    if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 8);
+    ptip.style.left = x + 'px'; ptip.style.top = y + 'px';
+  });
+  app.addEventListener('mouseleave', () => { if (ptip) ptip.classList.remove('on'); });
+  app.addEventListener('click', () => { if (ptip) ptip.classList.remove('on'); }, true);
   app.addEventListener('mouseover', e => {
     const g = e.target.closest('.vc-n'); if (!g || view < 0) return;
     const c = CS[view]; showInfo(c, c.by.get(g.dataset.id));
