@@ -265,7 +265,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const pt = PETBY.get(G.s[i]), lv = G.l[i]; if (!pt) return '';
     const GR = { 100: '레전드', 3: '레어', 2: '매직' };
     return `<div class="vc-ptt-h"><b class="q${pt.q}">${esc(pt.n)}</b><small>${GR[pt.q] || ''} · 승급 ${lv} / ${pt.a.length}</small></div>`
-      + ((pt.a[lv - 1] || []).length ? `<div class="vc-ptt-s">승급 효과</div>${pt.a[lv - 1].map(l => `<div>${hl(l)}</div>`).join('')}` : '')
+      // 승급 1단계 줄 수만큼이 기본 효과(단계가 오르면 수치·문구만 강해짐), 그 뒤에 붙는 줄이 승급 효과 (2026-10-28 사용자)
+      + (() => { const L = pt.a[lv - 1] || [], nb = (pt.a[0] || []).length, sec = (h, ls) => ls.length ? `<div class="vc-ptt-s">${h}</div>${ls.map(l => `<div>${hl(l)}</div>`).join('')}` : '';
+          return sec('기본 효과', L.slice(0, nb)) + sec('승급 효과', L.slice(nb)); })()
       + (pt.nd.length ? `<div class="vc-ptt-s">계약 노드</div>${merge(pt.nd).map(r => `<div>${hl(r.t)}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</div>`).join('')}` : '');
   }
   function pClear(i) {
