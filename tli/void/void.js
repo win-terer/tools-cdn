@@ -39,7 +39,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   // 나침반 4칸·탐침 1칸 (2026-10-27 사용자) — 아이템 id, 0 = 빈칸. 공유 코드에는 GKEY 묶음으로 뒤에 붙는다
   const GKEY = 9000, CBY = new Map(VOID_GEAR.c.map(x => [x.id, x])), PBY = new Map(VOID_GEAR.p.map(x => [x.id, x]));
   const emptyG = () => ({ p: 0, c: [0, 0, 0, 0] });
-  const normG = g => ({ p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; return CBY.has(v) ? v : 0; }) });
+  // 같은 나침반은 한 칸에만 (2026-10-27 사용자) — 저장본·공유 코드에 겹친 게 있으면 뒤 칸을 비운다
+  const normG = g => { const seen = new Set(); return { p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; if (!CBY.has(v) || seen.has(v)) return 0; seen.add(v); return v; }) }; };
   const hasG = g => !!(g.p || g.c.some(x => x));
   let G = emptyG();
   let M = '';   // 메모 500자 이내 — 연습판에 저장되고 파밍 빌드 공유 때 글과 함께 올라간다 (2026-10-27 사용자)
@@ -212,21 +213,42 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     return `<div class="vc-sum vc-memo"><div class="vc-cap">메모 <small id="vcMn">${M.length} / 500</small></div>
       <textarea maxlength="500" rows="3" placeholder="파밍 순서·나침반 조합 같은 메모 (공유할 때 함께 올라갑니다)">${esc(M)}</textarea></div>`;
   }
+  // 찍은 별무리와 관련된 나침반·탐침 (2026-10-27 사용자) — [별무리 이름, 짧은 이름, 나침반 이름·효과에서 찾을 말]
+  const REL = [
+    [/^장비/, '장비', /비레전드|무장 나침반|장비 드롭/], [/^레전드 장비/, '레전드 장비', /레전드 장비/], [/^나침반/, '나침반', /나침반 드롭/],
+    [/^화폐/, '화폐', /엠버|약탈 나침반|번영의 (아득|딥)/], [/^정벌/, '정벌', /전쟁의 신|신들/], [/^힘/, '힘', /힘의 신/], [/^사냥/, '사냥', /사냥의 여신/],
+    [/^기계 재능/, '기계', /기계의 신/], [/^검은 물결/, '검은 물결', /검은 물결/], [/^검은 돛/, '검은 돛', /검은 돛|차원의 닻/], [/^큐브/, '큐브', /큐브|탐욕|야욕/],
+    [/^미궁의 도시/, '미궁의 도시', /미궁의 도시/], [/^악몽/, '악몽', /나이트메어|꿈나라/], [/^괴담/, '괴담', /괴담|안개 도시/], [/^기계 인형/, '기계 인형', /클럽 게임/],
+    [/^비콘/, '비콘', /비콘/], [/^설원/, '설원', /설원|스노우맨/], [/^타로/, '타로', /타로/], [/^군주/, '군주', /사막 도적/], [/수배/, '수배', /수배|보안 요원/],
+    [/^감옥/, '감옥', /원죄의 감옥|타르타로스/], [/^이면세계/, '이면세계', /이면세계/], [/^블러드 러스트/, '블러드 러스트', /블러드 러스트/], [/^창조/, '창조', /창조/],
+    [/^루나리아/, '루나리아', /루나/], [/^애프터라이트/, '애프터라이트', /애프터라이트/],
+  ];
+  function gRecs(list) {
+    const w = new Map();
+    CS.forEach(c => {
+      const n = S[c.ci].size, r = n && REL.find(x => x[0].test(c.name));
+      if (r) list.forEach(it => { if (r[2].test(it.n + ' ' + it.e.join(' '))) { const o = w.get(it.id) || { n: 0, t: [] }; o.n += n; o.t.push(r[1]); w.set(it.id, o); } });
+    });
+    return w;
+  }
   function gPicker(k, i) {
     const list = k === 'p' ? VOID_GEAR.p : VOID_GEAR.c, cur = k === 'p' ? G.p : G.c[i];
+    const other = new Set(k === 'p' ? [] : G.c.filter((x, j) => j !== i && x));   // 다른 칸에 이미 넣은 나침반
+    const w = gRecs(list), rec = list.filter(it => w.has(it.id)).sort((a, z) => w.get(z.id).n - w.get(a.id).n), rest = list.filter(it => !w.has(it.id));
+    const btn = (it, tags) => `<button type="button" class="vc-gs${it.id === cur ? ' cur' : ''}${tags ? ' rec' : ''}"${other.has(it.id) ? ' disabled title="이미 다른 칸에 넣은 나침반입니다"' : ''} data-gid="${it.id}" data-s="${esc((it.n + ' ' + it.e.join(' ')).toLowerCase())}">${gItem(it)}${tags ? `<em class="vc-gr">${tags.map(esc).join(' · ')}</em>` : ''}</button>`;
     const d = document.createElement('div'); d.className = 'vc-dim';
     d.innerHTML = `<div class="vc-dlg vc-gpk"><b>${k === 'p' ? '탐침' : '나침반 ' + (i + 1) + '번 칸'} 고르기</b>
       <div class="vc-gq"><input type="search" placeholder="이름·효과 검색" autocomplete="off"><button type="button" class="vc-btn" data-gid="0"${cur ? '' : ' disabled'}>비우기</button><button type="button" class="vc-btn" data-x>닫기</button></div>
-      <div class="vc-gl">${list.map(it => `<button type="button" class="vc-gs${it.id === cur ? ' cur' : ''}" data-gid="${it.id}" data-s="${esc((it.n + ' ' + it.e.join(' ')).toLowerCase())}">${gItem(it)}</button>`).join('')}</div></div>`;
+      <div class="vc-gl">${rec.length ? `<div class="vc-gh">찍은 재능 관련 추천</div>${rec.map(it => btn(it, w.get(it.id).t)).join('')}<div class="vc-gh">전체</div>` : ''}${rest.map(it => btn(it)).join('')}</div></div>`;
     document.body.appendChild(d);
     const close = () => d.remove(), inp = d.querySelector('input');
     d.addEventListener('click', e => {
       if (e.target === d || e.target.closest('[data-x]')) return close();
-      const b = e.target.closest('[data-gid]'); if (!b) return;
+      const b = e.target.closest('[data-gid]'); if (!b || b.disabled) return;
       snap(); if (k === 'p') G.p = +b.dataset.gid; else G.c[i] = +b.dataset.gid;
       close(); save(); render();
     });
-    inp.addEventListener('input', () => { const q = inp.value.trim().toLowerCase(); d.querySelectorAll('.vc-gl > [data-s]').forEach(b => { b.hidden = !!q && !b.dataset.s.includes(q); }); });
+    inp.addEventListener('input', () => { const q = inp.value.trim().toLowerCase(); d.querySelectorAll('.vc-gl > [data-s]').forEach(b => { b.hidden = !!q && !b.dataset.s.includes(q); }); d.querySelectorAll('.vc-gh').forEach(h => { h.hidden = !!q; }); });
     d.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
     inp.focus();
   }

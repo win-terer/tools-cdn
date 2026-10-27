@@ -145,8 +145,12 @@
     .vc-gpk { width: min(560px, 100%); max-height: calc(100vh - 32px); }
     .vc-gq { display: flex; gap: 6px; } .vc-gq input { flex: 1; min-width: 0; }
     .vc-gl { display: flex; flex-direction: column; gap: 5px; overflow: auto; min-height: 0; }
-    .vc-gl > .vc-gs { flex: none; } .vc-gl > [hidden] { display: none; }
+    .vc-gl > .vc-gs { flex: none; } .vc-gl > .vc-gs:disabled { opacity: .35; cursor: not-allowed; }
+    .vc-gl > .vc-gs:disabled:hover { border-color: #2f3a4d; } .vc-gl > [hidden] { display: none; }
     .vc-gl .vc-gs.cur { border-color: #e8c860; border-style: solid; background: #1d1a12; }
     .vc-memo textarea { width: 100%; box-sizing: border-box; }
     .vc-memo .vc-cap { display: flex; justify-content: space-between; } .vc-memo .vc-cap small { color: #59636e; letter-spacing: 0; }
     .vc-mt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.55; color: #c9d1d9; }
+    .vc-gh { flex: none; color: #9aa4b2; font-size: 12px; letter-spacing: .06em; margin: 4px 2px 0; }
+    .vc-gl > .vc-gs.rec { border-style: solid; border-color: #6b5a2a; }
+    .vc-gr { margin-left: auto; flex: none; align-self: flex-start; font-style: normal; font-size: 11px; color: #e8c860; background: #1d1a12; border: 1px solid #6b5a2a; border-radius: 999px; padding: 1px 8px; }
