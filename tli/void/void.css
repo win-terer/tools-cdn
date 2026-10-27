@@ -154,3 +154,6 @@
     .vc-gh { flex: none; color: #9aa4b2; font-size: 12px; letter-spacing: .06em; margin: 4px 2px 0; }
     .vc-gl > .vc-gs.rec { border-style: solid; border-color: #6b5a2a; }
     .vc-gr { margin-left: auto; flex: none; align-self: flex-start; font-style: normal; font-size: 11px; color: #e8c860; background: #1d1a12; border: 1px solid #6b5a2a; border-radius: 999px; padding: 1px 8px; }
+    .vc-gw { position: relative; } .vc-gw > .vc-gs.on { padding-right: 30px; }
+    .vc-gx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border-radius: 6px; border: 1px solid #2f3a4d; background: #121826; color: #9aa4b2; font-size: 12px; line-height: 1; cursor: pointer; }
+    .vc-gx:hover { color: #ff8a8a; border-color: #a03a3a; }

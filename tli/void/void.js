@@ -40,7 +40,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   const GKEY = 9000, CBY = new Map(VOID_GEAR.c.map(x => [x.id, x])), PBY = new Map(VOID_GEAR.p.map(x => [x.id, x]));
   const emptyG = () => ({ p: 0, c: [0, 0, 0, 0] });
   // 같은 나침반은 한 칸에만 (2026-10-27 사용자) — 저장본·공유 코드에 겹친 게 있으면 뒤 칸을 비운다
-  const normG = g => { const seen = new Set(); return { p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; if (!CBY.has(v) || seen.has(v)) return 0; seen.add(v); return v; }) }; };
+  const normG = g => { const seen = new Set(); return { p: PBY.has(+(g && g.p)) ? +g.p : 0, c: [0, 1, 2, 3].map(i => { const v = +((g && g.c) || [])[i]; if (!CBY.has(v) || seen.has(v)) return 0; seen.add(v); return v; }).filter(x => x).concat([0, 0, 0, 0]).slice(0, 4) }; };   // 빈칸은 뒤로 — 위 칸이 비면 아래 나침반이 올라온다
   const hasG = g => !!(g.p || g.c.some(x => x));
   let G = emptyG();
   let M = '';   // 메모 500자 이내 — 연습판에 저장되고 파밍 빌드 공유 때 글과 함께 올라간다 (2026-10-27 사용자)
@@ -204,7 +204,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const row = (k, i, id) => {
       const it = (k === 'p' ? PBY : CBY).get(id);
       if (RO && !it) return '';
-      return `<button class="vc-gs${it ? ' on' : ''}"${RO ? ' disabled' : ` data-act="gpick" data-k="${k}" data-i="${i}"`}>${it ? gItem(it) : `<span class="vc-gph">＋ ${k === 'p' ? '탐침' : '나침반 ' + (i + 1)} 고르기</span>`}</button>`;
+      return `<div class="vc-gw"><button class="vc-gs${it ? ' on' : ''}"${RO ? ' disabled' : ` data-act="gpick" data-k="${k}" data-i="${i}"`}${it && !RO ? ' title="누르면 바꾸기 · 우클릭하면 비우기"' : ''}>${it ? gItem(it) : `<span class="vc-gph">＋ ${k === 'p' ? '탐침' : '나침반 ' + (i + 1)} 고르기</span>`}</button>${it && !RO ? `<button class="vc-gx" data-act="gclear" data-k="${k}" data-i="${i}" aria-label="비우기" title="비우기">✕</button>` : ''}</div>`;
     };
     return `<div class="vc-sum vc-gear"><div class="vc-cap">탐침 · 나침반</div>${row('p', 0, G.p)}${G.c.map((id, i) => row('c', i, id)).join('')}</div>`;
   }
@@ -231,6 +231,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     });
     return w;
   }
+  function gClear(k, i) {
+    if (RO || !(k === 'p' ? G.p : G.c[i])) return;
+    snap(); if (k === 'p') G.p = 0; else G.c[i] = 0;
+    G = normG(G); save(); render();
+  }
   function gPicker(k, i) {
     const list = k === 'p' ? VOID_GEAR.p : VOID_GEAR.c, cur = k === 'p' ? G.p : G.c[i];
     const other = new Set(k === 'p' ? [] : G.c.filter((x, j) => j !== i && x));   // 다른 칸에 이미 넣은 나침반
@@ -246,7 +251,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (e.target === d || e.target.closest('[data-x]')) return close();
       const b = e.target.closest('[data-gid]'); if (!b || b.disabled) return;
       snap(); if (k === 'p') G.p = +b.dataset.gid; else G.c[i] = +b.dataset.gid;
-      close(); save(); render();
+      G = normG(G); close(); save(); render();
     });
     inp.addEventListener('input', () => { const q = inp.value.trim().toLowerCase(); d.querySelectorAll('.vc-gl > [data-s]').forEach(b => { b.hidden = !!q && !b.dataset.s.includes(q); }); d.querySelectorAll('.vc-gh').forEach(h => { h.hidden = !!q; }); });
     d.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
@@ -442,6 +447,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     else if (a === 'undo' && undo.length) popUndo();
     else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); G = emptyG(); save(); render(); }; if (!S.some(x => x.size) && !hasG(G)) go(); else wtAsk('찍은 노드와 나침반·탐침을 모두 지울까요?', go); }
     else if (a === 'gpick') gPicker(t.dataset.k, +t.dataset.i);
+    else if (a === 'gclear') gClear(t.dataset.k, +t.dataset.i);
     else if (a === 'clear') {
       const hadFree = freeOn(); snap(); S[view] = new Set();
       if (hadFree && !freeOn()) CS.forEach(x => { if (x.ng) S[x.ci] = new Set(); });   // 자유 찍기 노드가 빠짐 → 비 콘텐츠 별무리 초기화
@@ -461,6 +467,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   });
   // 우클릭 = 포인트 빼기(찍힌 노드와 그 아래 가지) — 노드 화면에선 브라우저 메뉴를 막는다 (2026-10-16)
   app.addEventListener('contextmenu', e => {
+    const gs = e.target.closest('.vc-gs[data-act=gpick].on');
+    if (gs) { e.preventDefault(); gClear(gs.dataset.k, +gs.dataset.i); return; }
     if (view < 0 || !e.target.closest('.vc-tree')) return;
     e.preventDefault();
     const g = e.target.closest('.vc-n'); if (!g) return;
