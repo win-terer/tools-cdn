@@ -120,11 +120,13 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       if (add) e.v += parseFloat(nums[0]);
       e.k++; g.set(tpl, e);
     });
+    // 수치 큰 줄 먼저 (2026-10-28 사용자) — 줄에서 가장 큰 숫자(×n 은 곱해서), 숫자 없는 줄은 맨 뒤
+    const big = r => { const ns = (r.t.match(/\d+(?:\.\d+)?/g) || []).map(Number); return ns.length ? Math.max(...ns) * (r.x ? r.k : 1) : -1; };
     return [...g.values()].map(e => {
       if (!e.tpl.includes('\u0000')) return { t: e.tpl, k: e.k, x: e.k > 1 };
       const v = Math.round(e.v * 100) / 100;
       return { t: e.tpl.replace('\u0000', (e.sign && v >= 0 ? '+' : '') + v), k: e.k };
-    });
+    }).map(r => [r, big(r)]).sort((a, z) => z[1] - a[1]).map(x => x[0]);
   }
   const nodeLines = c => [...S[c.ci]].flatMap(id => { const n = c.by.get(id); return (n.map || []).concat(n.fn || []); });
   // 전체 합계는 별무리별·탐침·나침반 묶음으로 나눠 구분선과 제목을 단다 (2026-10-28 사용자)
