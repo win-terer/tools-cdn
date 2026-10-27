@@ -4350,7 +4350,27 @@ function wsbShape() { // 신격 모양 변형 순환 (소켓·위치·회전 유
   sl.u = base + order[(order.indexOf(v) + 1) % order.length];
   wsbApply();
 }
-function wsbFlip() { const sl = wsbBd()[wsbSel]; if (!sl || !GOD_MIRROR[sl.u] || GOD_MIRROR[sl.u] === sl.u) return; sl.u = GOD_MIRROR[sl.u]; wsbApply(); } // 좌우 반전 (00_slate GOD_MIRROR)
+// 반전 (2026-10-27 사용자: 회전한 뒤 [좌우 반전]이 상하로 뒤집혀 어색함 → 화면 기준 좌우·상하 두 버튼).
+// 지금 화면에 놓인 칸을 제자리(외곽 상자 안)에서 뒤집은 모양을 만든 뒤, 같은 모양이 되는 (변형, 회전, 위치)를 찾는다 —
+// 거울상 변형(GOD_MIRROR)이 회전·평행이동까지 다른 번호일 수 있어 공식 대신 탐색으로
+function wsbFlip(axis) { // axis 'h' = 좌우 · 'v' = 상하
+  const sl = wsbBd()[wsbSel]; if (!sl) return;
+  const cur = slateCellsXY(sl.u, sl.i, sl.d); if (!cur) return;
+  const k = axis === 'h' ? 0 : 1, lo = Math.min(...cur.map(p => p[k])), hi = Math.max(...cur.map(p => p[k]));
+  const want = cur.map(p => { const q = p.slice(); q[k] = lo + hi - p[k]; return q; });
+  const norm = cs => { const c0 = Math.min(...cs.map(p => p[0])), r0 = Math.min(...cs.map(p => p[1])); return {c0, r0, key: cs.map(p => (p[0] - c0) + ',' + (p[1] - r0)).sort().join(';')}; };
+  const w = norm(want);
+  for (const u of [sl.u, GOD_MIRROR[sl.u]].filter(x => x && SLATES[x])) {
+    for (let d = 0; d < 4; d++) {
+      const c = norm(slateCellsXY(u, 0, d));
+      if (c.key !== w.key) continue;
+      const col0 = w.c0 - c.c0, row0 = w.r0 - c.r0;
+      if (col0 < 0 || row0 < 0 || row0 > 9) continue;
+      if (u === sl.u && d === sl.d && col0 * 10 + row0 === sl.i) return; // 대칭 모양 — 뒤집어도 그대로
+      sl.u = u; sl.d = d; sl.i = col0 * 10 + row0; wsbApply(); return;
+    }
+  }
+}
 function wsbDelete() { const bd = wsbBd(); if (!bd[wsbSel]) return; bd.splice(wsbSel, 1); wsbSel = null; wsbSock = null; wsbApply(); }
 const wsbPickShow = () => (window.requestAnimationFrame || setTimeout)(() => { ['.wsb-pick', '.wsb-sock.on'].forEach(q => { const el = document.querySelector(q); if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'}); }); }); // 고른 소켓과 고르기 창이 둘 다 보이게 // 고르기 창이 화면 밖이면 보이게만(필요할 때만 조금 스크롤)
 function wsbSockPick(si) { wsbSock = wsbSock === si ? null : si; wsbQ = ''; pageRender(); wsbPickShow(); }
@@ -4484,7 +4504,7 @@ function wsbRender() {
     const info = SLATES[sl.u] || {}, isGod = (Math.floor((sl.u - 1) / 100) * 100) in GOD_BASES;
     side = `<div class="wg-addbox"><div class="wg-addh"><b>${escapeHtml(info.n || '#' + sl.u)}</b><span>${(info.c || []).length}칸</span></div>` +
       '<div class="wsb-acts"><button class="wz-btn" onclick="wsbRotate()">↻ 회전</button>' + (isGod ? `<button class="wz-btn" onclick="wsbShape()">모양: ${escapeHtml((info.shp || '?').replace(/1$/, ''))}</button>` : '') +
-      (GOD_MIRROR[sl.u] && GOD_MIRROR[sl.u] !== sl.u ? '<button class="wz-btn" onclick="wsbFlip()" title="모양을 좌우로 뒤집습니다">⇋ 좌우 반전</button>' : '') +
+      (isGod && GOD_MIRROR[sl.u] ? '<button class="wz-btn" onclick="wsbFlip(\'h\')" title="보이는 그대로 좌우로 뒤집습니다">⇋ 좌우 반전</button><button class="wz-btn" onclick="wsbFlip(\'v\')" title="보이는 그대로 위아래로 뒤집습니다">⇅ 상하 반전</button>' : '') +
       '<button class="wz-btn" onclick="wsbDelete()">삭제</button></div>' +
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';
     if (info.sl) {
