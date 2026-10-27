@@ -27,6 +27,7 @@
     .vc-cu b { color: #e8c860; font-size: 16px; } .vc-card:not(.used) .vc-cu b { color: #59636e; }
     .vc-cu em { font-style: normal; color: #c89bff; font-size: 11px; margin-left: 4px; }
     .vc-cu i { display: block; width: 64px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, #e8c860 var(--p), #222b3a var(--p)); }
+    .vc-grid > .vc-card.main { grid-column: 1 / -1; }
     .vc-card.main .vc-cu i { background: linear-gradient(90deg, #c89bff var(--p), #222b3a var(--p)); }
     .vc-note { color: #7d8794; font-size: 12px; margin: 12px 4px 0; }
     /* 합계·정보 */

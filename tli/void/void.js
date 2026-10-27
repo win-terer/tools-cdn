@@ -180,7 +180,10 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   function listView() {
     // 공유 글 보기에서는 찍은 별무리만 (2026-10-26 사용자)
-    const cards = CS.filter(c => !RO || S[c.ci].size).map(c => {
+    // 그윽한 재능 별무리는 맨 위 한 줄에 따로 고정, 나머지는 찍은 별무리 먼저 (원래 순서 유지) (2026-10-27 사용자)
+    const ord = CS.filter(c => !RO || S[c.ci].size)
+      .map((c, i) => [c, c.main ? 0 : S[c.ci].size ? 1 : 2, i]).sort((a, z) => a[1] - z[1] || a[2] - z[2]).map(x => x[0]);
+    const cards = ord.map(c => {
       const k = S[c.ci].size;
       return `<button class="vc-card${k ? ' used' : ''}${c.main ? ' main' : ''}" data-open="${c.ci}">
         <img src="${ICON + c.icon}" alt="" loading="lazy">
