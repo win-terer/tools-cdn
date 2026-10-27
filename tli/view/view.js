@@ -465,13 +465,15 @@ function revivalExtraCap(effect) {
 }
 
 const MEM_PARTS = ['근원의 추억', '자기 수호의 추억', '진격의 추억'];
-// 추억 랜덤 옵션 티어 (2026-10-15 사용자 제보: 0티어만 고를 수 있다) — 옵션 e.mt = '1'|'2' (없으면 T0, 데이터 행 문구 그대로)
+// 추억 랜덤 옵션 티어 (2026-10-15 사용자 제보: 0티어만 고를 수 있다) — 옵션 e.mt = '1'|'2'|'3' (없으면 T0, 데이터 행 문구 그대로)
 // MEM_TIERS = {부위: {T0 문구: {t1, t2, t3}}} (mem_data.js, update/build_memtier.py). 없는 화면에선 T0 문구로
-const MEM_TIER_PICK = ['0', '1', '2'];
+// 로그 실측값(e.v)이 있으면 문구 수치 자리에 끼운다 (2026-10-27: 기본 속성 '민첩 +90'·고유 범위 문구가 실제 값 대신 보이던 것)
+const MEM_TIER_PICK = ['0', '1', '2', '3'];
 function memEff(e) {
-  if (!e || !e.mt || e.mt === '0' || typeof MEM_TIERS === 'undefined') return e ? e.effect : '';
-  const t = (MEM_TIERS[e.source] || {})[e.effect];
-  return (t && t['t' + e.mt]) || e.effect;
+  if (!e) return '';
+  let s = e.effect;
+  if (e.mt && e.mt !== '0' && typeof MEM_TIERS !== 'undefined') { const t = (MEM_TIERS[e.source] || {})[e.effect]; s = (t && t['t' + e.mt]) || e.effect; }
+  return e.v && e.v.length && typeof applyRollText === 'function' ? applyRollText(s, e.v) : s;
 }
 // ── 추억 (근원·자기 수호·진격, 각 1개 제작) ──
 // 단계식 선택: 기본 속성(1) → 고유 옵션(최대 2) → 랜덤 옵션(최대 2), [다음]으로 건너뛰기 가능
@@ -2505,7 +2507,7 @@ async function codeToPreset(code) {
       if (!r) { missing++; return {k: '', effect: '(받는 쪽 데이터에 없는 옵션)', source: '', type: ''}; }
       const o = {k: rowKey(r), effect: r.effect, source: r.source, type: talentLabel(r)};
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
-      if (x.mt === '1' || x.mt === '2') o.mt = x.mt; // 추억 랜덤 옵션 티어
+      if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt; // 추억 랜덤 옵션 티어
       return o;
     }
     if (x && typeof x === 'object') {
@@ -2517,7 +2519,7 @@ async function codeToPreset(code) {
         if (typeof x.h === 'string' && x.h[0] === '#') { const r2 = H.row.get(x.h.slice(1)); if (r2) o.k = rowKey(r2); }
       }
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
-      if (x.mt === '1' || x.mt === '2') o.mt = x.mt;
+      if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt;
       return o;
     }
     return null;
@@ -4686,11 +4688,12 @@ function wmToggle(i) {
   pageRender();
 }
 const wmHasTiers = e => typeof MEM_TIERS !== 'undefined' && !!(MEM_TIERS[e.source] || {})[e.effect];
-function wmSetMt(i, t) { // 랜덤 옵션 티어 T0/T1/T2 (장비 제작 옵션 티어처럼 — 옵션마다)
+function wmSetMt(i, t) { // 랜덤 옵션 티어 T0~T3 (장비 제작 옵션 티어처럼 — 옵션마다)
   if (guardShareView()) return;
   const o = wmOpts(wmPart), e = o.random[i];
   if (!e) return;
   if (t === '0') delete e.mt; else e.mt = t;
+  delete e.v; // 로그 실측값은 원래 티어의 값 — 티어를 바꾸면 문구 범위로 돌아간다
   wmSave(wmPart, o); pageRender();
 }
 function wmDel(cat, i) { if (guardShareView()) return; const o = wmOpts(wmPart); o[cat].splice(i, 1); wmSave(wmPart, o); pageRender(); }

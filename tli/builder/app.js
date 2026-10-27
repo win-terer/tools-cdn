@@ -114,7 +114,7 @@ async function codeToPreset(code) {
       if (!r) { missing++; return {k: '', effect: '(받는 쪽 데이터에 없는 옵션)', source: '', type: ''}; }
       const o = {k: rowKey(r), effect: r.effect, source: r.source, type: talentLabel(r)};
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
-      if (x.mt === '1' || x.mt === '2') o.mt = x.mt; // 추억 랜덤 옵션 티어
+      if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt; // 추억 랜덤 옵션 티어
       return o;
     }
     if (x && typeof x === 'object') {
@@ -126,7 +126,7 @@ async function codeToPreset(code) {
         if (typeof x.h === 'string' && x.h[0] === '#') { const r2 = H.row.get(x.h.slice(1)); if (r2) o.k = rowKey(r2); }
       }
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
-      if (x.mt === '1' || x.mt === '2') o.mt = x.mt;
+      if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt;
       return o;
     }
     return null;
@@ -1129,13 +1129,15 @@ function revivalExtraCap(effect) {
 }
 
 const MEM_PARTS = ['근원의 추억', '자기 수호의 추억', '진격의 추억'];
-// 추억 랜덤 옵션 티어 (2026-10-15 사용자 제보: 0티어만 고를 수 있다) — 옵션 e.mt = '1'|'2' (없으면 T0, 데이터 행 문구 그대로)
+// 추억 랜덤 옵션 티어 (2026-10-15 사용자 제보: 0티어만 고를 수 있다) — 옵션 e.mt = '1'|'2'|'3' (없으면 T0, 데이터 행 문구 그대로)
 // MEM_TIERS = {부위: {T0 문구: {t1, t2, t3}}} (mem_data.js, update/build_memtier.py). 없는 화면에선 T0 문구로
-const MEM_TIER_PICK = ['0', '1', '2'];
+// 로그 실측값(e.v)이 있으면 문구 수치 자리에 끼운다 (2026-10-27: 기본 속성 '민첩 +90'·고유 범위 문구가 실제 값 대신 보이던 것)
+const MEM_TIER_PICK = ['0', '1', '2', '3'];
 function memEff(e) {
-  if (!e || !e.mt || e.mt === '0' || typeof MEM_TIERS === 'undefined') return e ? e.effect : '';
-  const t = (MEM_TIERS[e.source] || {})[e.effect];
-  return (t && t['t' + e.mt]) || e.effect;
+  if (!e) return '';
+  let s = e.effect;
+  if (e.mt && e.mt !== '0' && typeof MEM_TIERS !== 'undefined') { const t = (MEM_TIERS[e.source] || {})[e.effect]; s = (t && t['t' + e.mt]) || e.effect; }
+  return e.v && e.v.length && typeof applyRollText === 'function' ? applyRollText(s, e.v) : s;
 }
 // ── 추억 (근원·자기 수호·진격, 각 1개 제작) ──
 // 단계식 선택: 기본 속성(1) → 고유 옵션(최대 2) → 랜덤 옵션(최대 2), [다음]으로 건너뛰기 가능
@@ -5155,6 +5157,10 @@ function buildPresetFromLog(r, liSrc) {
       const o = {k: rowKey(row), effect: row.effect, source: row.source, type: row.type};
       const vals = (a.args && a.args[argKey] || [])[i];
       if (vals && vals.length) o.v = vals;
+      // 옵션 ID 끝 두 자리 = 티어 (00=T0 … 03=T3, 2026-10-27 실로그 13개 대조 — 값이 각 티어 범위 안).
+      // 랜덤 옵션만 티어 문구(MEM_TIERS)가 있어 mt 로 남긴다. 고유 옵션은 tlidb 행이 T1(…01)이라 실측값(v)으로만 맞춘다
+      const tr = +String(aid).slice(-2);
+      if (argKey === 'sub' && tr >= 1 && tr <= 3) o.mt = String(tr);
       return o;
     }).filter(Boolean).slice(0, max);
     // 기본 속성: 종류는 옵션코드로, 수치는 로그의 실제 값(성장 중이면 만렙 문구와 다르다)으로
@@ -5398,6 +5404,7 @@ function buildPresetFromLog(r, liSrc) {
   // (selectContract 2 = 운명으로 교체된 자리 — 노드 효과가 아니라 운명이 걸리므로 켜지 않는다.
   //  그 운명 자체는 tattoInfo로 이미 운명 목록에 들어온다)
   let pactsOut = null, pactMiss = [];
+  const advKept = new Set(); // 다시 가져오기에서 기존 프리셋의 승급을 이어받은 정령 (안내용)
   if (Object.keys(r.pactEq || {}).length) {
     pactsOut = [null, null, null];
 // 로그의 자리 번호(1~10)를 tlidb 데이터의 자리 번호로 옮긴다.
@@ -5472,6 +5479,12 @@ function buildPresetFromLog(r, liSrc) {
       if (!hero && old.hero) p.hero = old.hero;
       if (!heroNodesOut && old.heroNodes && Object.keys(old.heroNodes).length) { p.heroNodes = old.heroNodes; kept.push('히어로 특성'); }
       if (!pactsOut && old.pacts && old.pacts.some(Boolean)) { p.pacts = old.pacts; kept.push('정령'); }
+      // 승급이 로그에 안 실린 정령은 기존 프리셋에서 (직접 고른) 승급을 이어받는다 — 다시 가져올 때마다 비지 않게
+      if (pactsOut && old.pacts) pactsOut.forEach(x => {
+        if (!x || x.adv) return;
+        const o = old.pacts.find(y => y && y.name === x.name && y.adv);
+        if (o) { x.adv = o.adv; advKept.add(x.name); }
+      });
       if (old.heroHerbs) p.heroHerbs = old.heroHerbs;   // 약재는 로그에 없는 수동 항목 — 항상 유지
       if (old.memGrade) p.memGrade = old.memGrade;      // 로그에서 왔으면 아래에서 덮는다
       if (!prismOut && old.prism) { p.prism = old.prism; kept.push('프리즘'); }
@@ -5520,7 +5533,10 @@ function buildPresetFromLog(r, liSrc) {
     (revivalOut ? '\n· 추억 부활 옵션: ' + revivalOut.effect.slice(0, 20) : '') +
     (talents.length - coreCnt - dstCnt > 0 ? '\n· 석판 재능 노드: ' + (talents.length - coreCnt - dstCnt) + '개' : '') +
     (hero ? '\n· 히어로: ' + hero.hero + ' (' + hero.trait + ')' + (heroNodesOut ? ' — 특성 노드 ' + Object.keys(heroNodesOut).length + '개' : '') : '') +
-    (pactsOut ? '\n· 정령: ' + pactsOut.filter(Boolean).map(x => x.name).join(', ') : '') +
+    (pactsOut ? '\n· 정령: ' + pactsOut.filter(Boolean).map(x => x.name + (x.adv ? ' 승급 ' + x.adv + (advKept.has(x.name) ? '(기존 값)' : '') : '')).join(', ') : '') +
+    // 게임 로그는 보유 정령 목록을 접속마다 30개까지만 남긴다 — 그 밖의 정령은 승급을 알 수 없다
+    (pactsOut && pactsOut.some(x => x && !x.adv) ? '\n· 정령 승급: ' + pactsOut.filter(x => x && !x.adv).map(x => x.name).join(', ') +
+      ' — 게임 로그에 실리지 않아 비워 뒀습니다. 정령 줄에서 직접 골라 주세요 (다음 가져오기부터는 고른 값을 이어받습니다)' : '') +
     (pactMiss.length ? '\n· 정령 ' + pactMiss.length + '종은 이름을 몰라 건너뜀 (#' + pactMiss.join(', #') + ')' : '') +
     (heroNote ? '\n· ' + heroNote : '') +
     (baseCnt ? '\n· 장비 ' + baseCnt + '개는 옵션을 복원할 수 없어 제외' : '') +
