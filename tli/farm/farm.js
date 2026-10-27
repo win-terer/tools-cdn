@@ -10,15 +10,30 @@
   let sort = 'likes', q = '', list = [], more = false, busy = false;
   try { const o = JSON.parse(localStorage.getItem('tli_farm_ui_v1') || '{}'); if (['likes', 'views', 'new'].includes(o.sort)) sort = o.sort; } catch (e) {}
 
+  // 배치 코드에서 탐침·나침반(key 9000, 탐침 1 + 나침반 4) 꺼내기 — 목록 카드 아이콘용 (2026-10-28 사용자)
+  const GBY = typeof VOID_GEAR === 'object' ? new Map(VOID_GEAR.p.concat(VOID_GEAR.c).map(x => [x.id, x])) : new Map();
+  function gearOf(code) {
+    try {
+      const b = [...atob(String(code).replace(/-/g, '+').replace(/_/g, '/'))].map(ch => ch.charCodeAt(0));
+      let i = 0; const vi = () => { let n = 0, sh = 0, x; do { x = b[i++]; if (x == null) throw 0; n |= (x & 127) << sh; sh += 7; } while (x & 128); return n; };
+      if (vi() !== 1) return [];
+      while (i < b.length) {
+        const key = vi(), k = vi(), a = []; for (let j = 0; j < k; j++) a.push(vi());
+        if (key === 9000) return a.map(id => GBY.get(id)).filter(Boolean);
+      }
+    } catch (e) {}
+    return [];
+  }
   function card(x) {
     let pts = []; try { pts = JSON.parse(x.pts || '[]') || []; } catch (e) {}
     const cs = pts.map(([k, n]) => [BYKEY.get(k), n]).filter(p => p[0]).sort((a, b) => b[1] - a[1]);
-    const tot = cs.reduce((t, p) => t + p[1], 0);
+    const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t"><b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
       <div class="fm-m"><span data-noi18n>👤 ${esc(x.author)}</span><span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
+      ${gs.length ? `<div class="fm-gs">${gs.map(it => `<span class="fm-g" title="${esc(it.n)}"><img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><b class="q${it.q}">${esc(it.n)}</b></span>`).join('')}</div>` : ''}
     </a>`;
   }
   function render() {

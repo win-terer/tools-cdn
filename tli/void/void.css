@@ -40,7 +40,15 @@
     .vc-cap { color: #9aa4b2; font-size: 12px; letter-spacing: .06em; margin-bottom: 6px; }
     .vc-sum ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 13px; line-height: 1.45; }
     .vc-sum li { padding-left: 10px; position: relative; } .vc-sum li::before { content: '·'; position: absolute; left: 0; color: #59636e; }
+    .vc-stabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 9px; }
+    .vc-stab { display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 6px 0 3px; border: 1px solid #222b3a; border-radius: 8px; background: #131a27; color: #8b96a5; cursor: pointer; font: inherit; }
+    .vc-stab img { width: 24px; height: 24px; object-fit: contain; } .vc-stab b { font-size: 11.5px; }
+    .vc-stab.vc-sall { padding: 0 9px; font-size: 12px; font-weight: 700; }
+    .vc-stab:hover { border-color: #3a4658; color: #c9d1d9; } .vc-stab.on { border-color: #d4a72c; background: #2a2412; color: #f0c75e; }
     .vc-sum li.vc-sh { padding: 7px 0 0; margin-top: 4px; border-top: 1px solid #222b3a; color: #8b96a5; font-size: 11.5px; font-weight: 700; } .vc-sum li.vc-sh::before { content: none; }
+    .vc-sum li.vc-shg { display: flex; align-items: center; gap: 5px; color: #6fd3c4; border-top: 1px dashed #2e5f5a; } .vc-sum li.vc-shg img { width: 18px; height: 18px; object-fit: contain; }
+    .vc-sum li.vc-lg { color: #bfe9e2; } .vc-sum li.vc-lg::before { content: '◆'; font-size: 8px; top: 4px; color: #4fb3a5; }
+    .vc-stab[data-g] { border-style: dashed; border-color: #2e5f5a; } .vc-stab[data-g].on { border-style: solid; border-color: #4fb3a5; background: #12292a; color: #8fe3d6; }
     .vc-sum li.vc-sh:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
     .vc-sum li.vc-empty::before { content: none; } .vc-empty { color: #59636e; font-size: 13px; padding-left: 0; }
     .vc-sum li em { display: block; font-style: normal; color: #ffb37a; font-size: 11.5px; }
@@ -129,6 +137,10 @@
     .fm-c { position: relative; width: 34px; height: 34px; } .fm-c img { width: 34px; height: 34px; border-radius: 50%; }
     .fm-c i { position: absolute; right: -4px; bottom: -3px; font-style: normal; font-size: 10.5px; font-weight: 700; color: #0b0f17; background: #e8c860; border-radius: 999px; padding: 0 4px; line-height: 15px; }
     .fm-more { color: #7d8794; font-size: 12px; } .fm-tot { margin-left: auto; color: #7d8794; font-size: 12px; }
+    .fm-gs { display: flex; flex-wrap: wrap; gap: 4px 6px; padding-top: 7px; border-top: 1px dashed #2a3344; }
+    .fm-g { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: 11.5px; background: #131a27; border: 1px solid #222b3a; border-radius: 999px; padding: 1px 8px 1px 2px; }
+    .fm-g img { width: 22px; height: 22px; object-fit: contain; flex: none; } .fm-g b { font-weight: 600; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fm-g b.q2 { color: #8fb4ff; } .fm-g b.q3 { color: #c89bff; } .fm-g b.q100 { color: #ffb15a; }
     .fm-empty { grid-column: 1 / -1; padding: 40px; text-align: center; }
     .fm-morebar { display: flex; justify-content: center; margin-top: 12px; }
     @media (max-width: 520px) { .vc-body #farmApp { width: calc(100% - 20px); margin-top: 10px; } .fm-grid { grid-template-columns: 1fr; } .fm-q { width: 100%; } .vc-acts { width: 100%; } }

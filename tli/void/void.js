@@ -128,11 +128,16 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   const nodeLines = c => [...S[c.ci]].flatMap(id => { const n = c.by.get(id); return (n.map || []).concat(n.fn || []); });
   // 전체 합계는 별무리별·탐침·나침반 묶음으로 나눠 구분선과 제목을 단다 (2026-10-28 사용자)
+  // 묶음은 쓴 포인트 많은 별무리 먼저, 탐침·나침반은 맨 뒤. 위 아이콘 줄로 한 묶음만 골라 볼 수 있다
+  let sumSel = null;
   function summary(only) {
     if (only != null) { const c = CS.find(x => x.ci === only); return c ? [{ rows: merge(nodeLines(c)) }] : []; }
-    const out = CS.filter(c => S[c.ci].size).map(c => ({ h: c.name, rows: merge(nodeLines(c)) }));
-    const gl = [PBY.get(G.p)].concat(G.c.map(id => CBY.get(id))).filter(Boolean).flatMap(it => it.e);
-    if (gl.length) out.push({ h: '탐침 · 나침반', rows: merge(gl) });
+    const pts = c => [...S[c.ci]].reduce((a, id) => { const k = nodeCost(c, c.by.get(id)); return a + k.s + k.m; }, 0);
+    const out = CS.filter(c => S[c.ci].size).map(c => ({ key: String(c.ci), h: c.name, ic: ICON + c.icon, p: pts(c), n: S[c.ci].size, rows: merge(nodeLines(c)) }))
+      .sort((a, z) => z.p - a.p);
+    const gi = [PBY.get(G.p)].concat(G.c.map(id => CBY.get(id))).filter(Boolean);
+    const gl = gi.flatMap(it => it.e);
+    if (gl.length) out.push({ key: 'g', h: '탐침 · 나침반', ic: gi[0].i, p: -1, n: gi.length, rows: merge(gl) });   // 탐침·나침반은 한 묶음·맨 뒤
     return out.filter(x => x.rows.length);
   }
 
@@ -191,10 +196,16 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   function sumBox(only) {
     const li = r => `<li>${hl(r.t).replace(/\n/g, '<br>')}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</li>`;
-    const gs = summary(only);
-    const body = gs.length ? gs.map(x => (x.h ? `<li class="vc-sh">${esc(x.h)}</li>` : '') + x.rows.map(li).join('')).join('')
+    const all = summary(only);
+    if (sumSel != null && !all.some(x => x.key === sumSel)) sumSel = null;
+    const gs = only == null && sumSel != null ? all.filter(x => x.key === sumSel) : all;
+    const tabs = only == null && all.length > 1 ? `<div class="vc-stabs"><button class="vc-stab vc-sall${sumSel == null ? ' on' : ''}" data-act="sumsel" data-k="">전체</button>${all.map(x =>
+      `<button class="vc-stab${sumSel === x.key ? ' on' : ''}" data-act="sumsel" data-k="${x.key}" title="${esc(x.h)} · ${x.key === 'g' ? x.n + '개' : '노드 ' + x.n + '개 · ' + x.p + '포인트'}"${x.key === 'g' ? ' data-g' : ''}><img src="${esc(x.ic)}" alt=""><b>${x.n}</b></button>`).join('')}</div>` : '';
+    const body = gs.length ? gs.map(x => x.key === 'g'
+        ? `<li class="vc-sh vc-shg"><img src="${esc(x.ic)}" alt="">${esc(x.h)}</li>` + x.rows.map(r => li(r).replace('<li>', '<li class="vc-lg">')).join('')
+        : (x.h ? `<li class="vc-sh">${esc(x.h)}</li>` : '') + x.rows.map(li).join('')).join('')
       : '<li class="vc-empty">찍은 노드가 없습니다</li>';
-    return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div><ul>${body}</ul></div>`;
+    return `<div class="vc-sum"><div class="vc-cap">${only != null ? '이 별무리 효과' : '전체 효과 합계'}</div>${tabs}<ul>${body}</ul></div>`;
   }
   // 그윽한 별무리 카드에 찍은 대형 노드(핵심)를 아이콘·효과로 바로 보여 준다 (2026-10-27 사용자)
   function bigPicks(c) {
@@ -447,6 +458,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const a = t.dataset.act;
     if (RO && ['like', 'take', 'copylink', 'exit', 'vreq', 'edit', 'del'].includes(a)) return roAct(a);
     if (a === 'upload') return upload();
+    if (a === 'sumsel') { sumSel = t.dataset.k || null; render(); return; }
     if (a === 'back') { view = -1; history.replaceState(null, '', location.pathname + location.search); render(); }
     else if (a === 'undo' && undo.length) popUndo();
     else if (a === 'reset') { const go = () => { snap(); S = CS.map(() => new Set()); G = emptyG(); save(); render(); }; if (!S.some(x => x.size) && !hasG(G)) go(); else wtAsk('찍은 노드와 나침반·탐침을 모두 지울까요?', go); }
