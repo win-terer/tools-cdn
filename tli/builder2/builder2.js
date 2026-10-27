@@ -3839,7 +3839,9 @@ function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 �
     const rows = [];
     for (let j = 0; j < n; j++, k++) {
       const o = list[k], on = ero.includes(k);
-      const g = o.o ? optGrade(o.o.type) : null, tr = o.o ? affixTier(o.o) : null;
+      const g = o.o ? optGrade(o.o.type) : null;
+      // 레전드: 기본 T1(저렙 레전드는 로그로 T2 등), 침식하면 한 단계 위 (2026-10-27 사용자) / 제작·블러드: 로그 어픽스 ID 끝자리
+      const tr = o.o ? affixTier(o.o) : v.kind === 'item' ? String(Math.max(0, (+((v.otr || {})[k]) || 1) - (on ? 1 : 0))) : null;
       rows.push(`<div class="wg-vo ${WG_GR_ROW[g] || ''}${on ? ' on' : ''}" onclick="wgToggleEro(${k})">` +
         (tr ? `<i class="tier-chip tier-${tr}" title="이 옵션이 붙은 티어 (로그)">${tierLabel(tr)}</i>` : '') +
         `<span>${on && o.corrHtml ? o.corrHtml : o.html}</span>` +
@@ -4248,6 +4250,7 @@ function wmRender() {
   const picked = MEM_STAGES.map((s2, i) => `<div class="wg-pk${wmStage === i ? ' on' : ''}" onclick="wmStage=${i};wmQuery='';pageRender()">` +
     `<div class="wg-pkh"><b>${s2.type}</b><span>${o[s2.cat].length} / ${s2.max}</span></div>` +
     (o[s2.cat].length ? o[s2.cat].map((e, j) => `<div class="wg-pko"><span class="wg-pkt">${wgOptHtml(memEff(e), wmTips(e))}</span>` +
+      (s2.cat === 'unique' ? `<i class="tier-chip vw-mt" title="고유 옵션 티어 (기본 T1)">T${e.ut || '1'}</i>` : '') +
       (s2.cat === 'random' && wmHasTiers(e) ? `<span class="wm-mt">${MEM_TIER_PICK.map(t => `<i class="${(e.mt || '0') === t ? 'on' : ''}" onclick="event.stopPropagation();wmSetMt(${j},'${t}')" title="랜덤 옵션 티어 T${t}">T${t}</i>`).join('')}</span>` : '') +
       `<button onclick="event.stopPropagation();wmDel('${s2.cat}',${j})" title="빼기">✕</button></div>`).join('') : '<div class="wg-pke">눌러서 고르기</div>') + '</div>').join('') +
     (wmIsX(wmPart) ? '' : `<div class="wg-pk wm-rvk${isRv ? ' on' : ''}" onclick="wmStage=3;wmRvQ='';pageRender()"><div class="wg-pkh"><b>부활 옵션</b><span>${rvHere ? 1 : 0} / 1</span></div>` +
@@ -5104,6 +5107,7 @@ async function codeToPreset(code) {
       const o = {k: rowKey(r), effect: r.effect, source: r.source, type: talentLabel(r)};
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
       if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt; // 추억 랜덤 옵션 티어
+      if (x.ut === '0' || x.ut === '2' || x.ut === '3') o.ut = x.ut; // 추억 고유 옵션 티어 (기본 T1)
       return o;
     }
     if (x && typeof x === 'object') {
@@ -5116,6 +5120,7 @@ async function codeToPreset(code) {
       }
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
       if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt;
+      if (x.ut === '0' || x.ut === '2' || x.ut === '3') o.ut = x.ut;
       return o;
     }
     return null;
@@ -5167,6 +5172,11 @@ async function codeToPreset(code) {
         if (Object.keys(rd).length) p.slots[s.id].rand = rd;
       }
       if (typeof v.ga === 'string') p.slots[s.id].gaura = str(v.ga, 40);
+      if (v.ot && typeof v.ot === 'object') {
+        const ot = {};
+        Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
+        if (Object.keys(ot).length) p.slots[s.id].otr = ot;
+      }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -5348,7 +5358,7 @@ function buildCodePayload(p) {
     return ok ? '#' + h : {e: o.effect, s: o.source, t: o.type};
   };
   // 추억 랜덤 옵션 티어(mt, 2026-10-15) — 해시만이면 {h, mt}, 문구째면 객체에 mt
-  const encMt = o => { const x = encEntry(o); return o.mt ? (typeof x === 'string' ? {h: x, mt: o.mt} : {...x, mt: o.mt}) : x; };
+  const encMt = o => { const x = encEntry(o), t = {...(o.mt ? {mt: o.mt} : {}), ...(o.ut ? {ut: o.ut} : {})}; return Object.keys(t).length ? (typeof x === 'string' ? {h: x, ...t} : {...x, ...t}) : x; };
   const encSkill = o => {
     if (!o) return 0;
     const h = fnv36(o.name + '\u001f' + o.kind);
@@ -5373,6 +5383,7 @@ function buildCodePayload(p) {
       if (v.rolled) slots[s.id].ro = v.rolled;          // 로그 굴림값
       if (v.rand) slots[s.id].rd = v.rand;              // "<랜덤 …>" 자리의 복원 문구
       if (v.gaura) slots[s.id].ga = v.gaura;            // 부여 오라 선택
+      if (v.otr) slots[s.id].ot = v.otr;                // 옵션 티어 (기본 T1 이 아닌 것만)
     }
     else if (v.kind === 'blood') slots[s.id] = {k: 'b', p: v.part, n: v.name || '', ab: v.aberrant ? 1 : 0, o: v.opts.blood.map(encEntry), ba: (v.opts.base || []).map(o => o.effect), x: (v.opts.extra || []).map(o => o.k ? encEntry(o) : {e: o.effect, s: o.source, t: o.type, tr: o.tiers})};
     else slots[s.id] = {k: 'c', p: v.part, n: v.name || '', b: v.opts.basic.map(encEntry), m: v.opts.main.map(encEntry), s: v.opts.sub.map(encEntry)};
@@ -5390,7 +5401,7 @@ function buildCodePayload(p) {
   const mem = {};
   MEM_PARTS.forEach(pt => {
     const m = p.mems && p.mems[pt];
-    if (m) mem[pt] = {b: m.basic.map(encEntry), u: m.unique.map(encEntry), r: m.random.map(encMt)};
+    if (m) mem[pt] = {b: m.basic.map(encEntry), u: m.unique.map(encMt), r: m.random.map(encMt)};
   });
   let pr;
   if (p.prism) { // 프리즘: 종류·옵션 모두 데이터에 있으면 해시로, 없으면 텍스트로
@@ -5406,7 +5417,7 @@ function buildCodePayload(p) {
   if (p.revival) { // 부활 옵션: 데이터에 있으면 해시, 없으면 텍스트 (추가 추억은 옵션 엔트리로)
     const h = fnv36(p.revival.effect + '\u001f' + p.revival.group);
     rv = {p: p.revival.part, e: H.rv.has(h) && !H.rvBad.has(h) ? '#' + h : {e: p.revival.effect, g: p.revival.group}};
-    if (p.revival.mem) rv.m = {b: p.revival.mem.basic.map(encEntry), u: p.revival.mem.unique.map(encEntry), r: p.revival.mem.random.map(encMt)};
+    if (p.revival.mem) rv.m = {b: p.revival.mem.basic.map(encEntry), u: p.revival.mem.unique.map(encMt), r: p.revival.mem.random.map(encMt)};
   }
   const iv = p.inverse ? [p.inverse.pos, p.inverse.opts.low ? 1 : 0, p.inverse.opts.mid ? 1 : 0, p.inverse.opts.abs ? 1 : 0] : undefined;
   const sb = p.slateBd && p.slateBd.length
@@ -5539,6 +5550,8 @@ function createLogParser() {
   let pendArgs = null;            // 아직 Id를 만나지 못한 값 (Id가 DynArgs 뒤에 오는 덤프)
   let argSect = null, argIdx = -1; // 방금 Id를 만난 어픽스의 위치 (Id가 먼저 오는 덤프)
   let inDyn = false;               // DynArgs 값을 이어받는 중
+  // 석판 블록 원문 — 미지원 석판(일반 테트리스 등)을 관리 화면에서 직접 보려고 그 블록만 잘라 둔다 (2026-10-27 사용자)
+  let blkRaw = [], rawBlk = {};
   const chars = []; // 로그에 등장한 캐릭터별 스냅샷 (같은 캐릭터 재접속은 마지막 것으로 대체)
   function snapshot() {
     const gearOut = {};
@@ -5546,7 +5559,8 @@ function createLogParser() {
     const slateTal = Object.values(slate).flatMap(inst => tal[inst] || []).filter(Boolean); // 빈 칸(undefined) 제외
     // 석판 인스턴스별 상세: 출처 아이템(uniq/base)·보드 위치(Index=행×10+열)·회전(Direction)·꽂힌 노드
     const slates = Object.entries(slate).map(([idx, inst]) => ({
-      idx: +idx, uniq: uniq[inst] || 0, base: parseInt(inst, 10), dir: dirs[inst] || 0, inf: infs[inst] || 0, shape: shps[inst] || 0, nodes: tal[inst] || []
+      idx: +idx, uniq: uniq[inst] || 0, base: parseInt(inst, 10), dir: dirs[inst] || 0, inf: infs[inst] || 0, shape: shps[inst] || 0, nodes: tal[inst] || [],
+      raw: rawBlk[inst] || ''
     }));
     return {gear: gearOut, skills: sk, charName, mems, slateTal, slates, heroId, heroPur, heroTraits: hTraits.slice(), pactEq: Object.assign({}, pactEq), pactNodes: Object.assign({}, cNodes), svStars: Object.assign({}, svStars), skillAffix: Object.fromEntries(Object.entries(skInst).map(([k, v]) => [k, affix[v] || null])), skillLv: Object.fromEntries(Object.entries(skInst).map(([k, v]) => [k, lvl[v]]).filter(x => x[1] > 0)), genius: {core: gCore, picked: gPick, nodes: gNodes}, dst, prism, prisms: prisms.slice(),
             prismAreas: prismAreas.map(a => ({b: careerByBlk[a.blk] || null, c: a.c})), prismArea, skCache: [...skCache]};
@@ -5606,7 +5620,9 @@ function createLogParser() {
       if (curShp > 0) shps[curInst] = curShp;
       // Id보다 먼저 온 레벨 — 자기 레벨이 이미 직접 배정된 항목은 덮지 않는다 (오귀속 방지)
       if (pendLvl != null && lvl[curInst] === undefined) lvl[curInst] = pendLvl;
+      if (blkRaw.some(x => /TalentList|ShapeId|Direction/.test(x))) rawBlk[curInst] = blkRaw.slice(0, 80).join('\n').slice(0, 3000);
     }
+    blkRaw = [];
     pendLvl = null;
     curInst = null; curUniq = 0; curSect = null; inTal = false; curDir = 0; curInf = 0; curShp = 0; curRare = 0; pendMemState = null;
     curAffix = {basic: [], main: [], sub: [], chip: [], ench: [], awk: [], battr: []}; curTal = []; curEnc = [];
@@ -5642,6 +5658,8 @@ function createLogParser() {
     // PageId가 블록 '앞'에 오는 덤프(로그 09)에서는 섹션 마지막 아이템이 PageId를 만나지 못해
     // 다음 섹션 아이템으로 정보가 새던 문제 방지 (석판 마지막 장의 UniqueItmId 유실)
     if (l.charAt(0) === '+') flush();
+    const rawL = l.replace(/^[|\s]+/, ''); // 석판 블록 원문용 (아래 조기 return 전에 담는다)
+    if (blkRaw.length < 120) blkRaw.push(rawL);
     // EnchantTalentList=칸에 소켓된 낙인(+N=칸 번호), BaseTalentList=석판 고정 옵션.
     // 두 키가 나오는 순서는 덤프마다 다르므로(10=Enchant 먼저, 08=Base 먼저) 따로 담는다
     if ((m = RE_TAL.exec(l))) { inTal = m[1] === 'EnchantTalentList' ? 'e' : 'b'; (inTal === 'e' ? curEnc : curTal)[0] = m[2]; return; }
@@ -5766,7 +5784,7 @@ function createLogParser() {
     if ((m = RE_SECT.exec(l))) { curSect = SECT_CAT[m[1]] || null; pendArgs = null; argSect = null; argIdx = -1; }
     // 가방류 나열의 항목 경계 — 어픽스 내부 키(Version·DynArgs·Id)는 여기 안 걸린다.
     // 항목의 첫 필드는 덤프마다 다르다 (+29+BaseId · +30+Evalued · +28+RareValue …)
-    if (/^[|\s]*\+\d+\+(BaseId|RareValue|UniqueItmId|DropSource|DropSourceModifierId|SkillItemLevel|Evalued|Num|Level|Lock|Exp) \[/.test(l)) flush();
+    if (/^[|\s]*\+\d+\+(BaseId|RareValue|UniqueItmId|DropSource|DropSourceModifierId|SkillItemLevel|Evalued|Num|Level|Lock|Exp) \[/.test(l)) { flush(); blkRaw.push(rawL); }
     // 아이템 블록 추적 — 체인에 Item이 있거나 마지막 키가 아이템 필드면 안, 아니면(HeroId·servantId 등) 밖
     if ((m = RE_IBLK.exec(l))) {
       const segs = m[1].split('+');
@@ -6052,6 +6070,16 @@ function buildPresetFromLog(r, liSrc) {
         const ero = [];
         it.corr.forEach((c, ci) => { if (c && ids.has(String(c[0]))) ero.push(ci); });
         if (ero.length) slots[sid].ero = ero;
+        // 옵션 티어 = 어픽스 ID 끝자리 (기본 T1 …1 · 침식 T0 …0 · 저렙 레전드는 T2 …2, 2026-10-27 사용자).
+        // 기본(T1)이 아닌 것만 남긴다 — 침식된 옵션(…0)은 원래 티어를 알 수 없어 기본으로 본다
+        const otr = {};
+        it.corr.forEach((c, ci) => {
+          if (!c) return;
+          const pre = String(c[0]).slice(0, -1), hit = [...ids].find(x => x.length === String(c[0]).length && x.slice(0, -1) === pre);
+          const d = hit ? hit.slice(-1) : '';
+          if (/[2-9]/.test(d)) otr[ci] = d;
+        });
+        if (Object.keys(otr).length) slots[sid].otr = otr;
       }
       // "<랜덤 …>" 자리는 로그 어픽스로 실제 옵션을 복원한다 (풀은 '랜덤 풀' 행으로 데이터에 있다).
       // 어픽스에는 기본 속성 등 옵션 밖의 것도 섞여 개수가 안 맞는다 — 풀 행으로 찾히는 것만
@@ -6256,9 +6284,10 @@ function buildPresetFromLog(r, liSrc) {
       const vals = (a.args && a.args[argKey] || [])[i];
       if (vals && vals.length) o.v = vals;
       // 옵션 ID 끝 두 자리 = 티어 (00=T0 … 03=T3, 2026-10-27 실로그 13개 대조 — 값이 각 티어 범위 안).
-      // 랜덤 옵션만 티어 문구(MEM_TIERS)가 있어 mt 로 남긴다. 고유 옵션은 tlidb 행이 T1(…01)이라 실측값(v)으로만 맞춘다
+      // 랜덤 옵션만 티어 문구(MEM_TIERS)가 있어 mt 로 남긴다. 고유 옵션은 tlidb 행이 T1(…01)이라 수치는 실측값(v)으로, 티어는 ut(배지용)
       const tr = +String(aid).slice(-2);
       if (argKey === 'sub' && tr >= 1 && tr <= 3) o.mt = String(tr);
+      if (argKey === 'basic' && tr >= 0 && tr <= 3 && tr !== 1) o.ut = String(tr); // 고유 옵션 — 기본 T1(tlidb 행), 그 밖만 남긴다
       return o;
     }).filter(Boolean).slice(0, max);
     // 기본 속성: 종류는 옵션코드로, 수치는 로그의 실제 값(성장 중이면 만렙 문구와 다르다)으로
@@ -6615,7 +6644,10 @@ function buildPresetFromLog(r, liSrc) {
       (r.heroId && !(LOGMAP.hero || {})[r.heroId] ? '#' + r.heroId + (r.heroPur ? '/' + r.heroPur : '') : '');
     const liBody = {k: liSrc, n: p.name, s: (firstMain && firstMain.name) || '', h: liHero};
     if (liSrc === 'ext' && r.extSrc) liBody.src = r.extSrc; // 어느 앱에서 왔는지 (스펙 src 필드)
-    sendLiStat(Object.assign({li: liBody}, missNames.size ? {lm: 1} : {}));
+    // 미지원 석판: 그 석판 블록의 로그 원문만 잘라 보낸다 — 관리 화면(통계)에서 보고 SLATES 에 등록 (2026-10-27)
+    const us = (r.slates || []).filter(s => !SLATES[s.uniq || s.base]).slice(0, 4)
+      .map(s => ({u: s.uniq || s.base, b: s.base, i: s.idx, d: s.dir || 0, f: s.inf || 0, sh: s.shape || 0, t: (s.nodes || []).slice(0, 8), raw: String(s.raw || '').slice(0, 3000)}));
+    sendLiStat(Object.assign({li: liBody}, missNames.size ? {lm: 1} : {}, us.length ? {us} : {}));
   }
   alert('[' + p.name + '] 빌드로 가져왔습니다.\n' +
     '· 스킬: 메인 ' + mainCnt + '개 + 보조 ' + supCnt + '개\n' +

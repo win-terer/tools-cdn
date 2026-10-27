@@ -2508,6 +2508,7 @@ async function codeToPreset(code) {
       const o = {k: rowKey(r), effect: r.effect, source: r.source, type: talentLabel(r)};
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
       if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt; // 추억 랜덤 옵션 티어
+      if (x.ut === '0' || x.ut === '2' || x.ut === '3') o.ut = x.ut; // 추억 고유 옵션 티어 (기본 T1)
       return o;
     }
     if (x && typeof x === 'object') {
@@ -2520,6 +2521,7 @@ async function codeToPreset(code) {
       }
       if (Array.isArray(x.v)) o.v = x.v.slice(0, 6).map(Number).filter(isFinite);
       if (x.mt === '1' || x.mt === '2' || x.mt === '3') o.mt = x.mt;
+      if (x.ut === '0' || x.ut === '2' || x.ut === '3') o.ut = x.ut;
       return o;
     }
     return null;
@@ -2571,6 +2573,11 @@ async function codeToPreset(code) {
         if (Object.keys(rd).length) p.slots[s.id].rand = rd;
       }
       if (typeof v.ga === 'string') p.slots[s.id].gaura = str(v.ga, 40);
+      if (v.ot && typeof v.ot === 'object') {
+        const ot = {};
+        Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
+        if (Object.keys(ot).length) p.slots[s.id].otr = ot;
+      }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -2752,7 +2759,7 @@ function buildCodePayload(p) {
     return ok ? '#' + h : {e: o.effect, s: o.source, t: o.type};
   };
   // 추억 랜덤 옵션 티어(mt, 2026-10-15) — 해시만이면 {h, mt}, 문구째면 객체에 mt
-  const encMt = o => { const x = encEntry(o); return o.mt ? (typeof x === 'string' ? {h: x, mt: o.mt} : {...x, mt: o.mt}) : x; };
+  const encMt = o => { const x = encEntry(o), t = {...(o.mt ? {mt: o.mt} : {}), ...(o.ut ? {ut: o.ut} : {})}; return Object.keys(t).length ? (typeof x === 'string' ? {h: x, ...t} : {...x, ...t}) : x; };
   const encSkill = o => {
     if (!o) return 0;
     const h = fnv36(o.name + '\u001f' + o.kind);
@@ -2777,6 +2784,7 @@ function buildCodePayload(p) {
       if (v.rolled) slots[s.id].ro = v.rolled;          // 로그 굴림값
       if (v.rand) slots[s.id].rd = v.rand;              // "<랜덤 …>" 자리의 복원 문구
       if (v.gaura) slots[s.id].ga = v.gaura;            // 부여 오라 선택
+      if (v.otr) slots[s.id].ot = v.otr;                // 옵션 티어 (기본 T1 이 아닌 것만)
     }
     else if (v.kind === 'blood') slots[s.id] = {k: 'b', p: v.part, n: v.name || '', ab: v.aberrant ? 1 : 0, o: v.opts.blood.map(encEntry), ba: (v.opts.base || []).map(o => o.effect), x: (v.opts.extra || []).map(o => o.k ? encEntry(o) : {e: o.effect, s: o.source, t: o.type, tr: o.tiers})};
     else slots[s.id] = {k: 'c', p: v.part, n: v.name || '', b: v.opts.basic.map(encEntry), m: v.opts.main.map(encEntry), s: v.opts.sub.map(encEntry)};
@@ -2794,7 +2802,7 @@ function buildCodePayload(p) {
   const mem = {};
   MEM_PARTS.forEach(pt => {
     const m = p.mems && p.mems[pt];
-    if (m) mem[pt] = {b: m.basic.map(encEntry), u: m.unique.map(encEntry), r: m.random.map(encMt)};
+    if (m) mem[pt] = {b: m.basic.map(encEntry), u: m.unique.map(encMt), r: m.random.map(encMt)};
   });
   let pr;
   if (p.prism) { // 프리즘: 종류·옵션 모두 데이터에 있으면 해시로, 없으면 텍스트로
@@ -2810,7 +2818,7 @@ function buildCodePayload(p) {
   if (p.revival) { // 부활 옵션: 데이터에 있으면 해시, 없으면 텍스트 (추가 추억은 옵션 엔트리로)
     const h = fnv36(p.revival.effect + '\u001f' + p.revival.group);
     rv = {p: p.revival.part, e: H.rv.has(h) && !H.rvBad.has(h) ? '#' + h : {e: p.revival.effect, g: p.revival.group}};
-    if (p.revival.mem) rv.m = {b: p.revival.mem.basic.map(encEntry), u: p.revival.mem.unique.map(encEntry), r: p.revival.mem.random.map(encMt)};
+    if (p.revival.mem) rv.m = {b: p.revival.mem.basic.map(encEntry), u: p.revival.mem.unique.map(encMt), r: p.revival.mem.random.map(encMt)};
   }
   const iv = p.inverse ? [p.inverse.pos, p.inverse.opts.low ? 1 : 0, p.inverse.opts.mid ? 1 : 0, p.inverse.opts.abs ? 1 : 0] : undefined;
   const sb = p.slateBd && p.slateBd.length
@@ -4410,7 +4418,9 @@ function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 �
     const rows = [];
     for (let j = 0; j < n; j++, k++) {
       const o = list[k], on = ero.includes(k);
-      const g = o.o ? optGrade(o.o.type) : null, tr = o.o ? affixTier(o.o) : null;
+      const g = o.o ? optGrade(o.o.type) : null;
+      // 레전드: 기본 T1(저렙 레전드는 로그로 T2 등), 침식하면 한 단계 위 (2026-10-27 사용자) / 제작·블러드: 로그 어픽스 ID 끝자리
+      const tr = o.o ? affixTier(o.o) : v.kind === 'item' ? String(Math.max(0, (+((v.otr || {})[k]) || 1) - (on ? 1 : 0))) : null;
       rows.push(`<div class="wg-vo ${WG_GR_ROW[g] || ''}${on ? ' on' : ''}" onclick="wgToggleEro(${k})">` +
         (tr ? `<i class="tier-chip tier-${tr}" title="이 옵션이 붙은 티어 (로그)">${tierLabel(tr)}</i>` : '') +
         `<span>${on && o.corrHtml ? o.corrHtml : o.html}</span>` +
@@ -4819,6 +4829,7 @@ function wmRender() {
   const picked = MEM_STAGES.map((s2, i) => `<div class="wg-pk${wmStage === i ? ' on' : ''}" onclick="wmStage=${i};wmQuery='';pageRender()">` +
     `<div class="wg-pkh"><b>${s2.type}</b><span>${o[s2.cat].length} / ${s2.max}</span></div>` +
     (o[s2.cat].length ? o[s2.cat].map((e, j) => `<div class="wg-pko"><span class="wg-pkt">${wgOptHtml(memEff(e), wmTips(e))}</span>` +
+      (s2.cat === 'unique' ? `<i class="tier-chip vw-mt" title="고유 옵션 티어 (기본 T1)">T${e.ut || '1'}</i>` : '') +
       (s2.cat === 'random' && wmHasTiers(e) ? `<span class="wm-mt">${MEM_TIER_PICK.map(t => `<i class="${(e.mt || '0') === t ? 'on' : ''}" onclick="event.stopPropagation();wmSetMt(${j},'${t}')" title="랜덤 옵션 티어 T${t}">T${t}</i>`).join('')}</span>` : '') +
       `<button onclick="event.stopPropagation();wmDel('${s2.cat}',${j})" title="빼기">✕</button></div>`).join('') : '<div class="wg-pke">눌러서 고르기</div>') + '</div>').join('') +
     (wmIsX(wmPart) ? '' : `<div class="wg-pk wm-rvk${isRv ? ' on' : ''}" onclick="wmStage=3;wmRvQ='';pageRender()"><div class="wg-pkh"><b>부활 옵션</b><span>${rvHere ? 1 : 0} / 1</span></div>` +
@@ -5756,13 +5767,15 @@ function vwMems() {
   if (!parts.some(p => wmMem(p))) return vwEmpty('추억을 넣지 않은 빌드입니다');
   // 컴팩트 (2026-10-22 사용자: 공간을 너무 차지함) — 구분 머리줄 대신 왼쪽 작은 꼬리표 + 옵션 줄
   const row = (nm, body) => `<div class="vw-mrow"><span class="vw-mk">${nm}</span><div>${body}</div></div>`;
-  const sec = (nm, list) => list.length ? row(nm, list.map(e => `<div class="wg-vo"><span>${wgOptHtml(memEff(e), wmTips(e))}</span>${e.mt ? `<i class="tier-chip vw-mt">T${e.mt}</i>` : ''}</div>`).join('')) : '';
+  // 티어 배지: 랜덤 = mt(T0 은 표시 안 함) · 고유 = ut(없으면 기본 T1, 2026-10-27 사용자)
+  const sec = (nm, list, uq) => list.length ? row(nm, list.map(e => { const t = e.mt || (uq ? e.ut || '1' : '');
+    return `<div class="wg-vo"><span>${wgOptHtml(memEff(e), wmTips(e))}</span>${t ? `<i class="tier-chip vw-mt">T${t}</i>` : ''}</div>`; }).join('')) : '';
   return `<div class="vw-mems" style="--n:${parts.length}">` + parts.map(p => {  // 카드 수만큼 한 줄 (4개면 4개, 사용자 2026-10-22)
     const m = wmMem(p), key = wmKey(p), g = HERO_GRADES.find(x => x[0] === memGrade(key)) || HERO_GRADES[HERO_GRADES.length - 1];
     const label = wmIsX(p) ? '부활 추가 · ' + wmXPart() : p, rv = preset.revival && preset.revival.part === p ? preset.revival : null;
     return `<div class="vw-mem${m ? '' : ' none'}"><div class="wm-ch"><b>${vwEsc(label)}</b><i class="tier-chip tier-${g[3]}">${vwEsc(g[1])}</i>` +
       `<span class="vw-mlv">${WM_NODE[wmIsX(p) ? 'x' : p]} Lv ${m ? memGradeLv(key, m) : 1}</span></div>` +
-      (m ? sec('기본', m.basic) + sec('고유', m.unique) + sec('랜덤', m.random) : '<div class="ws-none">비어 있음</div>') +
+      (m ? sec('기본', m.basic) + sec('고유', m.unique, 1) + sec('랜덤', m.random) : '<div class="ws-none">비어 있음</div>') +
       (rv ? row('부활', `<div class="wg-vo"><span>${wgOptHtml(rv.effect, (REVIVALS.find(x => x.effect === rv.effect) || {}).tips)}</span></div>`) : '') + '</div>';
   }).join('') + '</div>';
 }
