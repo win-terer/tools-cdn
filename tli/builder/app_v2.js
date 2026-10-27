@@ -2059,6 +2059,21 @@ function slateDerived(bd) {
   });
   return {copies, boosted, boostV, spreads, boostPairs};
 }
+// 피스마다 효과가 닿는 칸(자기 칸 제외) — 마우스를 올리면 빈 칸까지 점선으로 (옵션이 없어 복제·전염이 0건이어도 범위는 보이게, 2026-10-27 사용자)
+//   들불·고향 = 상하좌우 · 나방 = 정해진 한 방향 · 균열 = 좌우 · 인펙션 = 변을 맞댄 칸 · 심판 = 돌 사이 영역
+function slateRange(bd) {
+  return bd.map(s => {
+    const info = SLATES[s.u] || {}, cells = slateCells(s.u, s.i, s.d) || [s.i], out = new Set();
+    const around = ds => cells.forEach(c => ds.forEach(d => out.add(c + d)));
+    const cp = info.copy;
+    if (cp && cp.a === 'dir') { const di = (s.f || 0) - 1001; if (di >= 0 && di <= 3) out.add(s.i + [-1, -10, 1, 10][di]); }
+    else if (cp && cp.a === 'lr') around([-10, 10]);
+    else if (cp || info.spread) around([-10, 10, -1, 1]);
+    if (info.boost) judgeRegion(cells).forEach(c => out.add(c));
+    cells.forEach(c => out.delete(c));
+    return out;
+  });
+}
 // 보드(slateBd) → 석판 재능 행 라벨 공통부 — add(nid, src) 콜백으로 밀어넣는다
 // (로그 가져오기와 보드 편집 재생성이 같은 라벨 규칙을 쓰도록)
 function addSlateTalentRows(bd, add) {

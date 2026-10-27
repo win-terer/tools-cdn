@@ -461,6 +461,21 @@ function slateDerived(bd) {
   });
   return {copies, boosted, boostV, spreads, boostPairs};
 }
+// 피스마다 효과가 닿는 칸(자기 칸 제외) — 마우스를 올리면 빈 칸까지 점선으로 (옵션이 없어 복제·전염이 0건이어도 범위는 보이게, 2026-10-27 사용자)
+//   들불·고향 = 상하좌우 · 나방 = 정해진 한 방향 · 균열 = 좌우 · 인펙션 = 변을 맞댄 칸 · 심판 = 돌 사이 영역
+function slateRange(bd) {
+  return bd.map(s => {
+    const info = SLATES[s.u] || {}, cells = slateCells(s.u, s.i, s.d) || [s.i], out = new Set();
+    const around = ds => cells.forEach(c => ds.forEach(d => out.add(c + d)));
+    const cp = info.copy;
+    if (cp && cp.a === 'dir') { const di = (s.f || 0) - 1001; if (di >= 0 && di <= 3) out.add(s.i + [-1, -10, 1, 10][di]); }
+    else if (cp && cp.a === 'lr') around([-10, 10]);
+    else if (cp || info.spread) around([-10, 10, -1, 1]);
+    if (info.boost) judgeRegion(cells).forEach(c => out.add(c));
+    cells.forEach(c => out.delete(c));
+    return out;
+  });
+}
 // 보드(slateBd) → 석판 재능 행 라벨 공통부 — add(nid, src) 콜백으로 밀어넣는다
 // (로그 가져오기와 보드 편집 재생성이 같은 라벨 규칙을 쓰도록)
 function addSlateTalentRows(bd, add) {
@@ -1010,7 +1025,7 @@ function wsbCellClick(id) {
     const err = sbLimitErr(wsbPal);
     if (err) { wsbMsg = err; pageRender(); return; }
     const d = sbFitDir(bd, wsbPal, id, 0, -1);
-    bd.push({u: wsbPal, i: id, d: d < 0 ? 0 : d, t: []});
+    bd.push(Object.assign({u: wsbPal, i: id, d: d < 0 ? 0 : d, t: []}, ((SLATES[wsbPal] || {}).copy || {}).a === 'dir' ? {f: 1001} : {})); // 나방은 복제 방향 '위'로 시작 (회전 단추로 바꾼다)
     wsbSel = bd.length - 1; wsbPal = null; wsbSock = null;
     wsbApply(); return;
   }
@@ -1021,7 +1036,10 @@ function wsbCellClick(id) {
     wsbApply();
   }
 }
-function wsbRotate() { const sl = wsbBd()[wsbSel]; if (!sl) return; sl.d = (sl.d + 1) % 4; wsbApply(); }
+// 나방(한 칸)은 회전해도 모양이 같아 회전 = 복제 방향 돌리기 — 시계 방향 위→오른쪽→아래→왼쪽 (InfluenceId 1001 위·1002 왼쪽·1003 아래·1004 오른쪽, 2026-10-27 사용자: 나방 강조 안 됨 — 방향 값이 없었다)
+const WSB_MOTH_NEXT = {1001: 1004, 1004: 1003, 1003: 1002, 1002: 1001};
+const wsbIsMoth = sl => ((SLATES[sl.u] || {}).copy || {}).a === 'dir';
+function wsbRotate() { const sl = wsbBd()[wsbSel]; if (!sl) return; if (wsbIsMoth(sl)) sl.f = WSB_MOTH_NEXT[sl.f] || 1001; else sl.d = (sl.d + 1) % 4; wsbApply(); }
 function wsbShape() { // 신격 모양 변형 순환 (소켓·위치·회전 유지)
   const sl = wsbBd()[wsbSel]; if (!sl) return;
   const base = Math.floor((sl.u - 1) / 100) * 100;
@@ -1117,11 +1135,12 @@ document.addEventListener('pointerup', e => {
   pageRender();
 });
 let wsbLinks = []; // 피스 → 파생 효과로 연결된 피스 (마우스 올리면 함께 강조 — 빌더와 같음)
+let wsbRange = []; // 피스 → 효과가 닿는 칸 id (slateRange)
 function wsbBoardHtml() {
   const bd = wsbBd(), cellOf = new Map();
   const colOf = wsbColors(bd);
   const all = slatePieceInfo(bd); // 빌더와 같은 피스 정보·툴팁 (00_slate.js)
-  wsbLinks = all.links;
+  wsbLinks = all.links; wsbRange = slateRange(bd);
   bd.forEach((s, pi) => {
     (slateCellsXY(s.u, s.i, s.d) || [[(s.i / 10) | 0, s.i % 10]]).forEach((xy, ci) => {
       const key = xy[0] + ',' + xy[1], out = xy[0] < 1 || xy[0] > 6 || xy[1] < 1 || xy[1] > 6 || !SLATE_ACT.has(xy[1] * 10 + xy[0]);
@@ -1147,9 +1166,10 @@ function wsbBoardHtml() {
   return h + '</div>';
 }
 // 마우스를 올린 석판 + 파생 효과로 이어진 석판(복제 원본·전염/강화 대상)을 강조, 나머지는 흐리게 (빌더 sbHighlight 와 같음)
-function wsbHighlight(pis, sec) {
-  sec = sec || new Set();
+function wsbHighlight(pis, sec, rng) {
+  sec = sec || new Set(); rng = rng || new Set();
   const on = pis.size > 0;
+  document.querySelectorAll('#wsbBoard .wsb-cell').forEach(el => el.classList.toggle('rng', rng.has(+el.dataset.cid)));
   document.querySelectorAll('#wsbBoard .wsb-cell.on').forEach(el => {
     const p = +el.dataset.pi, hit = pis.has(p);
     el.classList.toggle('hl', hit);
@@ -1159,7 +1179,7 @@ function wsbHighlight(pis, sec) {
 }
 document.addEventListener('mouseover', e => {
   const cell = e.target.closest && e.target.closest('#wsbBoard .wsb-cell.on, .wsb-li[data-pi]');
-  if (cell) { const pi = +cell.dataset.pi; wsbHighlight(new Set([pi]), wsbLinks[pi] || new Set()); }
+  if (cell) { const pi = +cell.dataset.pi; wsbHighlight(new Set([pi]), wsbLinks[pi] || new Set(), wsbRange[pi]); }
 });
 document.addEventListener('mouseout', e => {
   if (e.target.closest && e.target.closest('#wsbBoard .wsb-cell.on, .wsb-li[data-pi]')) wsbHighlight(new Set());
@@ -1184,7 +1204,7 @@ function wsbRender() {
   if (sl) {
     const info = SLATES[sl.u] || {}, isGod = (Math.floor((sl.u - 1) / 100) * 100) in GOD_BASES;
     side = `<div class="wg-addbox"><div class="wg-addh"><b>${escapeHtml(info.n || '#' + sl.u)}</b><span>${(info.c || []).length}칸</span></div>` +
-      '<div class="wsb-acts"><button class="wz-btn" onclick="wsbRotate()">↻ 회전</button>' + (isGod ? `<button class="wz-btn" onclick="wsbShape()">모양: ${escapeHtml((info.shp || '?').replace(/1$/, ''))}</button>` : '') +
+      '<div class="wsb-acts"><button class="wz-btn" onclick="wsbRotate()">' + (wsbIsMoth(sl) ? '↻ 복제 방향: ' + ({1001: '위', 1002: '왼쪽', 1003: '아래', 1004: '오른쪽'}[sl.f] || '없음') : '↻ 회전') + '</button>' + (isGod ? `<button class="wz-btn" onclick="wsbShape()">모양: ${escapeHtml((info.shp || '?').replace(/1$/, ''))}</button>` : '') +
       (isGod && GOD_MIRROR[sl.u] ? '<button class="wz-btn" onclick="wsbFlip(\'h\')" title="보이는 그대로 좌우로 뒤집습니다">⇋ 좌우 반전</button><button class="wz-btn" onclick="wsbFlip(\'v\')" title="보이는 그대로 위아래로 뒤집습니다">⇅ 상하 반전</button>' : '') +
       '<button class="wz-btn" onclick="wsbDelete()">삭제</button></div>' +
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';

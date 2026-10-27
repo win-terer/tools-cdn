@@ -462,6 +462,9 @@
     .wsb-cell.on.hl { box-shadow: 0 0 0 2px var(--sc), 0 0 12px color-mix(in srgb, var(--sc) 60%, transparent); filter: brightness(1.45); z-index: 1; }
     .wsb-cell.on.hl2 { box-shadow: 0 0 0 2px color-mix(in srgb, var(--sc) 65%, transparent), 0 0 8px var(--sc); filter: brightness(1.18); }
     .wsb-cell.on.dim { opacity: .3; }
+    /* 영향 범위(들불 상하좌우·나방 한 방향·균열 좌우·인펙션 이웃·심판 영역) — 옵션이 없어 복제가 0건이어도 마우스를 올리면 보인다 (2026-10-27 사용자) */
+    .wsb-cell.rng { outline: 2px dashed color-mix(in srgb, var(--rc, #ffd166) 85%, transparent); outline-offset: -3px; }
+    .wsb-cell.on.rng.dim { opacity: .7; }
     .wsb-cell.on.fx { animation: wsbPulse 3.2s ease-in-out infinite; }
     @keyframes wsbPulse { 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--sc) 70%, transparent); } }
     .wz-page .ft-sec { color: #c9a7ff; font-weight: 600; margin: 2px 0; }
@@ -836,3 +839,10 @@
     /* 소켓 옵션 목록 — 빌더 2 는 고정 높이 상자 안이라 저절로 잘렸지만 여기선 페이지가 끝없이 늘어난다 → 목록만 스크롤 */
     .sp-body #wsbSockList { max-height: min(52vh, 460px); flex: none; }
     .sp-body .wg-vright { align-self: start; }
+    /* 칸 툴팁 상자 — 빌더 2 는 히어로 화면 스타일(.hp-body)에서 받는데 이 화면엔 그게 없어 왼쪽 아래에 글자로만 찍혔다 (2026-10-27 사용자 캡처) */
+    .sp-body #floatTip2 { position: fixed; z-index: 10060; max-width: 360px; max-height: 80vh; overflow-y: auto; background: #10141f; border: 1px solid #3a4a6b; border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.65); font-size: 12.5px; line-height: 1.55; display: none; pointer-events: none; }
+    .sp-body .ft-title { color: #ffd700; font-weight: bold; margin-bottom: 4px; }
+    .sp-body .ft-body { color: #ccc; white-space: pre-line; }
+    .sp-body .ft-sec { color: #c9a7ff; font-weight: 600; margin: 2px 0; }
+    .sp-body .ft-hl { color: #ffd166; font-weight: 600; }
+    .sp-body #floatTip2 .ft-body > div { padding: 1px 0; }

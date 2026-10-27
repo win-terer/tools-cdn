@@ -849,6 +849,9 @@
     .wsb-cell.on.hl { box-shadow: 0 0 0 2px var(--sc), 0 0 12px color-mix(in srgb, var(--sc) 60%, transparent); filter: brightness(1.45); z-index: 1; }
     .wsb-cell.on.hl2 { box-shadow: 0 0 0 2px color-mix(in srgb, var(--sc) 65%, transparent), 0 0 8px var(--sc); filter: brightness(1.18); }
     .wsb-cell.on.dim { opacity: .3; }
+    /* 영향 범위(들불 상하좌우·나방 한 방향·균열 좌우·인펙션 이웃·심판 영역) — 옵션이 없어 복제가 0건이어도 마우스를 올리면 보인다 (2026-10-27 사용자) */
+    .wsb-cell.rng { outline: 2px dashed color-mix(in srgb, var(--rc, #ffd166) 85%, transparent); outline-offset: -3px; }
+    .wsb-cell.on.rng.dim { opacity: .7; }
     .wsb-cell.on.fx { animation: wsbPulse 3.2s ease-in-out infinite; }
     @keyframes wsbPulse { 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--sc) 70%, transparent); } }
     .wz-page .ft-sec { color: #c9a7ff; font-weight: 600; margin: 2px 0; }
