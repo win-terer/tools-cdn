@@ -279,7 +279,10 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const flat = VOID_PET.map(pt => ({ id: pt.id, n: pt.n, e: (pt.a[pt.a.length - 1] || []).concat(pt.nd) }));
     const w = gRecs(flat), GR = { 100: '레전드', 3: '레어', 2: '매직' };
     const btn = (pt, tags) => `<button type="button" class="vc-gs${pt.id === cur ? ' cur' : ''}${tags ? ' rec' : ''}"${other.has(pt.id) ? ' disabled title="이미 다른 칸에 넣은 정령입니다"' : ''} data-pid="${pt.id}" data-s="${esc((pt.n + ' ' + pt.a.flat().concat(pt.nd).join(' ')).toLowerCase())}">${pItem(pt)}${tags ? `<em class="vc-gr">${tags.map(esc).join(' · ')}</em>` : ''}</button>`;
-    const rec = VOID_PET.filter(pt => w.has(pt.id)).sort((a, z) => w.get(z.id).n - w.get(a.id).n || z.q - a.q);
+    // 명암의 불꽃(드롭 수량만 — 어디서나 쓰는 범용)은 추천에 늘 넣되 맨 아래 (2026-10-28 사용자)
+    const ANY = VOID_PET.find(pt => pt.n === '명암의 불꽃');
+    const rec = VOID_PET.filter(pt => w.has(pt.id) && pt !== ANY).sort((a, z) => w.get(z.id).n - w.get(a.id).n || z.q - a.q);
+    if (ANY) { rec.push(ANY); w.set(ANY.id, { n: 0, t: ['범용'] }); }
     const groups = [100, 3, 2].map(q => { const l = VOID_PET.filter(pt => pt.q === q); return l.length ? `<div class="vc-gh">${GR[q]}</div>${l.map(pt => btn(pt)).join('')}` : ''; }).join('');
     const d = document.createElement('div'); d.className = 'vc-dim';
     d.innerHTML = `<div class="vc-dlg vc-gpk"><b>정령 ${i + 1}번 칸 고르기 <small>드롭 정령 · 효과는 최고 승급 기준</small></b>
