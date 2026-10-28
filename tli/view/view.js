@@ -1644,8 +1644,11 @@ function supRule(s) { // → null(거르지 않음) | {name} | {alts: [[태그�
   const txt = String((s.desc || [''])[0] || '').split('<br>')[0].replace(/<[^>]+>/g, '').trim();
   let r = null, m;
   const not = [];
-  const deny = txt.match(/([가-힣 ]+?) 스킬은 보조할 수 없다/) || txt.match(/, ([가-힣 ]+?) 보조 불가/);
-  if (deny) for (const p of deny[1].split(/\s*및\s*/)) { const t = supTagsOf(p); if (t) not.push(...t); }
+  // 보조 불가는 둘째 줄에 따로 있기도 하다 — "채널링 스킬은 보조할 수 없다." (사냥 템포 등 8종, 2026-10-28)
+  String((s.desc || [''])[0] || '').split('<br>').map(g => g.replace(/<[^>]+>/g, '').trim()).forEach(g => {
+    const deny = g.match(/([가-힣 ,]+?)(?:은|는) 보조할 수 없다/) || g.match(/, ([가-힣 ]+?) 보조 불가/);
+    if (deny) for (const p of deny[1].split(/\s*,\s*|\s*및\s*/)) { const t = supTagsOf(p); if (t) not.push(...t); }
+  });
   if ((m = txt.match(/^(.+?) 스킬을 보조한다/) || txt.match(/^(.+?) 스킬 보조,/))) {
     const tgt = m[1].trim();
     if (SKILLS.some(k => k.name === tgt && (k.kind === '액티브' || k.kind === '패시브'))) r = {name: tgt};
@@ -1661,7 +1664,25 @@ function supRule(s) { // → null(거르지 않음) | {name} | {alts: [[태그�
 // 정밀판 메인(정밀 화염의 주입 등)은 원래 스킬과 같은 메인으로 본다 — 부귀·숭고·'○○ 스킬을 보조한다'가 원래 이름으로 걸려 있어서 (2026-10-15 제보)
 const skBase = n => String(n || '').replace(/^정밀 /, '');
 // 이 보조를 이 메인에 끼울 수 있나 — 메인이 없거나 태그가 없으면 true(못 거름)
-function supFits(sup, main) {
+// 같은 칸에 끼운 보조가 메인 태그를 바꾸는 줄 — "보조 대상 스킬은 현재 투사체 태그를 보유" / "해당 스킬이 위치 이동 태그를 획득" / "다시는 범위 태그를 보유하지 않는다"
+// (휠윈드: 비도 → 투사체 보조 장착 가능, 2026-10-28 제보). 소환체 자폭 같은 다른 주어 줄은 건너뛴다
+function supTagMods(sups) {
+  const add = new Set(), del = new Set();
+  (sups || []).forEach(ref => {
+    if (!ref) return;
+    const k = SKILLS.find(x => x.name === ref.name && x.kind === ref.kind);
+    const txt = String(((k && k.desc) || [''])[0] || '').replace(/<br>/g, '\n').replace(/<[^>]+>/g, '');
+    const tagsOf = p => p.split(/\s*,\s*|\s*및\s*/).map(t => t.trim().replace(/^지속 대미지$/, '지속')).filter(Boolean);
+    let m;
+    const reDel = /(?:보조 대상 스킬|해당 스킬)[은이]? 다시는 ([가-힣 ,]+?) 태그를 보유하지 않/g;
+    while ((m = reDel.exec(txt))) tagsOf(m[1]).forEach(t => del.add(t));
+    const reAdd = /(?:보조 대상 스킬|해당 스킬)[은이]? (?:현재 )?(?!다시는)([가-힣 ,]+?) 태그를 (?:보유한|보유하|획득)/g;
+    while ((m = reAdd.exec(txt))) tagsOf(m[1]).forEach(t => add.add(t));
+  });
+  return {add, del};
+}
+// sups: 같은 칸에 끼운 보조들 — 태그를 바꾸는 부귀·숭고를 반영한다
+function supFits(sup, main, sups) {
   if (!main) return true;
   const r = supRule(sup);
   if (!r) return true;
@@ -1671,7 +1692,8 @@ function supFits(sup, main) {
   // 마령·주입 패시브와 소환류(소환 태그)는 대상 제한을 아예 두지 않는다 — 소환체가 쓰는 스킬 성격이 제각각이라
   // 태그로는 못 가린다 (자극·근접·투사체 보조도 실제로 들어간다, 사용자 2026-10-14)
   if (isSpiritPassive(mi) || isInjectPassive(mi) || (mi.tags || []).includes('소환')) return true;
-  const has = t => t === '#액티브' ? (mi.kind === '액티브' || mi.kind === '모듈화') : t === '#패시브' ? mi.kind === '패시브' : mi.tags.includes(t);
+  const mod = supTagMods((sups || []).filter(sp => sp && !(sp.name === sup.name && sp.kind === sup.kind)));
+  const has = t => t === '#액티브' ? (mi.kind === '액티브' || mi.kind === '모듈화') : t === '#패시브' ? mi.kind === '패시브' : !mod.del.has(t) && (mod.add.has(t) || mi.tags.includes(t));
   if (r.not.some(has)) return false;
   return r.alts.some(a => a.every(has));
 }
@@ -3730,7 +3752,7 @@ function wsPool() { // 지금 자리에 들어갈 수 있는 스킬 (빌더 skil
     if (socket === null ? !mainAllows(s, grp) : !socketKinds(socket).includes(s.kind)) return;
     if (special && s.kind === special && (!mainName || s.name.split(':')[0].trim() !== skBase(mainName))) return; // 부귀·숭고는 그 메인 전용
     // "실드 스킬을 보조한다" 같은 대상 제한 — 메인 태그에 없으면 뺀다 (이미 끼운 건 뺄 수 있게 남김)
-    if (socket !== null && !(sk && sk.sup.some(sp => sp && sp.name === s.name && sp.kind === s.kind)) && !supFits(s, sk && sk.main)) return;
+    if (socket !== null && !(sk && sk.sup.some(sp => sp && sp.name === s.name && sp.kind === s.kind)) && !supFits(s, sk && sk.main, sk && sk.sup)) return;
     out.push(i);
   });
   // 정렬: 짝 맞는 부귀·숭고 > 같은 묶음의 다른 칸에서 쓰는 보조(추천) > 나머지 — 빌더 1 skillPickPool 과 같은 규칙 (2026-10-10 이식)
