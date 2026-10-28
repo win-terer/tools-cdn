@@ -126,6 +126,7 @@
     .vc-ro-m { color: #9aa4b2; font-size: 12.5px; }
     .vc-ro-a { display: flex; flex-wrap: wrap; gap: 6px; }
     .vc-like b { color: #e8c860; margin-left: 2px; } .vc-like.on { border-color: #e8c860; color: #f3e3b5; }
+    .vc-ed { background: linear-gradient(90deg, #12201a, #121826 70%); border-color: #2f6b4a; } .vc-ed .vc-ro-l small { color: #8fd1ab; }
     .vc-ro-n { flex-basis: 100%; color: #9aa4b2; font-size: 12px; }
     .vc-vids { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
     .vc-yt { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; cursor: pointer; background: #000; }

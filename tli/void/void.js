@@ -57,7 +57,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   let undo = [];
   const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (o && o.s) S = CS.map(c => new Set((o.s[c.key] || []).filter(id => c.by.has(id) && id !== c.start))); if (o && o.g) G = normG(o.g); if (o && typeof o.m === 'string') M = o.m.slice(0, 500); } catch (e) {} };
   let RO = null;   // 공유 글 보기 중(?s=) — {item, liked, admin, vwait} · 이때 S 는 공유 배치이고 저장하지 않는다
-  const save = () => { if (RO) return; try { const s = {}; CS.forEach(c => { if (S[c.ci].size) s[c.key] = [...S[c.ci]]; }); const o = { v: 1, s }; if (hasG(G)) o.g = G; if (M) o.m = M; localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
+  let ED = null;   // 공유 글 수정 중 — {item, pwd, admin} · 연습판처럼 고치되 내 연습판에는 저장하지 않는다 (2026-10-28 사용자)
+  const save = () => { if (RO || ED) return; try { const s = {}; CS.forEach(c => { if (S[c.ci].size) s[c.key] = [...S[c.ci]]; }); const o = { v: 1, s }; if (hasG(G)) o.g = G; if (M) o.m = M; localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
   const snap = () => { const a = S.map(x => new Set(x)); a.g = normG(G); undo.push(a); if (undo.length > 50) undo.shift(); };
   const popUndo = () => { const a = undo.pop(); S = a; if (a.g) G = a.g; save(); render(); };
 
@@ -205,10 +206,10 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       <div class="vc-pts">${pointsBar()}</div>
       <div class="vc-acts">${RO ? '' : `
         <button class="vc-btn" data-act="undo"${undo.length ? '' : ' disabled'}>↶ 되돌리기</button>
-        <button class="vc-btn" data-act="reset">↺ 처음부터</button>
+        <button class="vc-btn" data-act="reset">↺ 처음부터</button>${ED ? '' : `
         <button class="vc-btn" data-act="share">🔗 링크 복사</button>
-        <button class="vc-btn vc-share" data-act="upload">📤 파밍 빌드 공유</button>`}
-      </div></div>` + roBar();
+        <button class="vc-btn vc-share" data-act="upload">📤 파밍 빌드 공유</button>`}`}
+      </div></div>` + roBar() + edBar();
   }
   function sumBox(only) {
     const li = r => `<li>${hl(r.t).replace(/\n/g, '<br>')}${r.x ? ` <span class="vc-x">×${r.k}</span>` : ''}</li>`;
@@ -432,6 +433,40 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       ${RO.vwait ? `<div class="vc-ro-n">승인 대기 중인 영상 ${RO.vwait}개 — 관리자가 확인한 뒤 보입니다</div>` : ''}
     </div>`;
   }
+  function edBar() {
+    if (!ED) return '';
+    return `<div class="vc-ro vc-ed">
+      <div class="vc-ro-l"><small>공유 글 수정 중</small><b data-noi18n>${esc(ED.item.title)}</b>
+        <span class="vc-ro-m">노드·정령·탐침·나침반·메모를 고친 뒤 저장하세요 — 내 연습판에는 저장되지 않습니다</span></div>
+      <div class="vc-ro-a">
+        <button class="vc-btn vc-share" data-act="edsave">💾 저장</button>
+        <button class="vc-btn" data-act="edcancel">취소</button>
+      </div></div>`;
+  }
+  // 수정 모드 들어가기 — 글 배치·메모를 그대로 연습판처럼 편다
+  function edStart(pwd) {
+    ED = { item: RO.item, pwd, admin: RO.admin };
+    M = (RO.item.memo || '').slice(0, 500); RO = null; undo = [];
+    history.replaceState(null, '', location.pathname + '?s=' + ED.item.id); render(); window.scrollTo(0, 0);
+    toast('수정 모드 — 고친 뒤 위의 「저장」을 누르세요');
+  }
+  async function edEnd() {   // 저장·취소 뒤 글 보기로 돌아간다 (서버에서 다시 받아 옴)
+    const id = ED.item.id; ED = null; view = -1;
+    if (!(await openShared(id))) { S = CS.map(() => new Set()); G = emptyG(); M = ''; load(); }
+    render();
+  }
+  function edAct(a) {
+    if (a === 'edcancel') return wtAsk('수정을 그만둘까요?\n고친 내용은 저장되지 않습니다.', edEnd);
+    if (!S.some(x => x.size)) return toast('찍은 노드가 없습니다');
+    const it = ED.item;
+    dialog('글 수정 저장', [{ k: 'title', label: '제목', value: it.title }, { k: 'author', label: '작성자', value: it.author }],
+      '저장', async v => {
+        const r = await api('/api/vshare/edit', { id: it.id, pwd: ED.admin ? undefined : ED.pwd, title: v.title, author: v.author, memo: M.trim(), code: encode() });
+        if (!r.ok) return r.error;
+        if (!ED.admin) setMine(it.id, ED.pwd);
+        await edEnd(); toast('수정했습니다'); return '';
+      }, `지금 찍은 배치${G.p || G.c.some(x => x) ? '·탐침·나침반' : ''}${G.s.some(x => x) ? '·정령' : ''}${M.trim() ? '·메모' : ''}로 글을 바꿉니다.`);
+  }
   // 입력 창 — fields: [{k, label, type, value, ph, opt}] · 확인 시 onOk(values) 가 오류 문구를 돌려주면 창을 닫지 않는다
   function dialog(title, fields, okLabel, onOk, note) {
     const d = document.createElement('div'); d.className = 'vc-dim';
@@ -505,22 +540,13 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       dialog('🎬 가이드 영상 추가', [{ k: 'video', label: '유튜브 주소', ph: 'https://youtu.be/…' }, { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }],
         '요청', async v => { const r = await api('/api/vshare/video-req', { id, pwd: v.pwd, video: v.video }); if (!r.ok) return r.error; RO.vwait = (RO.vwait || 0) + 1; render(); toast('요청했습니다 — 관리자가 확인한 뒤 보입니다'); return ''; },
         '작성자만 요청할 수 있고, 관리자가 확인한 뒤 글에 붙습니다.');
-    } else if (a === 'edit') {
-      dialog('글 수정', [{ k: 'title', label: '제목', value: it.title }, { k: 'author', label: '작성자', value: it.author },
-        { k: 'memo', label: '메모 (500자 이내)', type: 'area', value: it.memo || '', opt: 1 },
-        { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }, { k: 'cur', label: '배치를 내 연습판의 지금 배치(탐침·나침반 포함)로 바꾸기', type: 'check' }],
-        '저장', async v => {
-          let code;
-          if (v.cur) {
-            let my = null; try { my = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-            const keep = S, keepG = G; S = CS.map(c => new Set(((my && my.s && my.s[c.key]) || []).filter(x => c.by.has(x)))); G = normG(my && my.g);
-            code = S.some(x => x.size) ? encode() : null; S = keep; G = keepG;
-            if (!code) return '내 연습판에 찍은 노드가 없습니다.';
-          }
-          const r = await api('/api/vshare/edit', { id, pwd: RO.admin ? undefined : v.pwd, title: v.title, author: v.author, memo: v.memo, code });
-          if (!r.ok) return r.error;
-          setMine(id, v.pwd); await openShared(id); render(); toast('수정했습니다'); return '';
-        });
+    } else if (a === 'edit') {   // 비밀번호 확인 → 수정 모드 (화면에서 바로 고치고 저장, 2026-10-28 사용자)
+      if (RO.admin) return edStart('');
+      dialog('글 수정', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '수정하기', async v => {
+        const r = await api('/api/vshare/edit', { id, pwd: v.pwd, check: true });
+        if (!r.ok) return r.error;
+        setMine(id, v.pwd); edStart(v.pwd); return '';
+      }, '확인되면 이 화면에서 노드·정령·탐침·나침반·메모를 고친 뒤 저장할 수 있습니다.');
     } else if (a === 'del') {
       dialog('글 삭제', RO.admin ? [] : [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '삭제', async v => {
         const r = await api('/api/vshare/delete', { id, pwd: v.pwd });
@@ -538,6 +564,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (t.classList.contains('vc-n')) { const c = CS[view]; toggle(c, t.dataset.id); showInfo(c, c.by.get(t.dataset.id)); return; }
     const a = t.dataset.act;
     if (RO && ['like', 'take', 'copylink', 'exit', 'vreq', 'edit', 'del'].includes(a)) return roAct(a);
+    if (ED && (a === 'edsave' || a === 'edcancel')) return edAct(a);
     if (a === 'upload') return upload();
     if (a === 'sumsel') { sumSel = t.dataset.k || null; render(); return; }
     if (a === 'back') { view = -1; history.replaceState(null, '', location.pathname + location.search); render(); }
