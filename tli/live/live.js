@@ -62,7 +62,7 @@ function lvFav(id) {
   lvRender(true);
 }
 function lvTable(rows) {
-  const q = LV.q.trim().toLowerCase(); let xs = rows.filter(r => !q || r.it.name.toLowerCase().includes(q));
+  const qs = lvQTokens(LV.q); let xs = rows.filter(r => lvQHit(qs, r.it.name));
   if (LV.sort === 'name') xs.sort((a, b) => a.it.name.localeCompare(b.it.name, 'ko'));
   else if (LV.sort === 'price') xs.sort((a, b) => b.now - a.now);
   else xs.sort((a, b) => (b.pct == null ? -1e9 : b.pct) - (a.pct == null ? -1e9 : a.pct));
@@ -107,7 +107,7 @@ function lvRenderRaw(onlyTable) {
     `<details class="pr-note"><summary>ⓘ 시세 출처</summary><div>중국 트래커 易火 ETor 의 시세 서버에서 30분마다 받습니다. 허가를 받은 자료가 아니라 문제가 되면 내리겠습니다.<br>단위: 최초의 불꽃 결정. 가장 비쌀 때도 ${LV_MIN}결 이하인 아이템은 뺐습니다.</div></details></div>` +
     lvHourHtml() + `<div class="pb-cats">${cats}</div>` +
     sec('▲ 오늘 많이 오른 아이템', 'up', up) + sec('▼ 오늘 많이 내린 아이템', 'dn', dn) + cardMore +
-    `<div class="pr-sec"><div class="pr-sech"><b>전체 시세</b><input class="pr-q" placeholder="아이템 이름 검색" value="${lvEsc(LV.q)}" oninput="lvSet('q', this.value)">` +
+    `<div class="pr-sec"><div class="pr-sech"><b>전체 시세</b><input class="pr-q" placeholder="아이템 이름 검색 (정규식)" title="정규식을 쓸 수 있습니다 — 띄어쓰기=모두 포함, !낱말=빼기, 가|나=또는, ^앞 $뒤" value="${lvEsc(LV.q)}" oninput="lvSet('q', this.value)">` +
     ddHtml(LV.sort, [['pct', '변동순'], ['price', '가격순'], ['name', '이름순']], 'lvSort') + '</div>' +
     `<div id="lvTable">${lvTable(rows)}</div></div>`;
 }
@@ -119,6 +119,18 @@ function ddHtml(cur, opts, fn) {  // opts = [[값, 글자]], fn = 고르면 부�
 }
 function ddToggle(b, e) { e.stopPropagation(); const d = b.parentNode, o = d.classList.contains('open'); document.querySelectorAll('.dd.open').forEach(x => x.classList.remove('open')); if (!o) d.classList.add('open'); }
 document.addEventListener('click', () => document.querySelectorAll('.dd.open').forEach(x => x.classList.remove('open')));
+// 검색어 = 기본 정규식 (빌더 검색창과 같은 규칙, 2026-10-29 사용자)
+// 띄어쓰기 = 모두 맞아야 함(AND) · 낱말 앞 ! = 빼기 · | = 또는 · ^ $ . * + [] () 등 정규식 그대로.
+// 정규식으로 안 읽히는 글자(괄호만 열린 것 등)는 글자 그대로 찾는다 — 입력 도중에도 결과가 안 깨지게.
+function lvQTokens(raw) {
+  return String(raw || '').trim().split(/\s+/).filter(Boolean).map(t => {
+    const neg = t[0] === '!'; if (neg) t = t.slice(1);
+    if (!t) return null;
+    let re; try { re = new RegExp(t, 'i'); } catch (e) { re = new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); }
+    return { neg, re };
+  }).filter(Boolean);
+}
+function lvQHit(ts, name) { return ts.every(t => t.re.test(name) !== t.neg); }
 function lvSort(v) { lvSet('sort', v); }
 function lvSet(k, v) { LV[k] = v; LV.more = 10; lvRender(k === 'q'); }  // 검색·정렬·분류를 바꾸면 다시 10개부터
 function lvMore(n) { LV.more += n; lvRender(true); }
