@@ -6053,11 +6053,25 @@ async function vwShareEdit(admin) {
     catch (e) { vwToast('수정할 수 없습니다: ' + e.message); }
   });
 }
-/** 로그인 전에 올린 글을 내 계정에 붙이기 — 비밀번호가 확인된 직후에만 묻는다 */
-async function vwClaim(id, pw, who) {
-  if (!confirm(`이 글을 내 디스코드 계정(${who})에 연결할까요?\n\n연결하면 다음부터는 비밀번호 없이 고치고 지울 수 있고,\n글쓴이 이름 옆에 인증 표시가 붙습니다.\n(나중에 해도 됩니다)`)) return;
-  try { await vwApi('/claim', {id, pwd: pw}); vwToast('🔗 내 계정에 연결했습니다'); }
-  catch (e) { vwToast('연결하지 못했습니다: ' + e.message); }
+/** 로그인 전에 올린 글을 내 계정에 붙이기 — 비밀번호가 확인된 직후에만 묻는다.
+ *  브라우저 기본 confirm() 은 주소까지 같이 떠서 화면과 따로 논다 → 사이트 팝업(vwPop)을 쓴다. */
+function vwClaim(id, pw, who) {
+  return new Promise(done => {
+    vwPop(`<h3>🔗 내 계정에 연결</h3><div class="wb-msg">이 글을 내 디스코드 계정 <b>${vwEsc(who || '')}</b> 에 연결할까요?<br><br>` +
+      '연결하면 다음부터 <b>비밀번호 없이</b> 고치고 지울 수 있고, 글쓴이 이름 옆에 인증 표시가 붙습니다.<br>' +
+      '<span style="opacity:.75">지금 안 하셔도 다음에 비밀번호를 넣을 때 다시 물어봅니다.</span></div>' +
+      '<div class="wb-btns"><button class="wz-btn pri" id="vwClaimGo">연결하기</button><button class="wz-btn" id="vwClaimNo">나중에</button></div>');
+    const fin = async yes => {
+      vwClose();
+      if (yes) {
+        try { await vwApi('/claim', {id, pwd: pw}); vwToast('🔗 내 계정에 연결했습니다'); }
+        catch (e) { vwToast('연결하지 못했습니다: ' + e.message); }
+      }
+      done();
+    };
+    document.getElementById('vwClaimGo').onclick = () => fin(true);
+    document.getElementById('vwClaimNo').onclick = () => fin(false);
+  });
 }
 // [✏ 내용 고치기] — 이 글의 빌드를 수정용 사본으로 담고 빌더의 고치는 단계로 (사본은 내 빌드 목록에 안 보이고, 저장하면 지워진다)
 // 수정 방법 고르기 — 묶음 글은 고칠 단계를 여기서 고르고(칩 = 뒤 화면 탭도 같이), 구성(단계 추가·빼기·순서)은 따로 (2026-10-15 사용자)

@@ -12673,7 +12673,7 @@ function tipsWireTagInput() {
 function tipsOpenForm(id) {
   const me = tipMe();
   if (!me) { location.href = '/api/auth/discord?to=' + encodeURIComponent(location.pathname + '?tab=tips'); return; }
-  if (me.banned) { alert('글쓰기가 제한된 계정입니다.'); return; }
+  if (me.banned) { uiAlert('글쓰기가 제한된 계정입니다.'); return; }
   const t = id ? UTIPS.find(x => x.id === id) : null;
   tipsEditId = t ? t.id : '';
   document.getElementById('tipFTitle').value = t ? t.title : '';
@@ -12713,10 +12713,14 @@ function tipsSave() {
 }
 function tipsDelete(id) {
   const t = UTIPS.find(x => x.id === id);
-  const msg = (t && !t.mine) ? `${t.author} 님이 쓴 팁을 지웁니다.\n\n"${t.title}"\n\n되돌릴 수 없습니다. 지울까요?` : '이 팁을 지울까요? 되돌릴 수 없습니다.';
-  if (!confirm(msg)) return;
-  fetch('/api/tip/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
-    .then(r => r.json()).then(() => tipsLoad(true).then(renderTips)).catch(() => {});
+  // 시스템 confirm 대신 이 화면의 디자인 팝업 — 주소줄이 같이 떠서 화면과 따로 놀았다 (2026-10-30 사용자)
+  const msg = (t && !t.mine)
+    ? `${t.author} 님이 쓴 팁 "${t.title}" 을(를) 지웁니다. 되돌릴 수 없습니다.`
+    : '이 팁을 지울까요? 되돌릴 수 없습니다.';
+  uiConfirm(msg, () => {
+    fetch('/api/tip/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
+      .then(r => r.json()).then(() => tipsLoad(true).then(renderTips)).catch(() => {});
+  }, { title: '팁 지우기', ok: '지우기' });
 }
 function tipsLike(id) {
   const t = UTIPS.find(x => x.id === id); if (!t || t._liked) return;
