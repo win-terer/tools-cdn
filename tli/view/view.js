@@ -5575,7 +5575,7 @@ async function vwLoad() {
         j = await res.json().catch(() => ({}));
         if (!j.ok) throw new Error(j.error || '공유 빌드를 찾을 수 없습니다');
       }
-      VW.share = j.item; VW.liked = !!j.liked; VW.admin = !!j.admin; code = j.item.code;
+      VW.share = j.item; VW.liked = !!j.liked; VW.admin = !!j.admin; VW.owner = !!j.mine; VW.mod = !!j.mod; VW.claimable = !!j.claimable; code = j.item.code;
       try { const v = JSON.parse(j.item.videos || '[]'); VW.videos = Array.isArray(v) ? v : []; } catch (e) { VW.videos = []; }
       VW.vwait = Array.isArray(j.vwait) ? j.vwait : []; // 승인 대기 중인 영상 요청의 단계들 ('' = 모든 단계)
       // 단계별 빌드 (2026-10-15) — 탭마다 코드 하나, 처음엔 ?st=단계 또는 첫 단계 (사용자 2026-10-15)
@@ -5588,7 +5588,7 @@ async function vwLoad() {
     VW.season = r.season || 'SS13';
     const cur = (window.TLI_SEASON || {}).label;
     if (!window.TLI_SNAPSHOT && cur && VW.season !== cur && (window.TLI_SNAPS || []).includes(VW.season)) {
-      try { if (VW.share) sessionStorage.setItem('vwHand', JSON.stringify({item: VW.share, liked: VW.liked, admin: VW.admin, vwait: VW.vwait})); } catch (e) {}
+      try { if (VW.share) sessionStorage.setItem('vwHand', JSON.stringify({item: VW.share, liked: VW.liked, admin: VW.admin, owner: VW.owner, mod: VW.mod, claimable: VW.claimable, vwait: VW.vwait})); } catch (e) {}
       return vwGo('/tli/' + VW.season.toLowerCase() + '/view/' + (pl ? '?code=' + encodeURIComponent(code) : location.search) + location.hash); // 단축 링크는 보관본이 몰라서 코드로
     }
     preset = r.preset; VW.missing = r.missing; VW.code = code; VW.state = 'ok';
@@ -5658,10 +5658,15 @@ function vwHead() {
     (s ? `<div class="vw-acts2"><button type="button" class="wz-btn" id="vwLike" onclick="vwLike()"${VW.liked ? ' disabled' : ''}>👍 추천 ${s.likes || 0}${VW.liked ? ' (추천함)' : ''}</button>` +
       '<button type="button" class="wz-btn" onclick="vwCopy()">🔗 링크 복사</button>' + VW_SHOT_BTN +
       // 작성자만 쓰는 것(수정·삭제·영상)은 접어 둔다 — 방문자에게 버튼 6개가 쌓여 보였다 (2026-10-15)
-      '<details class="vw-amenu"><summary class="wz-btn" title="글을 올린 사람용 — 올릴 때 등록한 비밀번호로">⋯ 작성자</summary><div class="vw-amenu-pop">' +
-      '<button type="button" class="wz-btn" onclick="vwShareEdit(false)" title="올릴 때 등록한 비밀번호로 내 글을 고칩니다 (빌더에서 고친 뒤 저장)">✏ 내 글 수정</button>' +
-      '<button type="button" class="wz-btn" onclick="vwVidReq()" title="이 빌드의 유튜브 가이드 영상 — 작성자 비밀번호로 올리고, 관리자 승인 뒤 맨 아래에 보입니다">🎬 영상 올리기</button>' +
-      '<button type="button" class="wz-btn vw-del" onclick="vwShareDel()" title="올릴 때 등록한 비밀번호로 내 글을 지웁니다">🗑 삭제</button></div></details></div>' : '') + '</div></div>' +
+      // 디스코드 계정에 연결된 글은 그 계정으로 로그인했을 때(또는 부관리자)만 묶음을 보여 준다 (2026-10-30 사용자)
+      // — 연결된 글은 서버가 비밀번호를 더 이상 받지 않으니(pwdGate), 보여 봐야 눌러도 막히기만 한다.
+      (VW.claimable ? '<button type="button" class="wz-btn vw-claim" onclick="vwClaimAsk()" title="올릴 때 등록한 비밀번호를 확인하고 이 글을 내 디스코드 계정에 붙입니다">🔗 내 계정에 연결</button>' : '') +
+      (s.au && !VW.owner && !VW.mod
+        ? '<span class="vw-amenu-lock" title="글쓴이의 디스코드 계정에 연결된 글입니다 — 그 계정으로 로그인해야 고칠 수 있습니다">🔒 연결된 글</span>'
+        : '<details class="vw-amenu"><summary class="wz-btn" title="' + (VW.owner ? '내 글 — 로그인되어 있어 비밀번호가 필요 없습니다' : VW.mod ? '부관리자 권한으로 보입니다' : '글을 올린 사람용 — 올릴 때 등록한 비밀번호로') + '">⋯ 작성자</summary><div class="vw-amenu-pop">' +
+        '<button type="button" class="wz-btn" onclick="vwShareEdit(false)" title="내 글을 고칩니다 (빌더에서 고친 뒤 저장)">✏ 내 글 수정</button>' +
+        '<button type="button" class="wz-btn" onclick="vwVidReq()" title="이 빌드의 유튜브 가이드 영상 — 관리자 승인 뒤 맨 아래에 보입니다">🎬 영상 올리기</button>' +
+        '<button type="button" class="wz-btn vw-del" onclick="vwShareDel()" title="이 공유 글을 지웁니다">🗑 삭제</button></div></details>') + '</div>' : '') + '</div></div>' +
     vwStageBar() + '<nav class="vw-toc">' + VW_SECS.filter(([id]) => id !== 'vc' || vwHasCmt()).map(([id, nm]) => `<a href="#${id}">${nm}</a>`).join('') +
     (vwVidList().length ? '<a href="#vy" class="vw-toc-yt">▶ 영상</a>' : '') + '</nav>';
 }
@@ -6038,7 +6043,8 @@ function vwPwd(title, msg, go) { // 올릴 때 등록한 비밀번호 (이 브�
 async function vwShareEdit(admin) {
   // 확인이 끝나면 [✏ 내용 고치기](이 글을 빌더로) / [📥 내 빌드로 덮어쓰기](빌더 내 빌드 목록에서 고르기) 중 고른다 (2026-10-13 사용자)
   const choose = se => { VW.seAuth = se; vwSeChoose(); };
-  if (admin) { // 관리 화면의 [수정] (?edit=1) — 관리 로그인 쿠키로 확인, 아니면 비밀번호로
+  // 관리 화면의 [수정] (?edit=1) · 내 계정에 연결된 글 · 부관리자 — 비밀번호 없이 한 번 찔러 보고 되면 그대로 간다
+  if (admin || VW.owner || VW.mod) {
     try { await vwApi('/share/edit', {id: VW.share.id, check: 1}); return choose({admin: 1}); } catch (e) {}
   }
   vwPwd('✏ 내 글 수정', '올릴 때 등록한 비밀번호를 넣어 주세요.', async pw => {
@@ -6051,6 +6057,18 @@ async function vwShareEdit(admin) {
       choose({pwd: pw});
     }
     catch (e) { vwToast('수정할 수 없습니다: ' + e.message); }
+  });
+}
+/** [🔗 내 계정에 연결] — 비밀번호를 받아 바로 붙인다.
+ *  관리자·부관리자는 수정 때 비밀번호 창을 건너뛰어서 아래 vwClaim 을 만날 틈이 없다(2026-10-30 사용자).
+ *  연결만큼은 관리 권한으로 통과시키지 않는다 — 남의 글을 자기 것으로 가져가는 건 관리의 일이 아니다. */
+function vwClaimAsk() {
+  vwPwd('🔗 내 계정에 연결', '올릴 때 등록한 비밀번호를 확인하면 이 글이 내 디스코드 계정에 붙습니다.<br>그 뒤로는 <b>비밀번호 없이</b> 고치고 지울 수 있습니다.', async pw => {
+    try {
+      await vwApi('/claim', {id: VW.share.id, pwd: pw});
+      vwClose(); vwToast('🔗 내 계정에 연결했습니다');
+      VW.claimable = false; VW.owner = true; pageRender();
+    } catch (e) { vwToast('연결하지 못했습니다: ' + e.message); }
   });
 }
 /** 로그인 전에 올린 글을 내 계정에 붙이기 — 비밀번호가 확인된 직후에만 묻는다.
@@ -6125,7 +6143,17 @@ function vwSeGo(info, to) { // to = 'share' 면 빌더에서 공유 창부터 (�
     location.href = '/tli/builder/#' + (to || 'hero');
   } catch (e) { vwToast('불러오지 못했습니다: ' + e.message); }
 }
-function vwShareDel() {
+async function vwShareDel() {
+  if (VW.owner || VW.mod) {   // 계정으로 확인된 사람 — 비밀번호 대신 확인만 받는다
+    vwPop('<h3>🗑 공유 글 삭제</h3><div class="wb-msg">'
+      + (VW.owner ? '내' : vwEsc(VW.share.author || '') + ' 님의') + ' 공유 글 <b>' + vwEsc(VW.share.title || VW.share.id) + '</b> 을(를) 지웁니다.<br>되돌릴 수 없습니다.</div>'
+      + '<div class="wb-btns"><button class="wz-btn pri" id="vwDelGo">지우기</button><button class="wz-btn" onclick="vwClose()">취소</button></div>');
+    document.getElementById('vwDelGo').onclick = async () => {
+      try { await vwApi('/share/delete', {id: VW.share.id}); vwClose(); vwToast('🗑 지웠습니다'); setTimeout(() => { location.href = '/tli/share/'; }, 900); }
+      catch (e) { vwToast('지우지 못했습니다: ' + e.message); }
+    };
+    return;
+  }
   vwPwd('🗑 공유 글 삭제', '올릴 때 등록한 비밀번호를 넣으면 이 공유 글을 지웁니다. 되돌릴 수 없습니다.', async pw => {
     try { await vwApi('/share/delete', {id: VW.share.id, pwd: pw}); mySharesDrop(VW.share.id); vwClose(); vwToast('🗑 지웠습니다'); setTimeout(() => { location.href = '/tli/share/'; }, 900); }
     catch (e) { vwToast('지우지 못했습니다: ' + e.message); }

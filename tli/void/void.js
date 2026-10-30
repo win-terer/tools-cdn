@@ -424,9 +424,12 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         <button class="vc-btn vc-like${RO.liked ? ' on' : ''}" data-act="like">👍 추천 <b>${it.likes || 0}</b></button>
         <button class="vc-btn vc-share" data-act="take">📥 내 연습판으로 가져오기</button>
         <button class="vc-btn" data-act="copylink">🔗 링크 복사</button>
-        <button class="vc-btn" data-act="vreq">🎬 영상 추가</button>
-        <button class="vc-btn" data-act="edit">수정</button>
-        <button class="vc-btn" data-act="del">삭제</button>
+        ${RO.claimable ? '<button class="vc-btn vc-claim" data-act="claim" title="올릴 때 등록한 비밀번호를 확인하고 이 글을 내 디스코드 계정에 붙입니다">🔗 내 계정에 연결</button>' : ''}
+        ${it.au && !RO.mine && !RO.mod
+          ? '<span class="vc-lock" title="글쓴이의 디스코드 계정에 연결된 글입니다 — 그 계정으로 로그인해야 고칠 수 있습니다">🔒 연결된 글</span>'
+          : '<button class="vc-btn" data-act="vreq">🎬 영상 추가</button>'
+            + '<button class="vc-btn" data-act="edit">수정</button>'
+            + '<button class="vc-btn" data-act="del">삭제</button>'}
         <button class="vc-btn" data-act="exit">✕ 닫기</button>
       </div>
       ${vids.length ? `<div class="vc-vids">${vids.map(v => `<div class="vc-yt" data-id="${esc(v.id)}" data-start="${+v.start || 0}"><img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault.jpg" alt="" loading="lazy"><span>▶</span><em data-noi18n>${esc(v.title || '')}</em></div>`).join('')}</div>` : ''}
@@ -445,7 +448,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   // 수정 모드 들어가기 — 글 배치·메모를 그대로 연습판처럼 편다
   function edStart(pwd) {
-    ED = { item: RO.item, pwd, admin: RO.admin };
+    ED = { item: RO.item, pwd, admin: RO.admin || RO.mine || RO.mod };
     M = (RO.item.memo || '').slice(0, 500); RO = null; undo = [];
     history.replaceState(null, '', location.pathname + '?s=' + ED.item.id); render(); window.scrollTo(0, 0);
     toast('수정 모드 — 고친 뒤 위의 「저장」을 누르세요');
@@ -541,7 +544,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         '요청', async v => { const r = await api('/api/vshare/video-req', { id, pwd: v.pwd, video: v.video }); if (!r.ok) return r.error; RO.vwait = (RO.vwait || 0) + 1; render(); toast('요청했습니다 — 관리자가 확인한 뒤 보입니다'); return ''; },
         '작성자만 요청할 수 있고, 관리자가 확인한 뒤 글에 붙습니다.');
     } else if (a === 'edit') {   // 비밀번호 확인 → 수정 모드 (화면에서 바로 고치고 저장, 2026-10-28 사용자)
-      if (RO.admin) return edStart('');
+      if (RO.admin || RO.mine || RO.mod) return edStart('');
       dialog('글 수정', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '수정하기', async v => {
         const r = await api('/api/vshare/edit', { id, pwd: v.pwd, check: true });
         if (!r.ok) return r.error;
@@ -559,12 +562,22 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         }
         edStart(v.pwd); return '';
       }, '확인되면 이 화면에서 노드·정령·탐침·나침반·메모를 고친 뒤 저장할 수 있습니다.');
+    } else if (a === 'claim') {
+      // 관리자·부관리자는 수정 때 비밀번호 창을 건너뛰어서 물어볼 틈이 없다 → 연결은 따로 둔다 (2026-10-30 사용자)
+      // 연결만큼은 관리 권한으로 통과시키지 않는다 — 남의 글을 자기 것으로 가져가는 건 관리의 일이 아니다.
+      dialog('🔗 내 계정에 연결', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '연결하기', async v => {
+        const c = await api('/api/claim', { id, pwd: v.pwd });
+        if (!c.ok) return c.error;
+        RO.claimable = false; RO.mine = true; RO.item.au = 'me'; render();
+        toast('🔗 내 계정에 연결했습니다'); return '';
+      }, '올릴 때 등록한 비밀번호를 확인하면 이 글이 내 디스코드 계정에 붙습니다.<br>그 뒤로는 <b>비밀번호 없이</b> 고치고 지울 수 있고, 글쓴이 이름 옆에 인증 표시가 붙습니다.');
     } else if (a === 'del') {
-      dialog('글 삭제', RO.admin ? [] : [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '삭제', async v => {
+      const noPw = RO.admin || RO.mine || RO.mod;
+      dialog('글 삭제', noPw ? [] : [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '삭제', async v => {
         const r = await api('/api/vshare/delete', { id, pwd: v.pwd });
         if (!r.ok) return r.error;
         setMine(id, null); location.href = '/tli/farm/'; return '';
-      }, RO.admin ? '관리자 권한으로 지웁니다.' : '지우면 되돌릴 수 없습니다.');
+      }, noPw ? (RO.mine ? '내 글을 지웁니다. 되돌릴 수 없습니다.' : '관리 권한으로 지웁니다. 되돌릴 수 없습니다.') : '지우면 되돌릴 수 없습니다.');
     }
   }
 

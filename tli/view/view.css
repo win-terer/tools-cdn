@@ -1385,6 +1385,9 @@
     .vw-vwait { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed #6b5a2a; background: #15130d; color: #e6d39c; font-size: 13px; } /* 영상 승인 대기 */
     .wb-field select { padding: 6px 9px; border-radius: 8px; border: 1px solid #2a3446; background: #0a0f17; color: #e6edf3; font: inherit; font-size: 13px; }
     /* 작성자 메뉴 (2026-10-15) — 수정·영상·삭제를 접어 둠 */
+    /* 디스코드 계정에 연결된 글 — 남에게는 작성자 묶음 대신 자물쇠 안내만 (2026-10-30) */
+    .vw-amenu-lock { display: inline-flex; align-items: center; gap: 5px; color: #8a97ab; font-size: 12px;
+      border: 1px solid #2a3344; border-radius: 7px; padding: 5px 10px; white-space: nowrap; cursor: help; }
     .vw-amenu { position: relative; } .vw-amenu > summary { list-style: none; cursor: pointer; } .vw-amenu > summary::-webkit-details-marker { display: none; }
     .vw-amenu[open] > summary { border-color: #d4a84a; color: #f3e3b5; }
     .vw-amenu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 150px; border-radius: 10px; border: 1px solid #2a3446; background: #0e131c; box-shadow: 0 8px 24px #0009; }

@@ -12,6 +12,10 @@
     .vc-btn { background: #1b2230; border: 1px solid #2f3a4d; color: #c9d1d9; border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; transition: .15s; white-space: nowrap; }
     .vc-btn:hover:not([disabled]) { border-color: #e8c860; color: #fff; } .vc-btn[disabled] { opacity: .4; cursor: default; }
     a.vc-btn { text-decoration: none; display: inline-flex; align-items: center; }
+    /* 디스코드 계정 연결 (2026-10-30) */
+    .vc-claim { border-color: #3f5a8c !important; color: #bcd4ff !important; }
+    .vc-lock { display: inline-flex; align-items: center; gap: 5px; color: #8a97ab; font-size: 12.5px;
+      border: 1px solid #2f3a4d; border-radius: 8px; padding: 6px 12px; white-space: nowrap; cursor: help; }
     .vc-share { color: #f3e3b5; border-color: #6b5a2a; background: #1d1a12; font-weight: 600; }
     .vc-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
     /* 목록 */
