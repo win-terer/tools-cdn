@@ -13584,9 +13584,17 @@ function shareSeToggle(l) {
   renderShareSeasons(); renderShare(true);
 }
 // 목록 질의 문자열 (정렬 + 시즌 + 고른 태그 + 검색어) — 필터는 서버에서 처리
+// 고정줄(맨 위 인기 3개)을 보일 상황인가 — '최신순' 이고 검색·태그가 없을 때만. (2026-10-30 사용자)
+// 추천순·조회순은 이미 그 순서라 중복이고, 검색·태그 중에는 찾는 걸 가리게 된다.
+function sharePinOn() {
+  return document.getElementById('shareSort').value === 'new'
+    && !shareFilterTags.length
+    && !document.getElementById('shareSearch').value.trim();
+}
 function shareQueryStr(offset, fresh) {
   const q = document.getElementById('shareSearch').value.trim();
   return '/shares?sort=' + document.getElementById('shareSort').value + '&offset=' + offset +
+    (offset === 0 && sharePinOn() ? '&top=1' : '') +
     (shareSeOn.size && shareSeasons.length > 1 ? '&se=' + [...shareSeOn].join(',') : '') +
     (shareFilterTags.length ? '&tags=' + encodeURIComponent(shareFilterTags.join(',')) : '') +
     (q ? '&q=' + encodeURIComponent(q) : '') + (fresh ? '&fresh=' + Date.now() : '');
@@ -13662,6 +13670,22 @@ function shareShortDate(iso) {
 const SHARE_CONTENT_SET = new Set([...SHARE_CONTENT_TAGS, ...SHARE_STAGE_TAGS]);
 // 공유 카드 (2026-10-15 정리 — 사용자 '난잡하다'): 줄 고정(제목·특성·태그·정보 한 줄씩 → 카드 높이 같게),
 // 초상화 오른쪽 아래에 메인 스킬, 시즌 표시는 지난 시즌만, 콘텐츠 태그(금색) 앞·스킬 태그(옅게) 뒤, 단계 글은 '🪜 N단계' 하나
+// ── 고정줄 (2026-10-30 사용자) ──
+// '이번 시즌 인기' 3개를 맨 위에 붙이고, 아래 최신순에서는 그 3개를 뺀다(같은 글이 두 번 보이지 않게).
+// 고를 때 쓴 조건은 아래 목록과 같고(시즌 칩 포함) 정렬만 조회수순이다 — 서버가 ?top=1 에 실어 준다.
+var sharePinned = [];
+function shareListHtml() {
+  const pin = sharePinOn() ? sharePinned : [];
+  const ids = new Set(pin.map(x => x.id));
+  const rest = shareList.filter(x => !ids.has(x.id));
+  if (!pin.length) return rest.map(shareRowHtml).join('');
+  const se = [...shareSeOn];
+  const seLbl = se.length === 1 ? se[0] + ' ' : '';
+  return '<div class="share-pin-h"><b>📌 ' + seLbl + '인기</b><small>조회수가 가장 많은 3개</small></div>'
+    + pin.map(shareRowHtml).join('')
+    + '<div class="share-pin-h sep"><b>🆕 최신</b><small>방금 올라온 순서</small></div>'
+    + rest.map(shareRowHtml).join('');
+}
 function shareRowHtml(it) {
   let tags = [];
   try { tags = JSON.parse(it.tags || '[]'); } catch (e) {}
@@ -13747,7 +13771,7 @@ async function renderShare(refresh) {
   const st = document.getElementById('shareStatus');
   if (!SHARE_ONLINE) { box.innerHTML = '<div class="no-result">온라인 배포판(https)에서만 사용할 수 있는 기능입니다.</div>'; return; }
   if (shareLoading) return;
-  if (!refresh && shareList.length) { box.innerHTML = shareList.map(shareRowHtml).join(''); return; } // 캐시 표시
+  if (!refresh && shareList.length) { box.innerHTML = shareListHtml(); return; } // 캐시 표시
   shareLoading = true;
   st.textContent = '';
   renderShareHeroes();
@@ -13755,16 +13779,17 @@ async function renderShare(refresh) {
   // 마지막으로 받은 같은 목록이 있으면 먼저 바로 보여 주고(새로고침해도 즉시), 받아 온 게 다를 때만 다시 그린다
   const qk = shareQueryStr(0), fresh = shareDirty();
   let cached = null; try { const c = JSON.parse(localStorage.getItem('tli_share_list_v1') || 'null'); if (c && c.k === qk) cached = c; } catch (e) {}
-  if (cached) { shareList = cached.list; shareMore = cached.more; box.innerHTML = shareList.length ? shareList.map(shareRowHtml).join('') : box.innerHTML; }
+  if (cached) { shareList = cached.list; shareMore = cached.more; sharePinned = cached.top || []; box.innerHTML = shareList.length ? shareListHtml() : box.innerHTML; }
   else box.innerHTML = '<div class="loading"><span class="spin"></span> 공유 목록을 불러오는 중...</div>';
   try {
     const d = await shareApi(shareQueryStr(0, fresh));
     if (fresh) try { localStorage.removeItem('tli_share_dirty'); } catch (e) {}
-    try { localStorage.setItem('tli_share_list_v1', JSON.stringify({k: qk, list: d.list, more: d.more})); } catch (e) {}
-    if (cached && JSON.stringify(cached.list) === JSON.stringify(d.list) && cached.more === d.more) { syncSharePicked(); document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none'; shareLoading = false; return; }
+    try { localStorage.setItem('tli_share_list_v1', JSON.stringify({k: qk, list: d.list, more: d.more, top: d.top || []})); } catch (e) {}
+    sharePinned = d.top || [];
+    if (cached && JSON.stringify(cached.list) === JSON.stringify(d.list) && cached.more === d.more && JSON.stringify(cached.top || []) === JSON.stringify(sharePinned)) { syncSharePicked(); document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none'; shareLoading = false; return; }
     shareList = d.list; shareMore = d.more;
     const filtering = shareFilterTags.length || document.getElementById('shareSearch').value.trim();
-    box.innerHTML = shareList.length ? shareList.map(shareRowHtml).join('')
+    box.innerHTML = shareList.length ? shareListHtml()
       : (filtering ? '<div class="no-result">조건에 맞는 프리셋이 없습니다. 태그나 검색어를 줄여보세요.</div>'
         : '<div class="no-result">아직 공유된 프리셋이 없습니다. 빌더의 [프리셋 관리 → 공유 올리기]로 첫 번째 주인공이 되어보세요!</div>');
     syncSharePicked();
@@ -13787,7 +13812,7 @@ async function loadMoreShares() {
   try {
     const d = await shareApi(shareQueryStr(shareList.length));
     shareList = shareList.concat(d.list); shareMore = d.more;
-    document.getElementById('shareList').innerHTML = shareList.map(shareRowHtml).join('');
+    document.getElementById('shareList').innerHTML = shareListHtml();
     document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none';
   } catch (e) { alert('더 불러오기 실패: ' + e.message); }
   more.disabled = false; more.textContent = label;
@@ -13969,7 +13994,7 @@ async function likeShare() {
     btn.textContent = `👍 추천 ${d.likes}` + (d.already ? ' (이미 추천함)' : ' (완료)');
     btn.disabled = true;
     const row = shareList.find(x => x.id === shareDetail.id);
-    if (row) { row.likes = d.likes; document.getElementById('shareList').innerHTML = shareList.map(shareRowHtml).join(''); }
+    if (row) { row.likes = d.likes; document.getElementById('shareList').innerHTML = shareListHtml(); }
   } catch (e) { alert('추천 실패: ' + e.message); }
 }
 // ── 공유 올리기 ──
