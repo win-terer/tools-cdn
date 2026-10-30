@@ -194,7 +194,7 @@
       { href: '/tli/db/?tab=pact',     label: '정령',        match: /^\/tli\/db/, tab: 'pact' },
       { href: '/tli/db/?tab=skill',    label: '스킬',        match: /^\/tli\/db/, tab: 'skill' },
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
-      { href: '/tli/db/?tab=tips',     label: '💡 팁',       match: /^\/tli\/db/, tab: 'tips' },
+      { href: '/tli/db/?tab=tips',     label: '팁',          match: /^\/tli\/db/, tab: 'tips' },
     ] },
     { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void|blood)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
