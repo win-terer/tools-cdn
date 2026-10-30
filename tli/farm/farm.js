@@ -42,20 +42,21 @@
       + show.map(t => `<span class="fm-tg">${esc(t)}</span>`).join('')
       + (rest ? `<span class="fm-tg more">+${rest}</span>` : '') + '</span>';
   }
-  /** 정령 필수 — 작성자·날짜와 같은 줄에 붙는 작은 칩 */
+  /** 정령 필수 — 난이도 바로 옆(제목 앞). 제목 자리를 아끼려고 'O/X' 로 짧게 쓰고 뜻은 툴팁으로 (2026-10-30 사용자) */
   function farmTags(x) {
     if (!x.pact) return '';
-    return `<span class="fm-tg pact${x.pact === 'O' ? ' need' : ''}">정령 ${x.pact === 'O' ? '필요' : '불필요'}</span>`;
+    const need = x.pact === 'O';
+    return `<span class="fm-tg pact${need ? ' need' : ''}" title="정령 ${need ? '필요 — 정령을 맞춰야 도는 배치입니다' : '불필요 — 정령 없이도 됩니다'}">정령 ${x.pact}</span>`;
   }
   function card(x) {
     let pts = []; try { pts = JSON.parse(x.pts || '[]') || []; } catch (e) {}
     const cs = pts.map(([k, n]) => [BYKEY.get(k), n]).filter(p => p[0]).sort((a, b) => b[1] - a[1]);
     const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
-      <div class="fm-t">${tierBadge(x)}<b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
+      <div class="fm-t">${tierBadge(x)}${farmTags(x)}<b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
       <div class="fm-m">${x.au
         ? `<span class="fm-who" data-noi18n role="link" tabindex="0" title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" data-au="${esc(x.au)}">${DC_MARK}${esc(x.author)}</span>`
-        : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span>${farmTags(x)}</div>
+        : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
       ${gs.length ? `<div class="fm-gs${gs.length > 2 ? ' ico' : ''}">${gs.map(it => {

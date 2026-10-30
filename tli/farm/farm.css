@@ -227,5 +227,5 @@
 .fm-gs.ico .fm-g { padding: 3px; border-radius: 8px; cursor: help; }
 .fm-gs.ico .fm-g img { width: 22px; height: 22px; }
 .fm-gs.ico .fm-g:hover { background: #1b2230; }
-/* 정령 필수 — 작성자 줄에 섞이므로 조금 더 작게 */
-.fm-m .fm-tg.pact { align-self: center; font-size: 11px; }
+/* 정령 필수 — 제목 앞 난이도 옆. 제목이 밀리지 않게 폭 고정 */
+.fm-t .fm-tg.pact { flex: none; cursor: help; }
