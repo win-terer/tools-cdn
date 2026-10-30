@@ -545,6 +545,12 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       dialog('글 수정', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '수정하기', async v => {
         const r = await api('/api/vshare/edit', { id, pwd: v.pwd, check: true });
         if (!r.ok) return r.error;
+        // 비밀번호가 맞은 지금이 '내 계정에 연결할까요?' 를 묻기 가장 좋은 때 (2026-10-30 사용자).
+        // 연결해 두면 다음부터 비밀번호 없이 본인이 고치고 지운다.
+        if (r.claimable && confirm(`이 글을 내 디스코드 계정(${r.who})에 연결할까요?\n\n연결하면 다음부터는 비밀번호 없이 고치고 지울 수 있고,\n글쓴이 이름 옆에 인증 표시가 붙습니다.\n(나중에 해도 됩니다)`)) {
+          const c = await api('/api/claim', { id, pwd: v.pwd });
+          toast(c.ok ? '🔗 내 계정에 연결했습니다' : '연결하지 못했습니다: ' + (c.error || ''));
+        }
         setMine(id, v.pwd); edStart(v.pwd); return '';
       }, '확인되면 이 화면에서 노드·정령·탐침·나침반·메모를 고친 뒤 저장할 수 있습니다.');
     } else if (a === 'del') {

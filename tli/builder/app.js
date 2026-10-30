@@ -12608,13 +12608,16 @@ function totalPick(q) {
 // ─────────────────────────────────────────────────────────────────────────────
 var UTIPS = [], UTIP_TAGS = [], tipsLoaded = false, tipsLoading = null, tipsTagSel = '', tipsEditId = '', tipsMineOnly = false;
 var tipFormTags = [];   // 글쓰기 칸의 태그 칩 (쉼표·Enter 로 확정, × 로 삭제)
+var tipsIsMod = false;  // 부관리자 — 남의 글도 고치고 지울 수 있다(서버가 다시 확인한다)
+// 디스코드로 인증된 작성자 표시 — 닉네임 앞 마크, 누르면 그 사람 글 모아보기
+const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
 
 function tipsLoad(force) {
   if (tipsLoaded && !force) return Promise.resolve(UTIPS);
   if (tipsLoading && !force) return tipsLoading;
   tipsLoading = fetch('/api/tips', { headers: { accept: 'application/json' } })
     .then(r => r.json())
-    .then(d => { UTIPS = d.tips || []; UTIP_TAGS = d.tags || []; tipsLoaded = true; return UTIPS; })
+    .then(d => { UTIPS = d.tips || []; UTIP_TAGS = d.tags || []; tipsIsMod = !!d.mod; tipsLoaded = true; return UTIPS; })
     .catch(() => { UTIPS = []; UTIP_TAGS = []; tipsLoaded = true; return UTIPS; })
     .finally(() => { tipsLoading = null; });
   return tipsLoading;
@@ -12709,7 +12712,9 @@ function tipsSave() {
     .finally(() => { btn.disabled = false; });
 }
 function tipsDelete(id) {
-  if (!confirm('이 팁을 지울까요? 되돌릴 수 없습니다.')) return;
+  const t = UTIPS.find(x => x.id === id);
+  const msg = (t && !t.mine) ? `${t.author} 님이 쓴 팁을 지웁니다.\n\n"${t.title}"\n\n되돌릴 수 없습니다. 지울까요?` : '이 팁을 지울까요? 되돌릴 수 없습니다.';
+  if (!confirm(msg)) return;
   fetch('/api/tip/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
     .then(r => r.json()).then(() => tipsLoad(true).then(renderTips)).catch(() => {});
 }
@@ -12751,13 +12756,19 @@ function renderTips() {
     const edited = t.up && t.up !== t.at;
     return `<div class="tip-card">
       <h4 data-noi18n>${highlight(t.title, kws)}</h4>
-      <div class="tip-meta"><b data-noi18n>${escapeHtml(t.author)}</b><span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
+      <div class="tip-meta">${t.au
+        ? `<a class="tip-who" href="/tli/u/?k=${t.au}" title="이 사람이 쓴 글 모아보기">${DC_MARK}<b data-noi18n>${escapeHtml(t.author)}</b></a>`
+        : `<b data-noi18n>${escapeHtml(t.author)}</b>`}<span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
       + `<span>👁 ${t.views || 0}</span><span>👍 ${t.likes || 0}</span></div>`
       + (t.tags.length ? `<div class="tip-tags" data-noi18n>${t.tags.map(g => `<span onclick="tipsPickTag('${escapeHtml(g).replace(/'/g, "&#39;")}')">${highlight(g, kws)}</span>`).join('')}</div>` : '')
       + `<div class="tip-body" data-noi18n>${highlight(t.body, kws)}</div>
       <div class="tip-act">
         <button type="button" onclick="tipsLike('${t.id}')">👍 도움돼요</button>`
-      + (t.mine ? `<button type="button" onclick="tipsOpenForm('${t.id}')">✏ 고치기</button><button type="button" class="del" onclick="tipsDelete('${t.id}')">🗑 지우기</button>` : '')
+      + (t.mine || tipsIsMod
+          ? `<button type="button" onclick="tipsOpenForm('${t.id}')">✏ 고치기</button>`
+            + `<button type="button" class="del" onclick="tipsDelete('${t.id}')">🗑 지우기</button>`
+            + (t.mine ? '' : '<span class="tip-modmark" title="부관리자 권한으로 보입니다">관리</span>')
+          : '')
       + `</div></div>`;
   }).join('');
 }
@@ -13666,7 +13677,9 @@ function shareRowHtml(it) {
     `<div class="shc-info"><div class="share-title" data-tt="${escapeHtml(title)}">${se}<span data-noi18n>${escapeHtml(title)}</span></div>` +
     `<small class="shc-sub">${tr ? escapeHtml(tr.hero + ' · ' + tr.full) : '히어로 없음'}</small>` +
     `<div class="share-tags" data-tt="${escapeHtml(tipAll)}">${chips}</div></div>` +
-    `<div class="share-meta"><span class="shc-au" data-noi18n>${escapeHtml(it.author)}</span><span class="shc-right">` +
+    `<div class="share-meta">${it.au
+        ? `<span class="shc-au ver" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" onclick="event.stopPropagation();location.href='/tli/u/?k=${it.au}'">${DC_MARK}${escapeHtml(it.author)}</span>`
+        : `<span class="shc-au" data-noi18n>${escapeHtml(it.author)}</span>`}<span class="shc-right">` +
       (it.likes > 0 ? `<span class="share-like">👍 ${it.likes}</span>` : '') + `<span class="share-views">👁 ${it.views || 0}</span>` +
       (it.yt ? '<span class="shc-yt" title="가이드 영상이 있습니다">▶</span>' : '') +
       `<span class="shc-date" title="${escapeHtml(dFull)}">${escapeHtml(shareShortDate(it.created_at))}${it.updated_at ? '<i title="고친 적 있음">✎</i>' : ''}</span></span></div></div>`;
