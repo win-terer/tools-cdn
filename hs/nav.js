@@ -194,6 +194,7 @@
       { href: '/tli/db/?tab=pact',     label: '정령',        match: /^\/tli\/db/, tab: 'pact' },
       { href: '/tli/db/?tab=skill',    label: '스킬',        match: /^\/tli\/db/, tab: 'skill' },
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
+      { href: '/tli/db/?tab=tips',     label: '💡 팁',       match: /^\/tli\/db/, tab: 'tips' },
     ] },
     { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void|blood)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
@@ -333,6 +334,15 @@
   .hubnav .wtoggle:hover, .hubnav .langtoggle:hover { color:var(--wtn-gold); border-color:var(--wtn-gold); }
   .hubnav .wtoggle .ic, .hubnav .langtoggle .ic { font-size:13px; line-height:1; }
   .hubnav .langtoggle { margin-right:6px; }
+  /* 디스코드 로그인 (2026-10-30) — 토글 단추와 같은 알약 모양, 로그인하면 아바타+이름 */
+  .hubnav .wtlogin { display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin-right:6px;
+    background:transparent; color:var(--wtn-dim); border:1px solid var(--wtn-edge); border-radius:7px;
+    padding:4px 9px; font-size:12px; font-weight:600; white-space:nowrap; font-family:inherit; }
+  .hubnav .wtlogin:hover { color:var(--wtn-gold); border-color:var(--wtn-gold); }
+  .hubnav .wtlogin img { width:18px; height:18px; border-radius:50%; display:block; }
+  .hubnav .wtlogin .dc { width:15px; height:11px; display:block; fill:#8ea1e1; }
+  .hubnav .wtlogin:hover .dc { fill:var(--wtn-gold); }
+  .hubnav .wtlogin.banned { color:#e07a7a; border-color:#5a2b2b; }
   .hubnav .wtoggle { padding:5px 8px; }
   .hubnav .wtoggle svg { display:block; }
   .hubnav .imgtoggle { display:inline-flex; align-items:center; cursor:pointer; background:transparent;
@@ -378,6 +388,7 @@
     ).join('') + `</div>` +
     `<span class="spacer"></span>` +
     // 언어 토글은 그 페이지가 한영을 지원할 때만(html[data-i18n]) 헤더에 넣는다 — 현재 DB.
+    `<button class="wtlogin" type="button" aria-label="로그인"></button>` +
     (document.documentElement.hasAttribute('data-i18n')
       ? `<button class="langtoggle" type="button" aria-label="언어 전환"></button>` : '') +
     `<button class="imgtoggle" type="button" aria-label="이미지 표시/숨김"></button>` +
@@ -561,6 +572,62 @@
       });
       paintLang();
     }
+    // ── 디스코드 로그인 (2026-10-30) ──
+    // 상태는 /api/auth/me 한 번. 비로그인이면 서버가 DB 를 보지 않으므로(쿠키가 없다) 거의 공짜다.
+    // 결과는 window.WT_ME 로 두어 페이지(팁 쓰기 칸 등)가 그대로 쓴다 — 'wt-login' 이벤트로도 알린다.
+    const DISCORD_MARK = '<svg class="dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
+    const lgBtn = nav.querySelector('.wtlogin');
+    if (lgBtn) {
+      const loginHref = () => '/api/auth/discord?to=' + encodeURIComponent(location.pathname + location.search);
+      const paintLogin = (me) => {
+        window.WT_ME = me;
+        if (!me || !me.login) {
+          lgBtn.className = 'wtlogin';
+          lgBtn.innerHTML = DISCORD_MARK + '<span class="tx">로그인</span>';
+          lgBtn.setAttribute('data-tip', me && me.ready === false ? '디스코드 로그인 준비 중입니다' : '디스코드로 로그인 — 팁을 쓰고 내 글을 관리합니다');
+          return;
+        }
+        const av = me.avatar ? `<img src="https://cdn.discordapp.com/avatars/${me.did}/${me.avatar}.png?size=32" alt="" loading="lazy">` : DISCORD_MARK;
+        lgBtn.className = 'wtlogin' + (me.banned ? ' banned' : '');
+        lgBtn.innerHTML = av + `<span class="tx">${String(me.name || '').replace(/[<>&]/g, '')}</span>`;
+        lgBtn.setAttribute('data-tip', me.banned ? '글쓰기가 제한된 계정입니다' : me.name + ' — 누르면 내 글·로그아웃');
+      };
+      const menu = document.createElement('div'); menu.className = 'hubnav-menu'; document.body.appendChild(menu);
+      lgBtn.addEventListener('click', () => {
+        const me = window.WT_ME;
+        if (!me || !me.login) { location.href = loginHref(); return; }
+        if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+        menu.innerHTML = '<a href="/tli/db/?tab=tips&amp;mine=1">📝 내 글</a><a href="#" data-out="1">↩ 로그아웃</a>';
+        const r = lgBtn.getBoundingClientRect();
+        menu.style.left = Math.min(r.left, innerWidth - 160) + 'px';
+        menu.style.top = r.bottom + 4 + 'px';
+        menu.classList.add('open');
+      });
+      menu.addEventListener('click', (e) => {
+        const out = e.target.closest('[data-out]');
+        if (!out) return;
+        e.preventDefault(); menu.classList.remove('open');
+        fetch('/api/auth/logout', { method: 'POST' }).then(() => location.reload());
+      });
+      document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== lgBtn && !lgBtn.contains(e.target)) menu.classList.remove('open'); });
+      // 표시용 쿠키(wtun)만 읽어서 바로 그린다 — 사이트 모든 페이지에서 /api/auth/me 를 부르면
+      // 워커 요청이 페이지뷰만큼 늘어난다. 진짜 인증은 서버가 HttpOnly 쿠키로 따로 본다(account.js).
+      let me0 = null;
+      try {
+        const m = /(?:^|;\s*)wtun=([^;]*)/.exec(document.cookie);
+        if (m) { const v = JSON.parse(decodeURIComponent(m[1])); if (v && v.n) me0 = { login: true, name: v.n, avatar: v.a, did: v.d }; }
+      } catch (e) {}
+      paintLogin(me0);
+      window.dispatchEvent(new CustomEvent('wt-login', { detail: me0 }));
+      // 로그인 상태에서만, 그것도 탭마다 한 번만 확인한다(이름 변경·차단 반영, 끝난 세션의 쿠키 정리).
+      // 비로그인은 아무 요청도 하지 않는다 — 방문의 대부분이 여기 해당한다.
+      let needCheck = !!me0;
+      try { if (me0 && sessionStorage.getItem('wt-me-ok') === me0.did) needCheck = false; else if (me0) sessionStorage.setItem('wt-me-ok', me0.did); } catch (e) {}
+      if (needCheck) fetch('/api/auth/me', { headers: { accept: 'application/json' } })
+        .then((r) => r.json()).then((me) => { paintLogin(me.login ? me : null); window.dispatchEvent(new CustomEvent('wt-login', { detail: me.login ? me : null })); })
+        .catch(() => {});
+    }
+
     // 헤더 아이콘 커스텀 툴팁 — 시스템 title 대신, 뷰포트 안으로 클램프(모바일 오른쪽 잘림 방지)
     const navTip = document.createElement('div'); navTip.className = 'hubnav-tip'; document.body.appendChild(navTip);
     const showNavTip = (el) => {

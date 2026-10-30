@@ -3657,9 +3657,10 @@ const TAB_CATS = {all: ['장비'], talent: ['재능', '석판'], destiny: ['운�
 function switchTab(tab) {
   if (typeof shareView !== 'undefined' && shareView && tab !== 'preset') exitShareView(true); // 보기 중 다른 탭 → 종료
   currentTab = tab;
-  ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'share', 'fav', 'preset'].forEach(t => document.getElementById('tab-' + t).classList.toggle('active', t === tab));
+  ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips', 'share', 'fav', 'preset'].forEach(t => { const b = document.getElementById('tab-' + t); if (b) b.classList.toggle('active', t === tab); });
   const dataTab = !!TAB_CATS[tab]; // 장비/재능·석판/운명 — 공용 표를 사용
   document.getElementById('totalWrap').style.display = tab === 'total' ? '' : 'none';
+  { const w = document.getElementById('tipsWrap'); if (w) w.style.display = tab === 'tips' ? '' : 'none'; }
   document.querySelector('.table-wrap').style.display = dataTab ? '' : 'none';
   document.querySelector('.page-controls').style.display = (dataTab || tab === 'skill') ? '' : 'none';
   document.getElementById('skillWrap').style.display = tab === 'skill' ? '' : 'none';
@@ -3690,14 +3691,20 @@ function switchTab(tab) {
   document.getElementById('adv-sec-석판').style.display = tab === 'talent' ? '' : 'none';
   document.getElementById('adv-sec-재능').style.display = tab === 'talent' ? '' : 'none';
   // 검색 줄은 프리셋·통합 검색 탭에서는 통째로 숨김 (프리셋=검색 대상 없음, 통합=자체 입력창)
-  document.getElementById('searchBar').style.display = (tab === 'preset' || tab === 'total' || tab === 'share' || tab === 'legend' || tab === 'pact' || tab === 'tartarus') ? 'none' : '';
+  document.getElementById('searchBar').style.display = (tab === 'preset' || tab === 'total' || tab === 'tips' || tab === 'share' || tab === 'legend' || tab === 'pact' || tab === 'tartarus') ? 'none' : '';
   if (tab === 'total') { const el = document.getElementById('totalSearch'); renderTotal(); setTimeout(() => el.focus(), 0); }
+  if (tab === 'tips') {
+    // 헤더의 '내 글'(?tab=tips&mine=1) 로 들어오면 내 글만 — 한 번 읽고 주소에서 지운다
+    try { if (new URLSearchParams(location.search).get('mine') === '1') tipsMineOnly = true; } catch (e) {}
+    tipsLoad().then(renderTips);
+    setTimeout(() => { const el = document.getElementById('tipsSearch'); if (el) el.focus(); }, 0);
+  }
   if (tab === 'share') renderShare();
   if (tab === 'pact') { renderPactDb(); setTimeout(() => { const el = document.getElementById('pactSearch'); if (el) el.focus(); }, 0); }
   if (tab === 'tartarus') { renderTartarus(); setTimeout(() => { const el = document.getElementById('ttSearch'); if (el) el.focus(); }, 0); }
   if (tab === 'legend') { renderLegend(); setTimeout(() => { const el = document.getElementById('legendSearch'); if (el) el.focus(); }, 0); }
   doFilter();
-  if (window.wtEv && document.documentElement.dataset.tliMode === 'db' && ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus'].includes(tab)) window.wtEv('dbtab_' + tab);
+  if (window.wtEv && document.documentElement.dataset.tliMode === 'db' && ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips'].includes(tab)) window.wtEv('dbtab_' + tab);
   syncHashTab(tab); // 뒤로가기 지원: 탭 전환을 브라우저 히스토리에 기록
 }
 
@@ -12593,6 +12600,125 @@ function totalPick(q) {
   const el = document.getElementById('totalSearch');
   el.value = q; syncFromTotal(); el.focus();
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// 💡 팁 (2026-10-30) — 사용자가 올리는 짧은 공략 메모.
+// 목록을 통째로 한 번 받아 두고(/api/tips) 브라우저 안에서 훑는다 — 통합 검색이 이미 그 방식이라
+// 같은 parseTokens/totalMatch 를 그대로 쓰고, 팁 탭과 통합 검색이 한 배열을 공유한다.
+// 글쓴이는 디스코드 계정(헤더 nav.js 가 window.WT_ME 에 넣어 준다). 비밀번호는 없다.
+// ─────────────────────────────────────────────────────────────────────────────
+var UTIPS = [], UTIP_TAGS = [], tipsLoaded = false, tipsLoading = null, tipsTagSel = '', tipsEditId = '', tipsMineOnly = false;
+
+function tipsLoad(force) {
+  if (tipsLoaded && !force) return Promise.resolve(UTIPS);
+  if (tipsLoading && !force) return tipsLoading;
+  tipsLoading = fetch('/api/tips', { headers: { accept: 'application/json' } })
+    .then(r => r.json())
+    .then(d => { UTIPS = d.tips || []; UTIP_TAGS = d.tags || []; tipsLoaded = true; return UTIPS; })
+    .catch(() => { UTIPS = []; UTIP_TAGS = []; tipsLoaded = true; return UTIPS; })
+    .finally(() => { tipsLoading = null; });
+  return tipsLoading;
+}
+function tipMe() { return window.WT_ME && window.WT_ME.login ? window.WT_ME : null; }
+function tipsReset() { document.getElementById('tipsSearch').value = ''; tipsTagSel = ''; tipsMineOnly = false; renderTips(); }
+function tipsPickTag(t) {
+  tipsTagSel = (tipsTagSel === t) ? '' : t;
+  renderTips();
+}
+function tipsToggleMine() { tipsMineOnly = !tipsMineOnly; renderTips(); }
+
+function tipsOpenForm(id) {
+  const me = tipMe();
+  if (!me) { location.href = '/api/auth/discord?to=' + encodeURIComponent(location.pathname + '?tab=tips'); return; }
+  if (me.banned) { alert('글쓰기가 제한된 계정입니다.'); return; }
+  const t = id ? UTIPS.find(x => x.id === id) : null;
+  tipsEditId = t ? t.id : '';
+  document.getElementById('tipFTitle').value = t ? t.title : '';
+  document.getElementById('tipFTags').value = t ? t.tags.join(', ') : (tipsTagSel || '');
+  document.getElementById('tipFBody').value = t ? t.body : '';
+  document.getElementById('tipFMsg').textContent = '';
+  document.getElementById('tipFSave').textContent = t ? '고치기' : '올리기';
+  document.getElementById('tipsForm').style.display = '';
+  document.getElementById('tipsNewBtn').style.display = 'none';
+  setTimeout(() => document.getElementById('tipFTitle').focus(), 0);
+}
+function tipsCloseForm() {
+  tipsEditId = '';
+  document.getElementById('tipsForm').style.display = 'none';
+  document.getElementById('tipsNewBtn').style.display = '';
+}
+function tipsSave() {
+  const btn = document.getElementById('tipFSave'), msg = document.getElementById('tipFMsg');
+  const payload = {
+    id: tipsEditId || undefined,
+    title: document.getElementById('tipFTitle').value,
+    tags: document.getElementById('tipFTags').value,
+    body: document.getElementById('tipFBody').value,
+  };
+  btn.disabled = true; msg.textContent = '';
+  fetch('/api/tip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) { msg.textContent = d.message || '올리지 못했습니다.'; return; }
+      tipsCloseForm();
+      return tipsLoad(true).then(renderTips);
+    })
+    .catch(() => { msg.textContent = '연결에 실패했습니다.'; })
+    .finally(() => { btn.disabled = false; });
+}
+function tipsDelete(id) {
+  if (!confirm('이 팁을 지울까요? 되돌릴 수 없습니다.')) return;
+  fetch('/api/tip/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
+    .then(r => r.json()).then(() => tipsLoad(true).then(renderTips)).catch(() => {});
+}
+function tipsLike(id) {
+  const t = UTIPS.find(x => x.id === id); if (!t || t._liked) return;
+  t._liked = true; t.likes = (t.likes || 0) + 1; renderTips();
+  fetch('/api/tip/like', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
+}
+
+/** 검색 조건에 맞는 팁 (통합 검색도 이 함수를 쓴다 — tokens 를 넘기면 그 조건으로) */
+function tipsMatch(tokens) {
+  if (!tokens.length) return UTIPS;
+  return UTIPS.filter(t => totalMatch(tokens, ['팁', t.title, t.tags.join(' '), t.body, t.author]));
+}
+function tipDate(iso) { return String(iso || '').slice(0, 10).replace(/-/g, '.').slice(2); }
+
+function renderTips() {
+  const box = document.getElementById('tipsResults'); if (!box) return;
+  const bar = document.getElementById('tipsTagBar');
+  const me = tipMe();
+  const q = document.getElementById('tipsSearch').value.trim();
+  const tokens = parseTokens(q);
+  const kws = tokens.filter(g => !g.neg).flatMap(g => g.kws);
+
+  bar.innerHTML = (me ? `<button type="button" class="${tipsMineOnly ? 'on' : ''}" onclick="tipsToggleMine()">📝 내 글</button>` : '')
+    + UTIP_TAGS.map(x => `<button type="button" class="${tipsTagSel === x.t ? 'on' : ''}" onclick="tipsPickTag('${escapeHtml(x.t).replace(/'/g, "&#39;")}')">${escapeHtml(x.t)}<i>${x.n}</i></button>`).join('');
+
+  let rows = tipsMatch(tokens);
+  if (tipsTagSel) rows = rows.filter(t => t.tags.includes(tipsTagSel));
+  if (tipsMineOnly) rows = rows.filter(t => t.mine);
+
+  if (!UTIPS.length) {
+    box.innerHTML = `<div class="tip-empty">아직 올라온 팁이 없습니다.<br>${me ? '위 <b>✍ 팁 쓰기</b> 로 첫 글을 남겨 보세요.' : '디스코드로 로그인하면 팁을 쓸 수 있습니다.'}</div>`;
+    return;
+  }
+  if (!rows.length) { box.innerHTML = '<div class="tip-empty">조건에 맞는 팁이 없습니다.</div>'; return; }
+
+  box.innerHTML = rows.map(t => {
+    const edited = t.up && t.up !== t.at;
+    return `<div class="tip-card">
+      <h4>${highlight(t.title, kws)}</h4>
+      <div class="tip-meta"><b>${escapeHtml(t.author)}</b><span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
+      + `<span>👁 ${t.views || 0}</span><span>👍 ${t.likes || 0}</span></div>`
+      + (t.tags.length ? `<div class="tip-tags">${t.tags.map(g => `<span onclick="tipsPickTag('${escapeHtml(g).replace(/'/g, "&#39;")}')">${highlight(g, kws)}</span>`).join('')}</div>` : '')
+      + `<div class="tip-body">${highlight(t.body, kws)}</div>
+      <div class="tip-act">
+        <button type="button" onclick="tipsLike('${t.id}')">👍 도움돼요</button>`
+      + (t.mine ? `<button type="button" onclick="tipsOpenForm('${t.id}')">✏ 고치기</button><button type="button" class="del" onclick="tipsDelete('${t.id}')">🗑 지우기</button>` : '')
+      + `</div></div>`;
+  }).join('');
+}
+
 function totalStartHtml() {
   const n = c => ALL_DATA.filter(r => r.category === c).length;
   const fmt = x => x.toLocaleString('ko-KR');
@@ -12604,6 +12730,7 @@ function totalStartHtml() {
     ['pact', '🐾', '정령', fmt(pactDbList().length) + '종', '전투 정령 노드·외환·승급 보상'],
     ['skill', '🔮', '스킬', fmt(SKILLS.length) + '종', '액티브·보조·패시브, 레벨·티어별 수치'],
     ['tartarus', '⛓', '타르타로스', fmt(TARTARUS.length) + '종', 'SS14 타르타로스·오리진 스킬'],
+    ['tips', '💡', '팁', fmt(UTIPS.length) + '개', '사용자들이 올린 짧은 공략 메모'],
   ].filter(c => c[0] !== 'tartarus' || TARTARUS.length);
   return `<div class="tst">
     <div class="tst-cap">자주 찾는 검색어</div>
@@ -12618,6 +12745,7 @@ function renderTotal() {
   if (q !== totalPrevQ) { totalPrevQ = q; totalExpanded.clear(); }
   const tokens = parseTokens(q);
   document.getElementById('totalHint').style.display = tokens.length ? 'none' : 'block';
+  if (!tipsLoaded) tipsLoad().then(() => { if (currentTab === 'total') renderTotal(); });   // 팁 목록은 처음 한 번만 받는다
   if (!tokens.length) { box.innerHTML = totalStartHtml(); return; }
   const kws = tokens.filter(g => !g.neg).flatMap(g => g.kws);
   // 효과만 검색: 장비·재능·석판·운명 그룹에서 출처·유형 필드를 검색 대상에서 제외
@@ -12625,6 +12753,10 @@ function renderTotal() {
   // html: 행 본문 커스텀 렌더 — 용어 툴팁(tip/tip2)·아이템/스킬 호버 카드(ilink/slink)를 본 목록과 동일하게 제공
   // label: 그룹명도 검색 대상 — "투사체 부활"처럼 그룹명+내용 조합으로 그룹 내 검색 가능 (제외 !부활도 그룹 단위 동작)
   const groups = [
+    // 팁은 사람이 쓴 설명이라 제일 위에 — 아직 못 받았으면 받아 와서 한 번 더 그린다(처음 한 번만)
+    {title: '💡 팁', go: 'tips', rows: tipsMatch(tokens),
+      line: t => [t.title, (t.tags.length ? t.tags.join(' · ') + ' · ' : '') + t.author],
+      html: t => highlight(t.title, kws) + ` <span class="t-inline">— ${highlight(t.body.length > 80 ? t.body.slice(0, 80).replace(/\n/g, ' ') + '…' : t.body.replace(/\n/g, ' '), kws)}</span>`},
     {title: '⚔ 장비 옵션', go: 'equip', rows: ALL_DATA.filter(r => r.category === '장비' && totalMatch(tokens, ['장비 옵션', r.effect, ...st(r.source, r.type), ...rowTipTexts(r)])),
       line: r => [r.effect, (r.source || '특수 갑옷') + ' · ' + r.type], html: r => renderEffect(r, kws)},
     {title: '🏆 레전드 아이템', go: 'item', rows: ITEMS.map((it, i) => ({it, i})).filter(x => totalMatch(tokens, ['레전드 아이템', x.it.name, (x.it.tags || []).join(' '), ...(x.it.attrs || []).map(stripHtml), ...(x.it.opts || []).map(stripHtml), ...(x.it.drop || [])])),
@@ -12691,6 +12823,10 @@ document.addEventListener('click', e => {
   const row = e.target.closest('.total-row[data-tgo], .total-more[data-tgo]');
   if (!row) return;
   const kind = row.dataset.tgo;
+  if (kind === 'tips') { // 팁 → 팁 탭 (같은 검색어 그대로)
+    document.getElementById('tipsSearch').value = document.getElementById('totalSearch').value.trim();
+    switchTab('tips'); window.scrollTo(0, 0); return;
+  }
   if (kind === 'pact') { // 정령 → 정령 탭 (줄이면 그 정령 이름, 더보기면 같은 검색어)
     document.getElementById('pactSearch').value = row.dataset.tpn || document.getElementById('totalSearch').value.trim();
     const sp0 = row.dataset.tpn && PACT.find(x => x.name === row.dataset.tpn);
@@ -14327,8 +14463,8 @@ function closePatch() { document.getElementById('patchModal').style.display = 'n
 //           읽기는 쿼리 우선 + 해시 폴백이라 이미 퍼진 #링크도 그대로 열린다.
 var hashApplying = false; // popstate 반영 중 pushState 방지
 var modalEntry = false;   // 히스토리 최상단이 모달용 엔트리인지
-const TAB_IDS_H = ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'share', 'fav', 'preset'];
-const TAB_Q_INPUT = {total: 'totalSearch', legend: 'legendSearch', pact: 'pactSearch', tartarus: 'ttSearch'}; // 탭마다 자기 검색칸 (그 외는 공용 #search)
+const TAB_IDS_H = ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips', 'share', 'fav', 'preset'];
+const TAB_Q_INPUT = {total: 'totalSearch', legend: 'legendSearch', pact: 'pactSearch', tartarus: 'ttSearch', tips: 'tipsSearch'}; // 탭마다 자기 검색칸 (그 외는 공용 #search)
 function urlParams() { return location.search.slice(1) || location.hash.slice(1); } // 쿼리 우선, 옛 해시 링크 폴백
 function parseHash() {
   try { const p = new URLSearchParams(urlParams()); return {tab: p.get('tab'), q: p.get('q') || ''}; }
