@@ -194,3 +194,9 @@
     .vc-gw { position: relative; } .vc-gw > .vc-gs.on { padding-right: 30px; }
     .vc-gx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border-radius: 6px; border: 1px solid #2f3a4d; background: #121826; color: #9aa4b2; font-size: 12px; line-height: 1; cursor: pointer; }
     .vc-gx:hover { color: #ff8a8a; border-color: #a03a3a; }
+
+/* 디스코드로 인증된 작성자 (2026-10-30) — 마크 + 누르면 그 사람 글 모아보기 */
+.fm-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
+.fm-who:hover { color: #e6edf3; text-decoration: underline; }
+.wt-dc { width: 14px; height: 11px; display: block; fill: #8ea1e1; flex: none; }
+.fm-who:hover .wt-dc { fill: #aebdf0; }

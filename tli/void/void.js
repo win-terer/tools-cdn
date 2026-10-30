@@ -56,6 +56,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   let view = -1;            // -1 = 목록, 아니면 별무리 번호
   let undo = [];
   const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (o && o.s) S = CS.map(c => new Set((o.s[c.key] || []).filter(id => c.by.has(id) && id !== c.start))); if (o && o.g) G = normG(o.g); if (o && typeof o.m === 'string') M = o.m.slice(0, 500); } catch (e) {} };
+  // 디스코드로 인증된 작성자 마크 (2026-10-30)
+  const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
   let RO = null;   // 공유 글 보기 중(?s=) — {item, liked, admin, vwait} · 이때 S 는 공유 배치이고 저장하지 않는다
   let ED = null;   // 공유 글 수정 중 — {item, pwd, admin} · 연습판처럼 고치되 내 연습판에는 저장하지 않는다 (2026-10-28 사용자)
   const save = () => { if (RO || ED) return; try { const s = {}; CS.forEach(c => { if (S[c.ci].size) s[c.key] = [...S[c.ci]]; }); const o = { v: 1, s }; if (hasG(G)) o.g = G; if (M) o.m = M; localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
@@ -419,7 +421,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const it = RO.item, vids = (() => { try { return JSON.parse(it.videos || '[]'); } catch (e) { return []; } })();
     return `<div class="vc-ro">
       <div class="vc-ro-l"><small>공유된 파밍 빌드</small><b data-noi18n>${esc(it.title)}</b>
-        <span class="vc-ro-m"><span data-noi18n>👤 ${esc(it.author)}</span> · ${kday(it.created_at)} · 👁 ${it.views || 0}</span></div>
+        <span class="vc-ro-m">${it.au
+          ? `<a class="vc-who" href="/tli/u/?k=${esc(it.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기">${DC_MARK}${esc(it.author)}</a>`
+          : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}</span></div>
       <div class="vc-ro-a">
         <button class="vc-btn vc-like${RO.liked ? ' on' : ''}" data-act="like">👍 추천 <b>${it.likes || 0}</b></button>
         <button class="vc-btn vc-share" data-act="take">📥 내 연습판으로 가져오기</button>
@@ -537,8 +541,11 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       const u = location.origin + location.pathname + '?s=' + id;
       (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('공유 링크를 복사했습니다'), () => wtCopyBox('공유 링크', u));
     } else if (a === 'exit') {
-      RO = null; S = CS.map(() => new Set()); G = emptyG(); M = ''; load(); undo = [];
-      history.replaceState(null, '', location.pathname); document.title = '허공의 성도 시뮬레이터 · 토치라이트 인피니트 · 미니토치DB'; render();
+      // 공유 글을 보던 중이니 파밍 공유 목록으로 돌아간다 — 시뮬레이터로 떨어뜨리면 어디서 왔는지를 잃는다
+      // (2026-10-30 사용자). 바로 앞 화면이 그 목록이면 뒤로가기로 가서 스크롤 자리를 지킨다.
+      if (document.referrer && /\/tli\/farm\/?(\?|$)/.test(document.referrer)) history.back();
+      else location.href = '/tli/farm/';
+      return;
     } else if (a === 'vreq') {
       dialog('🎬 가이드 영상 추가', [{ k: 'video', label: '유튜브 주소', ph: 'https://youtu.be/…' }, { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }],
         '요청', async v => { const r = await api('/api/vshare/video-req', { id, pwd: v.pwd, video: v.video }); if (!r.ok) return r.error; RO.vwait = (RO.vwait || 0) + 1; render(); toast('요청했습니다 — 관리자가 확인한 뒤 보입니다'); return ''; },
@@ -568,7 +575,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       dialog('🔗 내 계정에 연결', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '연결하기', async v => {
         const c = await api('/api/claim', { id, pwd: v.pwd });
         if (!c.ok) return c.error;
-        RO.claimable = false; RO.mine = true; RO.item.au = 'me'; render();
+        RO.claimable = false; RO.mine = true; RO.item.au = c.au || 'me'; render();
         toast('🔗 내 계정에 연결했습니다'); return '';
       }, '올릴 때 등록한 비밀번호를 확인하면 이 글이 내 디스코드 계정에 붙습니다.<br>그 뒤로는 <b>비밀번호 없이</b> 고치고 지울 수 있고, 글쓴이 이름 옆에 인증 표시가 붙습니다.');
     } else if (a === 'del') {

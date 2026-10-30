@@ -7,6 +7,9 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const BYKEY = new Map(VOID.list.map(c => [Math.floor(+c.start / 100), c]));
   const kday = iso => iso ? new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10) : '';
+  // 디스코드로 인증된 작성자 마크 (2026-10-30)
+  const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
+
   let sort = 'likes', q = '', list = [], more = false, busy = false;
   try { const o = JSON.parse(localStorage.getItem('tli_farm_ui_v1') || '{}'); if (['likes', 'views', 'new'].includes(o.sort)) sort = o.sort; } catch (e) {}
 
@@ -30,7 +33,9 @@
     const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t"><b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
-      <div class="fm-m"><span data-noi18n>👤 ${esc(x.author)}</span><span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
+      <div class="fm-m">${x.au
+        ? `<a class="fm-who" href="/tli/u/?k=${esc(x.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" onclick="event.stopPropagation()">${DC_MARK}${esc(x.author)}</a>`
+        : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
       ${gs.length ? `<div class="fm-gs">${gs.map(it => `<span class="fm-g" title="${esc(it.n)}"><img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><b class="q${it.q}">${esc(it.n)}</b></span>`).join('')}</div>` : ''}
