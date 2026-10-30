@@ -145,6 +145,13 @@
 })();
 (() => {
   const path = location.pathname;
+  // 메뉴에 불이 들어올 자리만 따로 본다 (navPath) — 집계(pg)·영어판 판정은 진짜 경로(path)를 그대로 쓴다.
+  // 공유 글을 '보는 중' 이면 메뉴는 그 글이 사는 공유 목록을 가리켜야 한다 (2026-10-30 사용자:
+  // 빌드 공유에서 파밍 글을 열었는데 메뉴는 '빌더' 에 불이 들어왔다).
+  //   /tli/void/?s=<id> = 파밍 공유 글 보기(시뮬레이터 화면을 그대로 쓴다) → 빌드 공유
+  //   /tli/view/        = 히어로 빌드 공유 글 보기                        → 빌드 공유
+  const navPath = /^\/tli\/void/.test(path) && /[?&]s=/.test(location.search) ? '/tli/farm/'
+    : /^\/tli\/view/.test(path) ? '/tli/share/' : path;
   const isTli = path.indexOf('/tli') === 0;
   // tlidb 그림은 우리 사본(/timg/, _dev/mirror_timg.py 로 2,181개 받아 둠)으로 (2026-10-21 사용자: 엑박이 많아짐 — tlidb CDN 이 다른 사이트에서 부르는 그림을 일부 403 으로 막음)
   //   화면 코드·저장된 공유 글 주소는 그대로 두고 <img> 가 붙거나 src 가 바뀔 때 바꾼다. 사본이 없는 그림이면 한 번만 원래 주소로 되돌린다
@@ -382,10 +389,10 @@
     `<span class="game" title="${GAME_FULL}">${GAME}</span>` +
     `<div class="tabs">` + LINKS.map((l, i) => l.kids
       // 묶음 탭도 누르면 첫 항목으로 간다(하위를 고르지 않아도 되게). 펼침은 마우스를 올리거나 ▼ 를 누를 때.
-      ? `<span class="tabwrap"${l.match.test(path) ? ' aria-current="page"' : ''} data-menu="${i}">` +
+      ? `<span class="tabwrap"${l.match.test(navPath) ? ' aria-current="page"' : ''} data-menu="${i}">` +
         `<a class="tab" href="${l.kids[0].href}">${l.label}</a>` +
         `<button class="caret" type="button" data-menu="${i}" aria-expanded="false" aria-label="${l.label} 하위 메뉴">▼</button></span>`
-      : `<a class="tab" href="${l.href}"${l.match.test(path) ? ' aria-current="page"' : ''}>${l.label}</a>`
+      : `<a class="tab" href="${l.href}"${l.match.test(navPath) ? ' aria-current="page"' : ''}>${l.label}</a>`
     ).join('') + `</div>` +
     `<span class="spacer"></span>` +
     // 언어 토글은 그 페이지가 한영을 지원할 때만(html[data-i18n]) 헤더에 넣는다 — 현재 DB.
@@ -404,7 +411,7 @@
       m.className = 'hubnav-menu';
       const curTab = new URLSearchParams(location.search).get('tab');
       m.innerHTML = l.kids.map((k, j) =>
-        `<a href="${k.href}" data-k="${j}"${k.match && k.match.test(path) && (!k.tab || k.tab === curTab) ? ' aria-current="page"' : ''}>${k.label}</a>`).join('');
+        `<a href="${k.href}" data-k="${j}"${k.match && k.match.test(navPath) && (!k.tab || k.tab === curTab) ? ' aria-current="page"' : ''}>${k.label}</a>`).join('');
       // 같은 화면 안의 탭(DB)이면 새로 불러오지 않고 탭만 바꾼다
       m.addEventListener('click', (e) => {
         const a = e.target.closest('a[data-k]'), k = a && l.kids[+a.dataset.k];
