@@ -172,7 +172,7 @@
   } catch (e) {}
   if (tliI18n) document.documentElement.setAttribute('data-i18n', '');
   if (tliEn) {
-    const EN_I18N_V = '11ac74cf04';
+    const EN_I18N_V = 'a9243608df';
     document.documentElement.classList.add('wt-i18n-wait');
     const st = document.createElement('style'); st.textContent = 'html.wt-i18n-wait body{visibility:hidden!important}'; document.head.appendChild(st);
     setTimeout(() => document.documentElement.classList.remove('wt-i18n-wait'), 4000);
@@ -352,7 +352,8 @@
   .hubnav .imgtoggle.on { color:var(--wtn-gold); border-color:var(--wtn-gold); }
   .hubnav-tip { position:fixed; z-index:100; display:none; background:var(--wtn-panel); color:var(--wtn-text);
     border:1px solid var(--wtn-edge); border-radius:6px; padding:6px 10px; font-size:12px; line-height:1.5;
-    max-width:min(260px, calc(100vw - 16px)); box-shadow:0 6px 20px rgba(0,0,0,.5); pointer-events:none; }
+    max-width:min(320px, calc(100vw - 16px)); box-shadow:0 6px 20px rgba(0,0,0,.5); pointer-events:none;
+    white-space:pre-line; }   /* 여러 줄 툴팁 — 로그인 단추가 장점을 줄 나눠 보여 준다 (2026-10-30) */
   @media(max-width:560px){
     .hubnav { padding:0 8px; gap:0; }
     .hubnav .home { margin-right:6px; }
@@ -584,13 +585,14 @@
         if (!me || !me.login) {
           lgBtn.className = 'wtlogin';
           lgBtn.innerHTML = DISCORD_MARK + '<span class="tx">로그인</span>';
-          lgBtn.setAttribute('data-tip', me && me.ready === false ? '디스코드 로그인 준비 중입니다' : '디스코드로 로그인 — 팁을 쓰고 내 글을 관리합니다');
+          lgBtn.setAttribute('data-tip', me && me.ready === false ? '디스코드 로그인 준비 중입니다'
+            : '디스코드로 로그인하면\n\n💡 팁을 올리고 언제든 고칠 수 있어요\n📚 빌드·파밍 글을 비밀번호 없이 관리해요\n📝 내가 쓴 글을 한 곳에서 모아 봐요\n\n가져가는 건 닉네임과 프로필 사진뿐입니다.\n이메일도 서버 목록도 받지 않아요.');
           return;
         }
         const av = me.avatar ? `<img src="https://cdn.discordapp.com/avatars/${me.did}/${me.avatar}.png?size=32" alt="" loading="lazy">` : DISCORD_MARK;
         lgBtn.className = 'wtlogin' + (me.banned ? ' banned' : '');
         lgBtn.innerHTML = av + `<span class="tx">${String(me.name || '').replace(/[<>&]/g, '')}</span>`;
-        lgBtn.setAttribute('data-tip', me.banned ? '글쓰기가 제한된 계정입니다' : me.name + ' — 누르면 내 글·로그아웃');
+        lgBtn.setAttribute('data-tip', me.banned ? '글쓰기가 제한된 계정입니다' : me.name + '\n누르면 내 글 보기·로그아웃');
       };
       const menu = document.createElement('div'); menu.className = 'hubnav-menu'; document.body.appendChild(menu);
       lgBtn.addEventListener('click', () => {

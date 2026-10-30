@@ -12607,6 +12607,7 @@ function totalPick(q) {
 // 글쓴이는 디스코드 계정(헤더 nav.js 가 window.WT_ME 에 넣어 준다). 비밀번호는 없다.
 // ─────────────────────────────────────────────────────────────────────────────
 var UTIPS = [], UTIP_TAGS = [], tipsLoaded = false, tipsLoading = null, tipsTagSel = '', tipsEditId = '', tipsMineOnly = false;
+var tipFormTags = [];   // 글쓰기 칸의 태그 칩 (쉼표·Enter 로 확정, × 로 삭제)
 
 function tipsLoad(force) {
   if (tipsLoaded && !force) return Promise.resolve(UTIPS);
@@ -12626,6 +12627,46 @@ function tipsPickTag(t) {
 }
 function tipsToggleMine() { tipsMineOnly = !tipsMineOnly; renderTips(); }
 
+/** 태그 칩 — 입력칸 왼쪽에 쌓인다. 상자를 통째로 다시 그리지 않고 칩만 갈아 끼운다(입력 중 커서가 튀지 않게) */
+function tipsPaintChips() {
+  const box = document.getElementById('tipFTagBox'), inp = document.getElementById('tipFTags');
+  if (!box) return;
+  box.querySelectorAll('.tip-chip').forEach(c => c.remove());
+  tipFormTags.forEach((t, i) => {
+    const c = document.createElement('span');
+    c.className = 'tip-chip';
+    c.innerHTML = `<b data-noi18n>${escapeHtml(t)}</b><span class="x" title="지우기">×</span>`;
+    c.querySelector('.x').addEventListener('click', e => { e.stopPropagation(); tipFormTags.splice(i, 1); tipsPaintChips(); inp.focus(); });
+    box.insertBefore(c, inp);
+  });
+  inp.placeholder = tipFormTags.length ? '태그 더 넣기' : '태그 — 쉼표나 Enter 로 구분. 예: 부귀 숭고, 스킬';
+}
+/** 쉼표로 끊어 칩으로. 중복·빈 값은 버리고 8개까지 */
+function tipsCommitTags(raw) {
+  String(raw || '').split(',').map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean).forEach(t => {
+    if (tipFormTags.length < 8 && !tipFormTags.includes(t)) tipFormTags.push(t);
+  });
+  tipsPaintChips();
+}
+function tipsWireTagInput() {
+  const inp = document.getElementById('tipFTags');
+  if (!inp || inp.dataset.wired) return;
+  inp.dataset.wired = '1';
+  // 쉼표는 input 에서 본다 — 한글 입력기(조합 중)에서는 keydown 이 229 로 뭉개져 쓸 수 없다
+  inp.addEventListener('input', () => {
+    if (inp.value.indexOf(',') < 0) return;
+    const parts = inp.value.split(',');
+    inp.value = parts.pop();            // 마지막 조각은 아직 치는 중이니 남긴다
+    tipsCommitTags(parts.join(','));
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); tipsCommitTags(inp.value); inp.value = ''; return; }
+    // 빈 칸에서 지우기 = 마지막 칩 빼기 (칩 입력칸의 관례)
+    if (e.key === 'Backspace' && !inp.value && tipFormTags.length) { tipFormTags.pop(); tipsPaintChips(); }
+  });
+  inp.addEventListener('blur', () => { if (inp.value.trim()) { tipsCommitTags(inp.value); inp.value = ''; } });
+}
+
 function tipsOpenForm(id) {
   const me = tipMe();
   if (!me) { location.href = '/api/auth/discord?to=' + encodeURIComponent(location.pathname + '?tab=tips'); return; }
@@ -12633,7 +12674,9 @@ function tipsOpenForm(id) {
   const t = id ? UTIPS.find(x => x.id === id) : null;
   tipsEditId = t ? t.id : '';
   document.getElementById('tipFTitle').value = t ? t.title : '';
-  document.getElementById('tipFTags').value = t ? t.tags.join(', ') : (tipsTagSel || '');
+  tipFormTags = t ? t.tags.slice() : (tipsTagSel ? [tipsTagSel] : []);
+  document.getElementById('tipFTags').value = '';
+  tipsWireTagInput(); tipsPaintChips();
   document.getElementById('tipFBody').value = t ? t.body : '';
   document.getElementById('tipFMsg').textContent = '';
   document.getElementById('tipFSave').textContent = t ? '고치기' : '올리기';
@@ -12651,7 +12694,7 @@ function tipsSave() {
   const payload = {
     id: tipsEditId || undefined,
     title: document.getElementById('tipFTitle').value,
-    tags: document.getElementById('tipFTags').value,
+    tags: tipFormTags.concat(String(document.getElementById('tipFTags').value || '').split(',').map(x => x.trim()).filter(Boolean)),
     body: document.getElementById('tipFBody').value,
   };
   btn.disabled = true; msg.textContent = '';
@@ -12692,7 +12735,7 @@ function renderTips() {
   const kws = tokens.filter(g => !g.neg).flatMap(g => g.kws);
 
   bar.innerHTML = (me ? `<button type="button" class="${tipsMineOnly ? 'on' : ''}" onclick="tipsToggleMine()">📝 내 글</button>` : '')
-    + UTIP_TAGS.map(x => `<button type="button" class="${tipsTagSel === x.t ? 'on' : ''}" onclick="tipsPickTag('${escapeHtml(x.t).replace(/'/g, "&#39;")}')">${escapeHtml(x.t)}<i>${x.n}</i></button>`).join('');
+    + UTIP_TAGS.map(x => `<button type="button" data-noi18n class="${tipsTagSel === x.t ? 'on' : ''}" onclick="tipsPickTag('${escapeHtml(x.t).replace(/'/g, "&#39;")}')">${escapeHtml(x.t)}<i>${x.n}</i></button>`).join('');
 
   let rows = tipsMatch(tokens);
   if (tipsTagSel) rows = rows.filter(t => t.tags.includes(tipsTagSel));
@@ -12707,11 +12750,11 @@ function renderTips() {
   box.innerHTML = rows.map(t => {
     const edited = t.up && t.up !== t.at;
     return `<div class="tip-card">
-      <h4>${highlight(t.title, kws)}</h4>
-      <div class="tip-meta"><b>${escapeHtml(t.author)}</b><span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
+      <h4 data-noi18n>${highlight(t.title, kws)}</h4>
+      <div class="tip-meta"><b data-noi18n>${escapeHtml(t.author)}</b><span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
       + `<span>👁 ${t.views || 0}</span><span>👍 ${t.likes || 0}</span></div>`
-      + (t.tags.length ? `<div class="tip-tags">${t.tags.map(g => `<span onclick="tipsPickTag('${escapeHtml(g).replace(/'/g, "&#39;")}')">${highlight(g, kws)}</span>`).join('')}</div>` : '')
-      + `<div class="tip-body">${highlight(t.body, kws)}</div>
+      + (t.tags.length ? `<div class="tip-tags" data-noi18n>${t.tags.map(g => `<span onclick="tipsPickTag('${escapeHtml(g).replace(/'/g, "&#39;")}')">${highlight(g, kws)}</span>`).join('')}</div>` : '')
+      + `<div class="tip-body" data-noi18n>${highlight(t.body, kws)}</div>
       <div class="tip-act">
         <button type="button" onclick="tipsLike('${t.id}')">👍 도움돼요</button>`
       + (t.mine ? `<button type="button" onclick="tipsOpenForm('${t.id}')">✏ 고치기</button><button type="button" class="del" onclick="tipsDelete('${t.id}')">🗑 지우기</button>` : '')
@@ -12754,9 +12797,9 @@ function renderTotal() {
   // label: 그룹명도 검색 대상 — "투사체 부활"처럼 그룹명+내용 조합으로 그룹 내 검색 가능 (제외 !부활도 그룹 단위 동작)
   const groups = [
     // 팁은 사람이 쓴 설명이라 제일 위에 — 아직 못 받았으면 받아 와서 한 번 더 그린다(처음 한 번만)
-    {title: '💡 팁', go: 'tips', rows: tipsMatch(tokens),
+    {title: '💡 팁', go: 'tips', rows: tipsMatch(tokens), noi: 1,
       line: t => [t.title, (t.tags.length ? t.tags.join(' · ') + ' · ' : '') + t.author],
-      html: t => highlight(t.title, kws) + ` <span class="t-inline">— ${highlight(t.body.length > 80 ? t.body.slice(0, 80).replace(/\n/g, ' ') + '…' : t.body.replace(/\n/g, ' '), kws)}</span>`},
+      html: t => `<span data-noi18n>${highlight(t.title, kws)}</span>` + ` <span class="t-inline" data-noi18n>— ${highlight(t.body.length > 80 ? t.body.slice(0, 80).replace(/\n/g, ' ') + '…' : t.body.replace(/\n/g, ' '), kws)}</span>`},
     {title: '⚔ 장비 옵션', go: 'equip', rows: ALL_DATA.filter(r => r.category === '장비' && totalMatch(tokens, ['장비 옵션', r.effect, ...st(r.source, r.type), ...rowTipTexts(r)])),
       line: r => [r.effect, (r.source || '특수 갑옷') + ' · ' + r.type], html: r => renderEffect(r, kws)},
     {title: '🏆 레전드 아이템', go: 'item', rows: ITEMS.map((it, i) => ({it, i})).filter(x => totalMatch(tokens, ['레전드 아이템', x.it.name, (x.it.tags || []).join(' '), ...(x.it.attrs || []).map(stripHtml), ...(x.it.opts || []).map(stripHtml), ...(x.it.drop || [])])),
@@ -12799,7 +12842,7 @@ function renderTotal() {
     g.rows.slice(0, lim).forEach(x => {
       const [main, sub] = g.line(x);
       const attr = g.go ? ` data-tgo="${g.go}"${g.idx ? ` data-tidx="${g.idx(x)}"` : ''}${g.pname ? ` data-tpn="${escapeHtml(g.pname(x))}"` : ''}` : '';
-      h += `<div class="total-row${g.go ? ' t-click' : ''}"${attr}>${g.html ? g.html(x) : highlight(main, kws)}${sub ? `<span class="t-sub">${escapeHtml(sub)}</span>` : ''}</div>`;
+      h += `<div class="total-row${g.go ? ' t-click' : ''}"${attr}>${g.html ? g.html(x) : highlight(main, kws)}${sub ? `<span class="t-sub"${g.noi ? ' data-noi18n' : ''}>${escapeHtml(sub)}</span>` : ''}</div>`;
     });
     if (g.rows.length > lim) {
       h += g.go
