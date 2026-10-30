@@ -426,7 +426,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   /** 제목 줄에 못 올린 것 — 정령 필수 */
   function farmChipsHtml(it) {
-    return it.pact ? `<span class="vc-tags"><span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span></span>` : '';
+    return it.pact ? ` · <span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span>` : '';
   }
   function roBar() {
     if (!RO) return '';
@@ -435,8 +435,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       <div class="vc-ro-l"><small>공유된 파밍 빌드</small><b data-noi18n>${roTiers(it)}${esc(it.title)}</b>
         <span class="vc-ro-m">${it.au
           ? `<a class="vc-who" href="/tli/u/?k=${esc(it.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기">${DC_MARK}${esc(it.author)}</a>`
-          : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}</span>
-        ${farmChipsHtml(it)}</div>
+          : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}${farmChipsHtml(it)}</span></div>
       <div class="vc-ro-a">
         <button class="vc-btn vc-like${RO.liked ? ' on' : ''}" data-act="like">👍 추천 <b>${it.likes || 0}</b></button>
         <button class="vc-btn vc-share" data-act="take">📥 내 연습판으로 가져오기</button>

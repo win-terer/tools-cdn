@@ -221,3 +221,11 @@
 .fm-tb .fm-tg { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
 .fm-tb .fm-tg.more { background: #171d2a; border-color: #2a3344; color: #7f8ea6; }
 .fm-t { gap: 6px; }
+
+/* 나침반·탐침 — 셋 이상이면 아이콘만 (이름은 툴팁으로) (2026-10-30 사용자) */
+.fm-gs.ico { gap: 5px; }
+.fm-gs.ico .fm-g { padding: 3px; border-radius: 8px; cursor: help; }
+.fm-gs.ico .fm-g img { width: 22px; height: 22px; }
+.fm-gs.ico .fm-g:hover { background: #1b2230; }
+/* 정령 필수 — 작성자 줄에 섞이므로 조금 더 작게 */
+.fm-m .fm-tg.pact { align-self: center; font-size: 11px; }

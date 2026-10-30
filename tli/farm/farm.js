@@ -42,10 +42,10 @@
       + show.map(t => `<span class="fm-tg">${esc(t)}</span>`).join('')
       + (rest ? `<span class="fm-tg more">+${rest}</span>` : '') + '</span>';
   }
-  /** 제목 줄에 못 올린 것 — 정령 필수 */
+  /** 정령 필수 — 작성자·날짜와 같은 줄에 붙는 작은 칩 */
   function farmTags(x) {
     if (!x.pact) return '';
-    return `<div class="fm-tags"><span class="fm-tg pact${x.pact === 'O' ? ' need' : ''}">정령 ${x.pact === 'O' ? '필요' : '불필요'}</span></div>`;
+    return `<span class="fm-tg pact${x.pact === 'O' ? ' need' : ''}">정령 ${x.pact === 'O' ? '필요' : '불필요'}</span>`;
   }
   function card(x) {
     let pts = []; try { pts = JSON.parse(x.pts || '[]') || []; } catch (e) {}
@@ -53,13 +53,17 @@
     const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t">${tierBadge(x)}<b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
-      ${farmTags(x)}
-      <div class="fm-m">${x.au
+      <div class="fm-m">${farmTags(x)}${x.au
         ? `<span class="fm-who" data-noi18n role="link" tabindex="0" title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" data-au="${esc(x.au)}">${DC_MARK}${esc(x.author)}</span>`
         : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
-      ${gs.length ? `<div class="fm-gs">${gs.map(it => `<span class="fm-g" title="${esc(it.n)}"><img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy"><b class="q${it.q}">${esc(it.n)}</b></span>`).join('')}</div>` : ''}
+      ${gs.length ? `<div class="fm-gs${gs.length > 2 ? ' ico' : ''}">${gs.map(it => {
+        // 셋 이상이면 이름을 빼고 아이콘만 — 이름까지 넣으면 두 줄로 넘어가 카드가 들쭉날쭉했다(2026-10-30 사용자).
+        // 툴팁(nav.js .wt-tt, white-space:pre-line)이 이름과 효과를 줄 나눠 보여 준다.
+        const tip = it.n + ((it.e || []).length ? '\n' + it.e.join('\n') : '');
+        return `<span class="fm-g" title="${esc(tip)}"><img class="q${it.q}" src="${esc(it.i)}" alt="" loading="lazy">${gs.length > 2 ? '' : `<b class="q${it.q}">${esc(it.n)}</b>`}</span>`;
+      }).join('')}</div>` : ''}
     </a>`;
   }
   function render() {
