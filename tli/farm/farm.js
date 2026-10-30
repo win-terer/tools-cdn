@@ -53,9 +53,9 @@
     const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t">${tierBadge(x)}<b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
-      <div class="fm-m">${farmTags(x)}${x.au
+      <div class="fm-m">${x.au
         ? `<span class="fm-who" data-noi18n role="link" tabindex="0" title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" data-au="${esc(x.au)}">${DC_MARK}${esc(x.author)}</span>`
-        : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
+        : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span>${farmTags(x)}</div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
       ${gs.length ? `<div class="fm-gs${gs.length > 2 ? ' ico' : ''}">${gs.map(it => {
