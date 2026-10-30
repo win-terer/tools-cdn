@@ -588,7 +588,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (t.dataset.open != null) { view = +t.dataset.open; history.replaceState(null, '', '#' + CS[view].page); render(); window.scrollTo(0, 0); return; }
     if (t.classList.contains('vc-n')) { const c = CS[view]; toggle(c, t.dataset.id); showInfo(c, c.by.get(t.dataset.id)); return; }
     const a = t.dataset.act;
-    if (RO && ['like', 'take', 'copylink', 'exit', 'vreq', 'edit', 'del'].includes(a)) return roAct(a);
+    if (RO && ['like', 'take', 'copylink', 'exit', 'vreq', 'edit', 'del', 'claim'].includes(a)) return roAct(a);
     if (ED && (a === 'edsave' || a === 'edcancel')) return edAct(a);
     if (a === 'upload') return upload();
     if (a === 'sumsel') { sumSel = t.dataset.k || null; render(); return; }
