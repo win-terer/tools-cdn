@@ -22,6 +22,8 @@
     .vc-fc.on { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
     .vc-tags { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 8px; vertical-align: -2px; }
     .vc-tg { background: #171d2a; border: 1px solid #2a3344; color: #9fb3d1; border-radius: 999px; padding: 1px 9px; font-size: 11.5px; }
+    .vc-tb { display: inline-flex; gap: 4px; margin-right: 7px; vertical-align: 2px; }
+    .vc-tg.tier { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; font-size: 12px; }
     .vc-tg.pact { color: #8fb4a0; border-color: #2f4a3c; }
     .vc-tg.pact.need { color: #e8b86a; border-color: #6b5a2a; }
     /* 디스코드로 인증된 작성자 (2026-10-30) */

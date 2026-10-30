@@ -215,3 +215,9 @@
 .fm-tg { background: #171d2a; border: 1px solid #2a3344; color: #9fb3d1; border-radius: 999px; padding: 1px 9px; font-size: 11px; }
 .fm-tg.pact { color: #8fb4a0; border-color: #2f4a3c; }
 .fm-tg.pact.need { color: #e8b86a; border-color: #6b5a2a; }
+
+/* 제목 앞 난이도 뱃지 — 제목이 밀리지 않게 폭을 고정으로 잡는다 (2026-10-30) */
+.fm-tb { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+.fm-tb .fm-tg { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
+.fm-tb .fm-tg.more { background: #171d2a; border-color: #2a3344; color: #7f8ea6; }
+.fm-t { gap: 6px; }

@@ -419,20 +419,20 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   const api = (path, body) => fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})
     .then(r => r.json().catch(() => ({ ok: false, error: '서버 응답을 읽지 못했습니다.' })), () => ({ ok: false, error: '서버에 닿지 못했습니다.' }));
   const kday = iso => iso ? new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10) : '';
-  /** 글에 달린 난이도·정령 필수 칩 — 없으면 빈 문자열 (2026-10-30) */
-  function farmChipsHtml(it) {
+  /** 제목 앞 난이도 — 상세는 폭이 넉넉하니 고른 걸 다 편다 (목록은 2개까지, 2026-10-30) */
+  function roTiers(it) {
     let ts = []; try { ts = JSON.parse(it.tiers || '[]'); } catch (e) {}
-    if (!ts.length && !it.pact) return '';
-    return '<span class="vc-tags">'
-      + ts.map(t => `<span class="vc-tg">${esc(t)}</span>`).join('')
-      + (it.pact ? `<span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span>` : '')
-      + '</span>';
+    return ts.length ? `<span class="vc-tb">${ts.map(t => `<span class="vc-tg tier">${esc(t)}</span>`).join('')}</span>` : '';
+  }
+  /** 제목 줄에 못 올린 것 — 정령 필수 */
+  function farmChipsHtml(it) {
+    return it.pact ? `<span class="vc-tags"><span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span></span>` : '';
   }
   function roBar() {
     if (!RO) return '';
     const it = RO.item, vids = (() => { try { return JSON.parse(it.videos || '[]'); } catch (e) { return []; } })();
     return `<div class="vc-ro">
-      <div class="vc-ro-l"><small>공유된 파밍 빌드</small><b data-noi18n>${esc(it.title)}</b>
+      <div class="vc-ro-l"><small>공유된 파밍 빌드</small><b data-noi18n>${roTiers(it)}${esc(it.title)}</b>
         <span class="vc-ro-m">${it.au
           ? `<a class="vc-who" href="/tli/u/?k=${esc(it.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기">${DC_MARK}${esc(it.author)}</a>`
           : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}</span>

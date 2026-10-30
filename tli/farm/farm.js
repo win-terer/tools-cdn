@@ -31,21 +31,28 @@
     } catch (e) {}
     return [];
   }
-  /** 글에 달린 난이도·정령 필수 칩 */
+  const tiersOf = (x) => { try { return JSON.parse(x.tiers || '[]') || []; } catch (e) { return []; } };
+  /** 제목 앞 난이도 뱃지 — 2개까지만 펴고 나머지는 +N (카드가 좁아 다 펴면 제목이 통째로 잘린다, 2026-10-30).
+   *  마우스를 올리면 고른 걸 전부 보여 준다. */
+  function tierBadge(x) {
+    const ts = tiersOf(x);
+    if (!ts.length) return '';
+    const show = ts.slice(0, 2), rest = ts.length - show.length;
+    return `<span class="fm-tb" title="난이도 ${esc(ts.join(' · '))}">`
+      + show.map(t => `<span class="fm-tg">${esc(t)}</span>`).join('')
+      + (rest ? `<span class="fm-tg more">+${rest}</span>` : '') + '</span>';
+  }
+  /** 제목 줄에 못 올린 것 — 정령 필수 */
   function farmTags(x) {
-    let ts = []; try { ts = JSON.parse(x.tiers || '[]'); } catch (e) {}
-    if (!ts.length && !x.pact) return '';
-    return '<div class="fm-tags">'
-      + ts.map(t => `<span class="fm-tg">${esc(t)}</span>`).join('')
-      + (x.pact ? `<span class="fm-tg pact${x.pact === 'O' ? ' need' : ''}">정령 ${x.pact === 'O' ? '필요' : '불필요'}</span>` : '')
-      + '</div>';
+    if (!x.pact) return '';
+    return `<div class="fm-tags"><span class="fm-tg pact${x.pact === 'O' ? ' need' : ''}">정령 ${x.pact === 'O' ? '필요' : '불필요'}</span></div>`;
   }
   function card(x) {
     let pts = []; try { pts = JSON.parse(x.pts || '[]') || []; } catch (e) {}
     const cs = pts.map(([k, n]) => [BYKEY.get(k), n]).filter(p => p[0]).sort((a, b) => b[1] - a[1]);
     const tot = cs.reduce((t, p) => t + p[1], 0), gs = gearOf(x.code);
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
-      <div class="fm-t"><b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
+      <div class="fm-t">${tierBadge(x)}<b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
       ${farmTags(x)}
       <div class="fm-m">${x.au
         ? `<span class="fm-who" data-noi18n role="link" tabindex="0" title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" data-au="${esc(x.au)}">${DC_MARK}${esc(x.author)}</span>`
