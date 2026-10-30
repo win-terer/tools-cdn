@@ -196,7 +196,7 @@
     .vc-gx:hover { color: #ff8a8a; border-color: #a03a3a; }
 
 /* 디스코드로 인증된 작성자 (2026-10-30) — 마크 + 누르면 그 사람 글 모아보기 */
-.fm-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
+.fm-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; cursor: pointer; }
 .fm-who:hover { color: #e6edf3; text-decoration: underline; }
 .wt-dc { width: 14px; height: 11px; display: block; fill: #8ea1e1; flex: none; }
 .fm-who:hover .wt-dc { fill: #aebdf0; }

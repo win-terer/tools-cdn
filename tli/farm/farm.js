@@ -34,7 +34,7 @@
     return `<a class="fm-card" href="/tli/void/?s=${encodeURIComponent(x.id)}">
       <div class="fm-t"><b data-noi18n>${esc(x.title)}</b>${x.hv ? '<span class="fm-v">🎬 영상</span>' : ''}</div>
       <div class="fm-m">${x.au
-        ? `<a class="fm-who" href="/tli/u/?k=${esc(x.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" onclick="event.stopPropagation()">${DC_MARK}${esc(x.author)}</a>`
+        ? `<span class="fm-who" data-noi18n role="link" tabindex="0" title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" data-au="${esc(x.au)}">${DC_MARK}${esc(x.author)}</span>`
         : `<span data-noi18n>👤 ${esc(x.author)}</span>`}<span>${kday(x.created_at)}</span><span>👍 ${x.likes || 0}</span><span>👁 ${x.views || 0}</span></div>
       <div class="fm-cs">${cs.slice(0, 8).map(([c, n]) => `<span class="fm-c" title="${esc(c.name)}"><img src="${ICON + c.icon}" alt="" loading="lazy"><i>${n}</i></span>`).join('')}${cs.length > 8 ? `<span class="fm-more">+${cs.length - 8}</span>` : ''}
         <span class="fm-tot">노드 ${tot}개</span></div>
@@ -61,9 +61,17 @@
     busy = false; render();
   }
   app.addEventListener('click', e => {
+    // 인증 작성자 — 카드 전체가 이미 <a> 라서 안에 <a> 를 또 넣으면 브라우저가 카드를 찢는다(2026-10-30).
+    // 그래서 span 으로 두고 여기서 가로채 이동한다.
+    const who = e.target.closest('[data-au]');
+    if (who) { e.preventDefault(); e.stopPropagation(); location.href = '/tli/u/?k=' + encodeURIComponent(who.dataset.au); return; }
     const s = e.target.closest('[data-sort]');
     if (s) { sort = s.dataset.sort; try { localStorage.setItem('tli_farm_ui_v1', JSON.stringify({ sort })); } catch (e2) {} fetchList(); return; }
     if (e.target.closest('[data-more]')) fetchList(true);
+  });
+  app.addEventListener('keydown', e => {   // 키보드로도 (role=link, tabindex=0)
+    const who = e.target.closest && e.target.closest('[data-au]');
+    if (who && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); location.href = '/tli/u/?k=' + encodeURIComponent(who.dataset.au); }
   });
   let qt;
   app.addEventListener('input', e => {
