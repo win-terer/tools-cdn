@@ -32,12 +32,12 @@
     return [];
   }
   const tiersOf = (x) => { try { return JSON.parse(x.tiers || '[]') || []; } catch (e) { return []; } };
-  /** 제목 앞 난이도 뱃지 — 2개까지만 펴고 나머지는 +N (카드가 좁아 다 펴면 제목이 통째로 잘린다, 2026-10-30).
+  /** 제목 앞 난이도 뱃지 — 하나만 펴고 나머지는 +N (카드가 좁아 제목 자리를 지켜야 한다, 2026-10-30 사용자).
    *  마우스를 올리면 고른 걸 전부 보여 준다. */
   function tierBadge(x) {
     const ts = tiersOf(x);
     if (!ts.length) return '';
-    const show = ts.slice(0, 2), rest = ts.length - show.length;
+    const show = ts.slice(0, 1), rest = ts.length - show.length;
     return `<span class="fm-tb" title="난이도 ${esc(ts.join(' · '))}">`
       + show.map(t => `<span class="fm-tg">${esc(t)}</span>`).join('')
       + (rest ? `<span class="fm-tg more">+${rest}</span>` : '') + '</span>';
