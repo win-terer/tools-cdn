@@ -56,6 +56,9 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   let view = -1;            // -1 = 목록, 아니면 별무리 번호
   let undo = [];
   const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (o && o.s) S = CS.map(c => new Set((o.s[c.key] || []).filter(id => c.by.has(id) && id !== c.start))); if (o && o.g) G = normG(o.g); if (o && typeof o.m === 'string') M = o.m.slice(0, 500); } catch (e) {} };
+  // 파밍 공유 칩 (2026-10-30 사용자) — 서버 tli_api.js 의 FARM_TIERS·FARM_PACTS 와 같은 값이어야 한다
+  const FARM_TIERS = ['7티어', '8티어', '아득', '딥스'];
+  const FARM_PACTS = [['O', '필요함'], ['X', '없어도 됨']];
   // 디스코드로 인증된 작성자 마크 (2026-10-30)
   const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
   let RO = null;   // 공유 글 보기 중(?s=) — {item, liked, admin, vwait} · 이때 S 는 공유 배치이고 저장하지 않는다
@@ -416,6 +419,15 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   const api = (path, body) => fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})
     .then(r => r.json().catch(() => ({ ok: false, error: '서버 응답을 읽지 못했습니다.' })), () => ({ ok: false, error: '서버에 닿지 못했습니다.' }));
   const kday = iso => iso ? new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10) : '';
+  /** 글에 달린 난이도·정령 필수 칩 — 없으면 빈 문자열 (2026-10-30) */
+  function farmChipsHtml(it) {
+    let ts = []; try { ts = JSON.parse(it.tiers || '[]'); } catch (e) {}
+    if (!ts.length && !it.pact) return '';
+    return '<span class="vc-tags">'
+      + ts.map(t => `<span class="vc-tg">${esc(t)}</span>`).join('')
+      + (it.pact ? `<span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span>` : '')
+      + '</span>';
+  }
   function roBar() {
     if (!RO) return '';
     const it = RO.item, vids = (() => { try { return JSON.parse(it.videos || '[]'); } catch (e) { return []; } })();
@@ -423,7 +435,8 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       <div class="vc-ro-l"><small>공유된 파밍 빌드</small><b data-noi18n>${esc(it.title)}</b>
         <span class="vc-ro-m">${it.au
           ? `<a class="vc-who" href="/tli/u/?k=${esc(it.au)}" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기">${DC_MARK}${esc(it.author)}</a>`
-          : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}</span></div>
+          : `<span data-noi18n>👤 ${esc(it.author)}</span>`} · ${kday(it.created_at)} · 👁 ${it.views || 0}</span>
+        ${farmChipsHtml(it)}</div>
       <div class="vc-ro-a">
         <button class="vc-btn vc-like${RO.liked ? ' on' : ''}" data-act="like">👍 추천 <b>${it.likes || 0}</b></button>
         <button class="vc-btn vc-share" data-act="take">📥 내 연습판으로 가져오기</button>
@@ -466,9 +479,16 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     if (a === 'edcancel') return wtAsk('수정을 그만둘까요?\n고친 내용은 저장되지 않습니다.', edEnd);
     if (!S.some(x => x.size)) return toast('찍은 노드가 없습니다');
     const it = ED.item;
-    dialog('글 수정 저장', [{ k: 'title', label: '제목', value: it.title }, { k: 'author', label: '작성자', value: it.author }],
+    let curT = []; try { curT = JSON.parse(it.tiers || '[]'); } catch (e) {}
+    dialog('글 수정 저장', [
+      { k: 'title', label: '제목', value: it.title },
+      { k: 'tiers', label: '난이도', type: 'chips', multi: 1, opts: FARM_TIERS, value: curT, opt: 1 },
+      { k: 'pact', label: '정령 필수', type: 'chips', opts: FARM_PACTS, value: it.pact || '', opt: 1 },
+      { k: 'author', label: '작성자', value: it.author },
+    ],
       '저장', async v => {
-        const r = await api('/api/vshare/edit', { id: it.id, pwd: ED.admin ? undefined : ED.pwd, title: v.title, author: v.author, memo: M.trim(), code: encode() });
+        const r = await api('/api/vshare/edit', { id: it.id, pwd: ED.admin ? undefined : ED.pwd, title: v.title, author: v.author, memo: M.trim(), code: encode(),
+          tiers: v.tiers, pact: v.pact });
         if (!r.ok) return r.error;
         if (!ED.admin) setMine(it.id, ED.pwd);
         await edEnd(); toast('수정했습니다'); return '';
@@ -479,6 +499,12 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     const d = document.createElement('div'); d.className = 'vc-dim';
     d.innerHTML = `<form class="vc-dlg"><b>${title}</b>${fields.map(f => f.type === 'check'
         ? `<label class="vc-chk"><input type="checkbox" name="${f.k}"${f.value ? ' checked' : ''}> ${f.label}</label>`
+        // 칩 고르기 — multi 면 여러 개, 아니면 하나. 둘 다 '하나도 안 고름' 이 정상이라 필수로 막지 않는다
+        : f.type === 'chips' ? `<div class="vc-fchip" data-k="${f.k}"><span>${f.label}${f.opt ? ' <i>(선택)</i>' : ''}</span><div class="vc-fchip-row">`
+            + f.opts.map(o => { const [val, lbl] = Array.isArray(o) ? o : [o, o];
+                const on = Array.isArray(f.value) ? f.value.includes(val) : f.value === val;
+                return `<button type="button" class="vc-fc${on ? ' on' : ''}" data-v="${esc(val)}">${esc(lbl)}</button>`; }).join('')
+            + '</div></div>'
         : f.type === 'area' ? `<label><span>${f.label}${f.opt ? ' <i>(선택)</i>' : ''}</span><textarea name="${f.k}" maxlength="500" rows="4">${esc(f.value || '')}</textarea></label>`
         : `<label><span>${f.label}${f.opt ? ' <i>(선택)</i>' : ''}</span><input name="${f.k}" type="${f.type || 'text'}" value="${esc(f.value || '')}" placeholder="${esc(f.ph || '')}" autocomplete="off"></label>`).join('')}
       ${note ? `<p class="vc-dn">${note}</p>` : ''}<p class="vc-err"></p>
@@ -486,9 +512,24 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     document.body.appendChild(d);
     const f = d.querySelector('form'), err = d.querySelector('.vc-err'), close = () => d.remove();
     d.addEventListener('click', e => { if (e.target === d || e.target.hasAttribute('data-x')) close(); });
+    f.addEventListener('click', e => {   // 칩 — 누르면 켜지고 다시 누르면 꺼진다(둘 다 '안 고름' 이 정상)
+      const b = e.target.closest('.vc-fc'); if (!b) return;
+      e.preventDefault();
+      const box = b.closest('.vc-fchip'), fd = fields.find(x => x.k === box.dataset.k);
+      if (!fd.multi) box.querySelectorAll('.vc-fc').forEach(x => { if (x !== b) x.classList.remove('on'); });
+      b.classList.toggle('on');
+    });
     f.addEventListener('submit', async e => {
       e.preventDefault();
-      const v = {}; fields.forEach(x => { const el = f.elements[x.k]; v[x.k] = x.type === 'check' ? el.checked : el.value.trim(); });
+      const v = {};
+      fields.forEach(x => {
+        if (x.type === 'chips') {
+          const on = [...f.querySelectorAll(`.vc-fchip[data-k="${x.k}"] .vc-fc.on`)].map(b => b.dataset.v);
+          v[x.k] = x.multi ? on : (on[0] || '');
+          return;
+        }
+        const el = f.elements[x.k]; v[x.k] = x.type === 'check' ? el.checked : el.value.trim();
+      });
       const btn = f.querySelector('.vc-share'); btn.disabled = true;
       const m = await onOk(v); btn.disabled = false;
       if (m) err.textContent = m; else close();
@@ -500,16 +541,20 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
     let me = {}; try { me = JSON.parse(localStorage.getItem(ME) || '{}') || {}; } catch (e) {}
     dialog('📤 파밍 빌드 공유', [
       { k: 'title', label: '제목', value: '', ph: '예: 화폐 위주 나침반 파밍 (2~40자)' },
+      // 난이도·정령 필수 (2026-10-30 사용자) — 둘 다 안 골라도 올라간다
+      { k: 'tiers', label: '난이도', type: 'chips', multi: 1, opts: FARM_TIERS, value: me.tiers || [], opt: 1 },
+      { k: 'pact', label: '정령 필수', type: 'chips', opts: FARM_PACTS, value: me.pact || '', opt: 1 },
       { k: 'author', label: '작성자', value: me.author || '', ph: '한글·영문·숫자 2~10자' },
       { k: 'pwd', label: '삭제·수정 비밀번호', type: 'password', value: me.pwd || '', ph: '4~20자' },
       { k: 'video', label: '가이드 영상 (유튜브 주소)', opt: 1, ph: 'https://youtu.be/…' },
     ], '올리기', async v => {
-      const r = await api('/api/vshare', { title: v.title, author: v.author, pwd: v.pwd, code: encode(), memo: M.trim() || undefined, video: v.video || undefined });
+      const r = await api('/api/vshare', { title: v.title, author: v.author, pwd: v.pwd, code: encode(), memo: M.trim() || undefined, video: v.video || undefined,
+        tiers: v.tiers, pact: v.pact });
       if (!r.ok) {
         if (r.dup) { location.href = location.pathname + '?s=' + r.dup; return ''; }
         return r.error;
       }
-      try { localStorage.setItem(ME, JSON.stringify({ author: v.author, pwd: v.pwd })); } catch (e) {}
+      try { localStorage.setItem(ME, JSON.stringify({ author: v.author, pwd: v.pwd, tiers: v.tiers, pact: v.pact })); } catch (e) {}
       setMine(r.id, v.pwd);
       if (window.wtEv) window.wtEv('void_upload');
       if (r.vmsg) alert('글은 올라갔지만 영상은 등록하지 못했습니다: ' + r.vmsg);

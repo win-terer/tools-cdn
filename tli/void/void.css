@@ -12,6 +12,18 @@
     .vc-btn { background: #1b2230; border: 1px solid #2f3a4d; color: #c9d1d9; border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; transition: .15s; white-space: nowrap; }
     .vc-btn:hover:not([disabled]) { border-color: #e8c860; color: #fff; } .vc-btn[disabled] { opacity: .4; cursor: default; }
     a.vc-btn { text-decoration: none; display: inline-flex; align-items: center; }
+    /* 파밍 공유 칩 — 글 쓸 때 고르는 칸(vc-fchip)과 글에 붙는 표시(vc-tg) (2026-10-30) */
+    .vc-fchip { display: flex; flex-direction: column; gap: 5px; }
+    .vc-fchip > span { font-size: 12.5px; color: #9aa4b2; } .vc-fchip > span i { font-style: normal; color: #59636e; }
+    .vc-fchip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .vc-fc { background: #121826; border: 1px solid #2f3a4d; color: #9aa4b2; border-radius: 999px;
+      padding: 5px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+    .vc-fc:hover { color: #c9d1d9; border-color: #44536b; }
+    .vc-fc.on { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
+    .vc-tags { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 8px; vertical-align: -2px; }
+    .vc-tg { background: #171d2a; border: 1px solid #2a3344; color: #9fb3d1; border-radius: 999px; padding: 1px 9px; font-size: 11.5px; }
+    .vc-tg.pact { color: #8fb4a0; border-color: #2f4a3c; }
+    .vc-tg.pact.need { color: #e8b86a; border-color: #6b5a2a; }
     /* 디스코드로 인증된 작성자 (2026-10-30) */
     .vc-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
     .vc-who:hover { color: #e6edf3; text-decoration: underline; }

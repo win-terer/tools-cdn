@@ -200,3 +200,18 @@
 .fm-who:hover { color: #e6edf3; text-decoration: underline; }
 .wt-dc { width: 14px; height: 11px; display: block; fill: #8ea1e1; flex: none; }
 .fm-who:hover .wt-dc { fill: #aebdf0; }
+
+/* 거르기 칩 줄 + 카드에 붙는 칩 (2026-10-30 사용자) */
+.fm-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+.fm-fl { color: #7f8ea6; font-size: 12px; margin-right: 2px; }
+.fm-fl.sp { margin-left: 12px; }
+.fm-fc { background: #121826; border: 1px solid #2f3a4d; color: #9aa4b2; border-radius: 999px;
+  padding: 4px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.fm-fc:hover { color: #c9d1d9; border-color: #44536b; }
+.fm-fc.on { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
+.fm-fc.clr { margin-left: 6px; border-style: dashed; }
+.fm-fc.clr:hover { color: #ff9b9b; border-color: #a03a3a; }
+.fm-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 0; }
+.fm-tg { background: #171d2a; border: 1px solid #2a3344; color: #9fb3d1; border-radius: 999px; padding: 1px 9px; font-size: 11px; }
+.fm-tg.pact { color: #8fb4a0; border-color: #2f4a3c; }
+.fm-tg.pact.need { color: #e8b86a; border-color: #6b5a2a; }
