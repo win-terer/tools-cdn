@@ -426,7 +426,7 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   }
   /** 제목 줄에 못 올린 것 — 정령 필수 */
   function farmChipsHtml(it) {
-    return it.pact ? ` · <span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}">정령 ${it.pact === 'O' ? '필요' : '불필요'}</span>` : '';
+    return it.pact ? ` · <span class="vc-tg pact${it.pact === 'O' ? ' need' : ''}" title="${it.pact === 'O' ? '정령 필요 — 정령을 맞춰야 도는 배치입니다' : '정령 불필요 — 정령 없이도 됩니다'}">정령 ${it.pact}</span>` : '';
   }
   function roBar() {
     if (!RO) return '';

@@ -46,7 +46,7 @@
   function farmTags(x) {
     if (!x.pact) return '';
     const need = x.pact === 'O';
-    return `<span class="fm-tg pact${need ? ' need' : ''}" title="${need ? '정령을 맞춰야 도는 배치입니다' : '정령 없이도 됩니다'}">정령 ${need ? '필요' : '불필요'}</span>`;
+    return `<span class="fm-tg pact${need ? ' need' : ''}" title="${need ? '정령 필요 — 정령을 맞춰야 도는 배치입니다' : '정령 불필요 — 정령 없이도 됩니다'}">정령 ${x.pact}</span>`;
   }
   function card(x) {
     let pts = []; try { pts = JSON.parse(x.pts || '[]') || []; } catch (e) {}
