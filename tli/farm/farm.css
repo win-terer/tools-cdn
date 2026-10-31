@@ -12,6 +12,29 @@
     .vc-btn { background: #1b2230; border: 1px solid #2f3a4d; color: #c9d1d9; border-radius: 8px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; transition: .15s; white-space: nowrap; }
     .vc-btn:hover:not([disabled]) { border-color: #e8c860; color: #fff; } .vc-btn[disabled] { opacity: .4; cursor: default; }
     a.vc-btn { text-decoration: none; display: inline-flex; align-items: center; }
+    /* 파밍 공유 칩 — 글 쓸 때 고르는 칸(vc-fchip)과 글에 붙는 표시(vc-tg) (2026-10-30) */
+    .vc-fchip { display: flex; flex-direction: column; gap: 5px; }
+    .vc-fchip > span { font-size: 12.5px; color: #9aa4b2; } .vc-fchip > span i { font-style: normal; color: #59636e; }
+    .vc-fchip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .vc-fc { background: #121826; border: 1px solid #2f3a4d; color: #9aa4b2; border-radius: 999px;
+      padding: 5px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+    .vc-fc:hover { color: #c9d1d9; border-color: #44536b; }
+    .vc-fc.on { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; }
+    .vc-tags { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 8px; vertical-align: -2px; }
+    .vc-tg { background: #171d2a; border: 1px solid #2a3344; color: #9fb3d1; border-radius: 999px; padding: 1px 9px; font-size: 11.5px; }
+    .vc-tb { display: inline-flex; gap: 4px; margin-right: 7px; vertical-align: 2px; }
+    .vc-tg.tier { background: #1d1a12; border-color: #6b5a2a; color: #e8c860; font-size: 12px; }
+    .vc-tg.pact { color: #8fb4a0; border-color: #2f4a3c; }
+    .vc-tg.pact.need { color: #e8b86a; border-color: #6b5a2a; }
+    /* 디스코드로 인증된 작성자 (2026-10-30) */
+    .vc-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
+    .vc-who:hover { color: #e6edf3; text-decoration: underline; }
+    .wt-dc { width: 14px; height: 11px; display: inline-block; vertical-align: -1px; fill: #8ea1e1; }
+    .vc-who:hover .wt-dc { fill: #aebdf0; }
+    /* 디스코드 계정 연결 (2026-10-30) */
+    .vc-claim { border-color: #3f5a8c !important; color: #bcd4ff !important; }
+    .vc-lock { display: inline-flex; align-items: center; gap: 5px; color: #8a97ab; font-size: 12.5px;
+      border: 1px solid #2f3a4d; border-radius: 8px; padding: 6px 12px; white-space: nowrap; cursor: help; }
     .vc-share { color: #f3e3b5; border-color: #6b5a2a; background: #1d1a12; font-weight: 600; }
     .vc-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
     /* 목록 */
@@ -194,7 +217,8 @@
     .vc-gw { position: relative; } .vc-gw > .vc-gs.on { padding-right: 30px; }
     .vc-gx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border-radius: 6px; border: 1px solid #2f3a4d; background: #121826; color: #9aa4b2; font-size: 12px; line-height: 1; cursor: pointer; }
     .vc-gx:hover { color: #ff8a8a; border-color: #a03a3a; }
-
+/* 파밍 빌드 공유 목록(/tli/farm) 전용 — void.css 뒤에 붙는다 (2026-10-31 소스로 옮김).
+   .wt-dc 는 void.css 에도 있고 여기가 이긴다 — 목록 카드에선 block, 허공의 성도 상세에선 inline-block */
 /* 디스코드로 인증된 작성자 (2026-10-30) — 마크 + 누르면 그 사람 글 모아보기 */
 .fm-who { display: inline-flex; align-items: center; gap: 5px; color: inherit; cursor: pointer; }
 .fm-who:hover { color: #e6edf3; text-decoration: underline; }

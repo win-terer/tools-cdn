@@ -3657,9 +3657,10 @@ const TAB_CATS = {all: ['장비'], talent: ['재능', '석판'], destiny: ['운�
 function switchTab(tab) {
   if (typeof shareView !== 'undefined' && shareView && tab !== 'preset') exitShareView(true); // 보기 중 다른 탭 → 종료
   currentTab = tab;
-  ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'share', 'fav', 'preset'].forEach(t => document.getElementById('tab-' + t).classList.toggle('active', t === tab));
+  ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips', 'share', 'fav', 'preset'].forEach(t => { const b = document.getElementById('tab-' + t); if (b) b.classList.toggle('active', t === tab); });
   const dataTab = !!TAB_CATS[tab]; // 장비/재능·석판/운명 — 공용 표를 사용
   document.getElementById('totalWrap').style.display = tab === 'total' ? '' : 'none';
+  { const w = document.getElementById('tipsWrap'); if (w) w.style.display = tab === 'tips' ? '' : 'none'; }
   document.querySelector('.table-wrap').style.display = dataTab ? '' : 'none';
   document.querySelector('.page-controls').style.display = (dataTab || tab === 'skill') ? '' : 'none';
   document.getElementById('skillWrap').style.display = tab === 'skill' ? '' : 'none';
@@ -3690,14 +3691,20 @@ function switchTab(tab) {
   document.getElementById('adv-sec-석판').style.display = tab === 'talent' ? '' : 'none';
   document.getElementById('adv-sec-재능').style.display = tab === 'talent' ? '' : 'none';
   // 검색 줄은 빌드·통합 검색 탭에서는 통째로 숨김 (빌드=검색 대상 없음, 통합=자체 입력창)
-  document.getElementById('searchBar').style.display = (tab === 'preset' || tab === 'total' || tab === 'share' || tab === 'legend' || tab === 'pact' || tab === 'tartarus') ? 'none' : '';
+  document.getElementById('searchBar').style.display = (tab === 'preset' || tab === 'total' || tab === 'tips' || tab === 'share' || tab === 'legend' || tab === 'pact' || tab === 'tartarus') ? 'none' : '';
   if (tab === 'total') { const el = document.getElementById('totalSearch'); renderTotal(); setTimeout(() => el.focus(), 0); }
+  if (tab === 'tips') {
+    // 헤더의 '내 글'(?tab=tips&mine=1) 로 들어오면 내 글만 — 한 번 읽고 주소에서 지운다
+    try { if (new URLSearchParams(location.search).get('mine') === '1') tipsMineOnly = true; } catch (e) {}
+    tipsLoad().then(renderTips);
+    setTimeout(() => { const el = document.getElementById('tipsSearch'); if (el) el.focus(); }, 0);
+  }
   if (tab === 'share') renderShare();
   if (tab === 'pact') { renderPactDb(); setTimeout(() => { const el = document.getElementById('pactSearch'); if (el) el.focus(); }, 0); }
   if (tab === 'tartarus') { renderTartarus(); setTimeout(() => { const el = document.getElementById('ttSearch'); if (el) el.focus(); }, 0); }
   if (tab === 'legend') { renderLegend(); setTimeout(() => { const el = document.getElementById('legendSearch'); if (el) el.focus(); }, 0); }
   doFilter();
-  if (window.wtEv && document.documentElement.dataset.tliMode === 'db' && ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus'].includes(tab)) window.wtEv('dbtab_' + tab);
+  if (window.wtEv && document.documentElement.dataset.tliMode === 'db' && ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips'].includes(tab)) window.wtEv('dbtab_' + tab);
   syncHashTab(tab); // 뒤로가기 지원: 탭 전환을 브라우저 히스토리에 기록
 }
 
@@ -12593,6 +12600,186 @@ function totalPick(q) {
   const el = document.getElementById('totalSearch');
   el.value = q; syncFromTotal(); el.focus();
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// 💡 팁 (2026-10-30) — 사용자가 올리는 짧은 공략 메모.
+// 목록을 통째로 한 번 받아 두고(/api/tips) 브라우저 안에서 훑는다 — 통합 검색이 이미 그 방식이라
+// 같은 parseTokens/totalMatch 를 그대로 쓰고, 팁 탭과 통합 검색이 한 배열을 공유한다.
+// 글쓴이는 디스코드 계정(헤더 nav.js 가 window.WT_ME 에 넣어 준다). 비밀번호는 없다.
+// ─────────────────────────────────────────────────────────────────────────────
+var UTIPS = [], UTIP_TAGS = [], tipsLoaded = false, tipsLoading = null, tipsTagSel = '', tipsEditId = '', tipsMineOnly = false;
+var tipFormTags = [];   // 글쓰기 칸의 태그 칩 (쉼표·Enter 로 확정, × 로 삭제)
+var tipsIsMod = false;  // 부관리자 — 남의 글도 고치고 지울 수 있다(서버가 다시 확인한다)
+// 디스코드로 인증된 작성자 표시 — 닉네임 앞 마크, 누르면 그 사람 글 모아보기
+const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>';
+
+function tipsLoad(force) {
+  if (tipsLoaded && !force) return Promise.resolve(UTIPS);
+  if (tipsLoading && !force) return tipsLoading;
+  // fetch 가 없는 자리(JSDOM 테스트 등)에서는 조용히 빈 목록으로 — 첫 그리기에서 부르기 때문에
+  // 여기서 터지면 통합 검색 화면이 통째로 안 그려진다 (2026-10-31 v2check 에서 걸림)
+  if (typeof fetch !== 'function') { UTIPS = []; UTIP_TAGS = []; tipsLoaded = true; return Promise.resolve(UTIPS); }
+  tipsLoading = fetch('/api/tips', { headers: { accept: 'application/json' } })
+    .then(r => r.json())
+    .then(d => { UTIPS = d.tips || []; UTIP_TAGS = d.tags || []; tipsIsMod = !!d.mod; tipsLoaded = true; return UTIPS; })
+    .catch(() => { UTIPS = []; UTIP_TAGS = []; tipsLoaded = true; return UTIPS; })
+    .finally(() => { tipsLoading = null; });
+  return tipsLoading;
+}
+function tipMe() { return window.WT_ME && window.WT_ME.login ? window.WT_ME : null; }
+function tipsReset() { document.getElementById('tipsSearch').value = ''; tipsTagSel = ''; tipsMineOnly = false; renderTips(); }
+function tipsPickTag(t) {
+  tipsTagSel = (tipsTagSel === t) ? '' : t;
+  renderTips();
+}
+function tipsToggleMine() { tipsMineOnly = !tipsMineOnly; renderTips(); }
+
+/** 태그 칩 — 입력칸 왼쪽에 쌓인다. 상자를 통째로 다시 그리지 않고 칩만 갈아 끼운다(입력 중 커서가 튀지 않게) */
+function tipsPaintChips() {
+  const box = document.getElementById('tipFTagBox'), inp = document.getElementById('tipFTags');
+  if (!box) return;
+  box.querySelectorAll('.tip-chip').forEach(c => c.remove());
+  tipFormTags.forEach((t, i) => {
+    const c = document.createElement('span');
+    c.className = 'tip-chip';
+    c.innerHTML = `<b data-noi18n>${escapeHtml(t)}</b><span class="x" title="지우기">×</span>`;
+    c.querySelector('.x').addEventListener('click', e => { e.stopPropagation(); tipFormTags.splice(i, 1); tipsPaintChips(); inp.focus(); });
+    box.insertBefore(c, inp);
+  });
+  inp.placeholder = tipFormTags.length ? '태그 더 넣기' : '태그 — 쉼표나 Enter 로 구분. 예: 부귀 숭고, 스킬';
+}
+/** 쉼표로 끊어 칩으로. 중복·빈 값은 버리고 8개까지 */
+function tipsCommitTags(raw) {
+  String(raw || '').split(',').map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean).forEach(t => {
+    if (tipFormTags.length < 8 && !tipFormTags.includes(t)) tipFormTags.push(t);
+  });
+  tipsPaintChips();
+}
+function tipsWireTagInput() {
+  const inp = document.getElementById('tipFTags');
+  if (!inp || inp.dataset.wired) return;
+  inp.dataset.wired = '1';
+  // 쉼표는 input 에서 본다 — 한글 입력기(조합 중)에서는 keydown 이 229 로 뭉개져 쓸 수 없다
+  inp.addEventListener('input', () => {
+    if (inp.value.indexOf(',') < 0) return;
+    const parts = inp.value.split(',');
+    inp.value = parts.pop();            // 마지막 조각은 아직 치는 중이니 남긴다
+    tipsCommitTags(parts.join(','));
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); tipsCommitTags(inp.value); inp.value = ''; return; }
+    // 빈 칸에서 지우기 = 마지막 칩 빼기 (칩 입력칸의 관례)
+    if (e.key === 'Backspace' && !inp.value && tipFormTags.length) { tipFormTags.pop(); tipsPaintChips(); }
+  });
+  inp.addEventListener('blur', () => { if (inp.value.trim()) { tipsCommitTags(inp.value); inp.value = ''; } });
+}
+
+function tipsOpenForm(id) {
+  const me = tipMe();
+  if (!me) { location.href = '/api/auth/discord?to=' + encodeURIComponent(location.pathname + '?tab=tips'); return; }
+  if (me.banned) { uiAlert('글쓰기가 제한된 계정입니다.'); return; }
+  const t = id ? UTIPS.find(x => x.id === id) : null;
+  tipsEditId = t ? t.id : '';
+  document.getElementById('tipFTitle').value = t ? t.title : '';
+  tipFormTags = t ? t.tags.slice() : (tipsTagSel ? [tipsTagSel] : []);
+  document.getElementById('tipFTags').value = '';
+  tipsWireTagInput(); tipsPaintChips();
+  document.getElementById('tipFBody').value = t ? t.body : '';
+  document.getElementById('tipFMsg').textContent = '';
+  document.getElementById('tipFSave').textContent = t ? '고치기' : '올리기';
+  document.getElementById('tipsForm').style.display = '';
+  document.getElementById('tipsNewBtn').style.display = 'none';
+  setTimeout(() => document.getElementById('tipFTitle').focus(), 0);
+}
+function tipsCloseForm() {
+  tipsEditId = '';
+  document.getElementById('tipsForm').style.display = 'none';
+  document.getElementById('tipsNewBtn').style.display = '';
+}
+function tipsSave() {
+  const btn = document.getElementById('tipFSave'), msg = document.getElementById('tipFMsg');
+  const payload = {
+    id: tipsEditId || undefined,
+    title: document.getElementById('tipFTitle').value,
+    tags: tipFormTags.concat(String(document.getElementById('tipFTags').value || '').split(',').map(x => x.trim()).filter(Boolean)),
+    body: document.getElementById('tipFBody').value,
+  };
+  btn.disabled = true; msg.textContent = '';
+  fetch('/api/tip', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) { msg.textContent = d.message || '올리지 못했습니다.'; return; }
+      tipsCloseForm();
+      return tipsLoad(true).then(renderTips);
+    })
+    .catch(() => { msg.textContent = '연결에 실패했습니다.'; })
+    .finally(() => { btn.disabled = false; });
+}
+function tipsDelete(id) {
+  const t = UTIPS.find(x => x.id === id);
+  // 시스템 confirm 대신 이 화면의 디자인 팝업 — 주소줄이 같이 떠서 화면과 따로 놀았다 (2026-10-30 사용자)
+  const msg = (t && !t.mine)
+    ? `${t.author} 님이 쓴 팁 "${t.title}" 을(를) 지웁니다. 되돌릴 수 없습니다.`
+    : '이 팁을 지울까요? 되돌릴 수 없습니다.';
+  uiConfirm(msg, () => {
+    fetch('/api/tip/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
+      .then(r => r.json()).then(() => tipsLoad(true).then(renderTips)).catch(() => {});
+  }, { title: '팁 지우기', ok: '지우기' });
+}
+function tipsLike(id) {
+  const t = UTIPS.find(x => x.id === id); if (!t || t._liked) return;
+  t._liked = true; t.likes = (t.likes || 0) + 1; renderTips();
+  fetch('/api/tip/like', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
+}
+
+/** 검색 조건에 맞는 팁 (통합 검색도 이 함수를 쓴다 — tokens 를 넘기면 그 조건으로) */
+function tipsMatch(tokens) {
+  if (!tokens.length) return UTIPS;
+  return UTIPS.filter(t => totalMatch(tokens, ['팁', t.title, t.tags.join(' '), t.body, t.author]));
+}
+function tipDate(iso) { return String(iso || '').slice(0, 10).replace(/-/g, '.').slice(2); }
+
+function renderTips() {
+  const box = document.getElementById('tipsResults'); if (!box) return;
+  const bar = document.getElementById('tipsTagBar');
+  const me = tipMe();
+  const q = document.getElementById('tipsSearch').value.trim();
+  const tokens = parseTokens(q);
+  const kws = tokens.filter(g => !g.neg).flatMap(g => g.kws);
+
+  bar.innerHTML = (me ? `<button type="button" class="${tipsMineOnly ? 'on' : ''}" onclick="tipsToggleMine()">📝 내 글</button>` : '')
+    + UTIP_TAGS.map(x => `<button type="button" data-noi18n class="${tipsTagSel === x.t ? 'on' : ''}" onclick="tipsPickTag('${escapeHtml(x.t).replace(/'/g, "&#39;")}')">${escapeHtml(x.t)}<i>${x.n}</i></button>`).join('');
+
+  let rows = tipsMatch(tokens);
+  if (tipsTagSel) rows = rows.filter(t => t.tags.includes(tipsTagSel));
+  if (tipsMineOnly) rows = rows.filter(t => t.mine);
+
+  if (!UTIPS.length) {
+    box.innerHTML = `<div class="tip-empty">아직 올라온 팁이 없습니다.<br>${me ? '위 <b>✍ 팁 쓰기</b> 로 첫 글을 남겨 보세요.' : '디스코드로 로그인하면 팁을 쓸 수 있습니다.'}</div>`;
+    return;
+  }
+  if (!rows.length) { box.innerHTML = '<div class="tip-empty">조건에 맞는 팁이 없습니다.</div>'; return; }
+
+  box.innerHTML = rows.map(t => {
+    const edited = t.up && t.up !== t.at;
+    return `<div class="tip-card">
+      <h4 data-noi18n>${highlight(t.title, kws)}</h4>
+      <div class="tip-meta">${t.au
+        ? `<a class="tip-who" href="/tli/u/?k=${t.au}" title="이 사람이 쓴 글 모아보기">${DC_MARK}<b data-noi18n>${escapeHtml(t.author)}</b></a>`
+        : `<b data-noi18n>${escapeHtml(t.author)}</b>`}<span>${tipDate(t.at)}${edited ? ' (고침)' : ''}</span>`
+      + `<span>👁 ${t.views || 0}</span><span>👍 ${t.likes || 0}</span></div>`
+      + (t.tags.length ? `<div class="tip-tags" data-noi18n>${t.tags.map(g => `<span onclick="tipsPickTag('${escapeHtml(g).replace(/'/g, "&#39;")}')">${highlight(g, kws)}</span>`).join('')}</div>` : '')
+      + `<div class="tip-body" data-noi18n>${highlight(t.body, kws)}</div>
+      <div class="tip-act">
+        <button type="button" onclick="tipsLike('${t.id}')">👍 도움돼요</button>`
+      + (t.mine || tipsIsMod
+          ? `<button type="button" onclick="tipsOpenForm('${t.id}')">✏ 고치기</button>`
+            + `<button type="button" class="del" onclick="tipsDelete('${t.id}')">🗑 지우기</button>`
+            + (t.mine ? '' : '<span class="tip-modmark" title="부관리자 권한으로 보입니다">관리</span>')
+          : '')
+      + `</div></div>`;
+  }).join('');
+}
+
 function totalStartHtml() {
   const n = c => ALL_DATA.filter(r => r.category === c).length;
   const fmt = x => x.toLocaleString('ko-KR');
@@ -12604,6 +12791,7 @@ function totalStartHtml() {
     ['pact', '🐾', '정령', fmt(pactDbList().length) + '종', '전투 정령 노드·외환·승급 보상'],
     ['skill', '🔮', '스킬', fmt(SKILLS.length) + '종', '액티브·보조·패시브, 레벨·티어별 수치'],
     ['tartarus', '⛓', '타르타로스', fmt(TARTARUS.length) + '종', 'SS14 타르타로스·오리진 스킬'],
+    ['tips', '💡', '팁', fmt(UTIPS.length) + '개', '사용자들이 올린 짧은 공략 메모'],
   ].filter(c => c[0] !== 'tartarus' || TARTARUS.length);
   return `<div class="tst">
     <div class="tst-cap">자주 찾는 검색어</div>
@@ -12618,6 +12806,7 @@ function renderTotal() {
   if (q !== totalPrevQ) { totalPrevQ = q; totalExpanded.clear(); }
   const tokens = parseTokens(q);
   document.getElementById('totalHint').style.display = tokens.length ? 'none' : 'block';
+  if (!tipsLoaded) tipsLoad().then(() => { if (currentTab === 'total') renderTotal(); });   // 팁 목록은 처음 한 번만 받는다
   if (!tokens.length) { box.innerHTML = totalStartHtml(); return; }
   const kws = tokens.filter(g => !g.neg).flatMap(g => g.kws);
   // 효과만 검색: 장비·재능·석판·운명 그룹에서 출처·유형 필드를 검색 대상에서 제외
@@ -12625,6 +12814,10 @@ function renderTotal() {
   // html: 행 본문 커스텀 렌더 — 용어 툴팁(tip/tip2)·아이템/스킬 호버 카드(ilink/slink)를 본 목록과 동일하게 제공
   // label: 그룹명도 검색 대상 — "투사체 부활"처럼 그룹명+내용 조합으로 그룹 내 검색 가능 (제외 !부활도 그룹 단위 동작)
   const groups = [
+    // 팁은 사람이 쓴 설명이라 제일 위에 — 아직 못 받았으면 받아 와서 한 번 더 그린다(처음 한 번만)
+    {title: '💡 팁', go: 'tips', rows: tipsMatch(tokens), noi: 1,
+      line: t => [t.title, (t.tags.length ? t.tags.join(' · ') + ' · ' : '') + t.author],
+      html: t => `<span data-noi18n>${highlight(t.title, kws)}</span>` + ` <span class="t-inline" data-noi18n>— ${highlight(t.body.length > 80 ? t.body.slice(0, 80).replace(/\n/g, ' ') + '…' : t.body.replace(/\n/g, ' '), kws)}</span>`},
     {title: '⚔ 장비 옵션', go: 'equip', rows: ALL_DATA.filter(r => r.category === '장비' && totalMatch(tokens, ['장비 옵션', r.effect, ...st(r.source, r.type), ...rowTipTexts(r)])),
       line: r => [r.effect, (r.source || '특수 갑옷') + ' · ' + r.type], html: r => renderEffect(r, kws)},
     {title: '🏆 레전드 아이템', go: 'item', rows: ITEMS.map((it, i) => ({it, i})).filter(x => totalMatch(tokens, ['레전드 아이템', x.it.name, (x.it.tags || []).join(' '), ...(x.it.attrs || []).map(stripHtml), ...(x.it.opts || []).map(stripHtml), ...(x.it.drop || [])])),
@@ -12667,7 +12860,7 @@ function renderTotal() {
     g.rows.slice(0, lim).forEach(x => {
       const [main, sub] = g.line(x);
       const attr = g.go ? ` data-tgo="${g.go}"${g.idx ? ` data-tidx="${g.idx(x)}"` : ''}${g.pname ? ` data-tpn="${escapeHtml(g.pname(x))}"` : ''}` : '';
-      h += `<div class="total-row${g.go ? ' t-click' : ''}"${attr}>${g.html ? g.html(x) : highlight(main, kws)}${sub ? `<span class="t-sub">${escapeHtml(sub)}</span>` : ''}</div>`;
+      h += `<div class="total-row${g.go ? ' t-click' : ''}"${attr}>${g.html ? g.html(x) : highlight(main, kws)}${sub ? `<span class="t-sub"${g.noi ? ' data-noi18n' : ''}>${escapeHtml(sub)}</span>` : ''}</div>`;
     });
     if (g.rows.length > lim) {
       h += g.go
@@ -12691,6 +12884,10 @@ document.addEventListener('click', e => {
   const row = e.target.closest('.total-row[data-tgo], .total-more[data-tgo]');
   if (!row) return;
   const kind = row.dataset.tgo;
+  if (kind === 'tips') { // 팁 → 팁 탭 (같은 검색어 그대로)
+    document.getElementById('tipsSearch').value = document.getElementById('totalSearch').value.trim();
+    switchTab('tips'); window.scrollTo(0, 0); return;
+  }
   if (kind === 'pact') { // 정령 → 정령 탭 (줄이면 그 정령 이름, 더보기면 같은 검색어)
     document.getElementById('pactSearch').value = row.dataset.tpn || document.getElementById('totalSearch').value.trim();
     const sp0 = row.dataset.tpn && PACT.find(x => x.name === row.dataset.tpn);
@@ -13390,9 +13587,17 @@ function shareSeToggle(l) {
   renderShareSeasons(); renderShare(true);
 }
 // 목록 질의 문자열 (정렬 + 시즌 + 고른 태그 + 검색어) — 필터는 서버에서 처리
+// 고정줄(맨 위 인기 3개)을 보일 상황인가 — '최신순' 이고 검색·태그가 없을 때만. (2026-10-30 사용자)
+// 추천순·조회순은 이미 그 순서라 중복이고, 검색·태그 중에는 찾는 걸 가리게 된다.
+function sharePinOn() {
+  return document.getElementById('shareSort').value === 'new'
+    && !shareFilterTags.length
+    && !document.getElementById('shareSearch').value.trim();
+}
 function shareQueryStr(offset, fresh) {
   const q = document.getElementById('shareSearch').value.trim();
   return '/shares?sort=' + document.getElementById('shareSort').value + '&offset=' + offset +
+    (offset === 0 && sharePinOn() ? '&top=1' : '') +
     (shareSeOn.size && shareSeasons.length > 1 ? '&se=' + [...shareSeOn].join(',') : '') +
     (shareFilterTags.length ? '&tags=' + encodeURIComponent(shareFilterTags.join(',')) : '') +
     (q ? '&q=' + encodeURIComponent(q) : '') + (fresh ? '&fresh=' + Date.now() : '');
@@ -13468,6 +13673,22 @@ function shareShortDate(iso) {
 const SHARE_CONTENT_SET = new Set([...SHARE_CONTENT_TAGS, ...SHARE_STAGE_TAGS]);
 // 공유 카드 (2026-10-15 정리 — 사용자 '난잡하다'): 줄 고정(제목·특성·태그·정보 한 줄씩 → 카드 높이 같게),
 // 초상화 오른쪽 아래에 메인 스킬, 시즌 표시는 지난 시즌만, 콘텐츠 태그(금색) 앞·스킬 태그(옅게) 뒤, 단계 글은 '🪜 N단계' 하나
+// ── 고정줄 (2026-10-30 사용자) ──
+// '이번 시즌 인기' 3개를 맨 위에 붙이고, 아래 최신순에서는 그 3개를 뺀다(같은 글이 두 번 보이지 않게).
+// 고를 때 쓴 조건은 아래 목록과 같고(시즌 칩 포함) 정렬만 조회수순이다 — 서버가 ?top=1 에 실어 준다.
+var sharePinned = [];
+function shareListHtml() {
+  const pin = sharePinOn() ? sharePinned : [];
+  const ids = new Set(pin.map(x => x.id));
+  const rest = shareList.filter(x => !ids.has(x.id));
+  if (!pin.length) return rest.map(shareRowHtml).join('');
+  const se = [...shareSeOn];
+  const seLbl = se.length === 1 ? se[0] + ' ' : '';
+  return '<div class="share-pin-h"><b>📌 ' + seLbl + '인기</b><small>조회수가 가장 많은 3개</small></div>'
+    + pin.map(shareRowHtml).join('')
+    + '<div class="share-pin-h sep"><b>🆕 최신</b><small>방금 올라온 순서</small></div>'
+    + rest.map(shareRowHtml).join('');
+}
 function shareRowHtml(it) {
   let tags = [];
   try { tags = JSON.parse(it.tags || '[]'); } catch (e) {}
@@ -13487,7 +13708,9 @@ function shareRowHtml(it) {
     `<div class="shc-info"><div class="share-title" data-tt="${escapeHtml(title)}">${se}<span data-noi18n>${escapeHtml(title)}</span></div>` +
     `<small class="shc-sub">${tr ? escapeHtml(tr.hero + ' · ' + tr.full) : '히어로 없음'}</small>` +
     `<div class="share-tags" data-tt="${escapeHtml(tipAll)}">${chips}</div></div>` +
-    `<div class="share-meta"><span class="shc-au" data-noi18n>${escapeHtml(it.author)}</span><span class="shc-right">` +
+    `<div class="share-meta">${it.au
+        ? `<span class="shc-au ver" data-noi18n title="디스코드로 인증된 작성자 — 누르면 이 사람이 쓴 글 모아보기" onclick="event.stopPropagation();location.href='/tli/u/?k=${it.au}'">${DC_MARK}${escapeHtml(it.author)}</span>`
+        : `<span class="shc-au" data-noi18n>${escapeHtml(it.author)}</span>`}<span class="shc-right">` +
       (it.likes > 0 ? `<span class="share-like">👍 ${it.likes}</span>` : '') + `<span class="share-views">👁 ${it.views || 0}</span>` +
       (it.yt ? '<span class="shc-yt" title="가이드 영상이 있습니다">▶</span>' : '') +
       `<span class="shc-date" title="${escapeHtml(dFull)}">${escapeHtml(shareShortDate(it.created_at))}${it.updated_at ? '<i title="고친 적 있음">✎</i>' : ''}</span></span></div></div>`;
@@ -13551,7 +13774,7 @@ async function renderShare(refresh) {
   const st = document.getElementById('shareStatus');
   if (!SHARE_ONLINE) { box.innerHTML = '<div class="no-result">온라인 배포판(https)에서만 사용할 수 있는 기능입니다.</div>'; return; }
   if (shareLoading) return;
-  if (!refresh && shareList.length) { box.innerHTML = shareList.map(shareRowHtml).join(''); return; } // 캐시 표시
+  if (!refresh && shareList.length) { box.innerHTML = shareListHtml(); return; } // 캐시 표시
   shareLoading = true;
   st.textContent = '';
   renderShareHeroes();
@@ -13559,16 +13782,17 @@ async function renderShare(refresh) {
   // 마지막으로 받은 같은 목록이 있으면 먼저 바로 보여 주고(새로고침해도 즉시), 받아 온 게 다를 때만 다시 그린다
   const qk = shareQueryStr(0), fresh = shareDirty();
   let cached = null; try { const c = JSON.parse(localStorage.getItem('tli_share_list_v1') || 'null'); if (c && c.k === qk) cached = c; } catch (e) {}
-  if (cached) { shareList = cached.list; shareMore = cached.more; box.innerHTML = shareList.length ? shareList.map(shareRowHtml).join('') : box.innerHTML; }
+  if (cached) { shareList = cached.list; shareMore = cached.more; sharePinned = cached.top || []; box.innerHTML = shareList.length ? shareListHtml() : box.innerHTML; }
   else box.innerHTML = '<div class="loading"><span class="spin"></span> 공유 목록을 불러오는 중...</div>';
   try {
     const d = await shareApi(shareQueryStr(0, fresh));
     if (fresh) try { localStorage.removeItem('tli_share_dirty'); } catch (e) {}
-    try { localStorage.setItem('tli_share_list_v1', JSON.stringify({k: qk, list: d.list, more: d.more})); } catch (e) {}
-    if (cached && JSON.stringify(cached.list) === JSON.stringify(d.list) && cached.more === d.more) { syncSharePicked(); document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none'; shareLoading = false; return; }
+    try { localStorage.setItem('tli_share_list_v1', JSON.stringify({k: qk, list: d.list, more: d.more, top: d.top || []})); } catch (e) {}
+    sharePinned = d.top || [];
+    if (cached && JSON.stringify(cached.list) === JSON.stringify(d.list) && cached.more === d.more && JSON.stringify(cached.top || []) === JSON.stringify(sharePinned)) { syncSharePicked(); document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none'; shareLoading = false; return; }
     shareList = d.list; shareMore = d.more;
     const filtering = shareFilterTags.length || document.getElementById('shareSearch').value.trim();
-    box.innerHTML = shareList.length ? shareList.map(shareRowHtml).join('')
+    box.innerHTML = shareList.length ? shareListHtml()
       : (filtering ? '<div class="no-result">조건에 맞는 빌드가 없습니다. 태그나 검색어를 줄여보세요.</div>'
         : '<div class="no-result">아직 공유된 빌드가 없습니다. 빌더의 [빌드 관리 → 공유 올리기]로 첫 번째 주인공이 되어보세요!</div>');
     syncSharePicked();
@@ -13591,7 +13815,7 @@ async function loadMoreShares() {
   try {
     const d = await shareApi(shareQueryStr(shareList.length));
     shareList = shareList.concat(d.list); shareMore = d.more;
-    document.getElementById('shareList').innerHTML = shareList.map(shareRowHtml).join('');
+    document.getElementById('shareList').innerHTML = shareListHtml();
     document.getElementById('shareMoreBtn').style.display = shareMore ? '' : 'none';
   } catch (e) { alert('더 불러오기 실패: ' + e.message); }
   more.disabled = false; more.textContent = label;
@@ -13773,7 +13997,7 @@ async function likeShare() {
     btn.textContent = `👍 추천 ${d.likes}` + (d.already ? ' (이미 추천함)' : ' (완료)');
     btn.disabled = true;
     const row = shareList.find(x => x.id === shareDetail.id);
-    if (row) { row.likes = d.likes; document.getElementById('shareList').innerHTML = shareList.map(shareRowHtml).join(''); }
+    if (row) { row.likes = d.likes; document.getElementById('shareList').innerHTML = shareListHtml(); }
   } catch (e) { alert('추천 실패: ' + e.message); }
 }
 // ── 공유 올리기 ──
@@ -13942,8 +14166,8 @@ function closePatch() { document.getElementById('patchModal').style.display = 'n
 //           읽기는 쿼리 우선 + 해시 폴백이라 이미 퍼진 #링크도 그대로 열린다.
 var hashApplying = false; // popstate 반영 중 pushState 방지
 var modalEntry = false;   // 히스토리 최상단이 모달용 엔트리인지
-const TAB_IDS_H = ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'share', 'fav', 'preset'];
-const TAB_Q_INPUT = {total: 'totalSearch', legend: 'legendSearch', pact: 'pactSearch', tartarus: 'ttSearch'}; // 탭마다 자기 검색칸 (그 외는 공용 #search)
+const TAB_IDS_H = ['total', 'all', 'legend', 'talent', 'destiny', 'pact', 'skill', 'tartarus', 'tips', 'share', 'fav', 'preset'];
+const TAB_Q_INPUT = {total: 'totalSearch', legend: 'legendSearch', pact: 'pactSearch', tartarus: 'ttSearch', tips: 'tipsSearch'}; // 탭마다 자기 검색칸 (그 외는 공용 #search)
 function urlParams() { return location.search.slice(1) || location.hash.slice(1); } // 쿼리 우선, 옛 해시 링크 폴백
 function parseHash() {
   try { const p = new URLSearchParams(urlParams()); return {tab: p.get('tab'), q: p.get('q') || ''}; }

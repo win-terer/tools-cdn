@@ -12615,6 +12615,9 @@ const DC_MARK = '<svg class="wt-dc" viewBox="0 0 127 96" aria-hidden="true"><pat
 function tipsLoad(force) {
   if (tipsLoaded && !force) return Promise.resolve(UTIPS);
   if (tipsLoading && !force) return tipsLoading;
+  // fetch 가 없는 자리(JSDOM 테스트 등)에서는 조용히 빈 목록으로 — 첫 그리기에서 부르기 때문에
+  // 여기서 터지면 통합 검색 화면이 통째로 안 그려진다 (2026-10-31 v2check 에서 걸림)
+  if (typeof fetch !== 'function') { UTIPS = []; UTIP_TAGS = []; tipsLoaded = true; return Promise.resolve(UTIPS); }
   tipsLoading = fetch('/api/tips', { headers: { accept: 'application/json' } })
     .then(r => r.json())
     .then(d => { UTIPS = d.tips || []; UTIP_TAGS = d.tags || []; tipsIsMod = !!d.mod; tipsLoaded = true; return UTIPS; })
