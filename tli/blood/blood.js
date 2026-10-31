@@ -211,7 +211,7 @@ function itemPoolsHtml(it) {
 //  · 일반 장기 — 초급용·진급용이 따로 있다(사용자 2026-10-27). 고른 쪽(메인/서브)의 그 등급 옵션 전체(티어 포함)에서 무작위 하나
 //  · 특수 장기 — 고른 쪽의 절대자 옵션을 직접 고르고 티어만 무작위. 이미 붙은 옵션은 다시 못 고른다
 //  · 자리: 빈자리 우선(위에서부터) → 없으면 그쪽 아무 자리나 덮어쓴다. 진급·절대자가 이미 2개면 그쪽의 같은 등급 자리만 교체
-//  · 핵심 장기 — 6칸이 다 찼을 때, 고른 레전드의 옵션 중 무작위 3개 후보에서 하나 → 레전드가 아닌 무작위 자리를 대신한다.
+//  · 핵심 장기 — 6칸이 다 찼을 때, 고른 레전드의 옵션 중 무작위 2개(BL_CAND_N) 후보에서 하나 → 레전드가 아닌 무작위 자리를 대신한다.
 //    레전드 옵션은 최대 2개·한 장비에서만 (옵션 2개짜리 레전드는 1개). 2개면 다른 장기로 덮어쓴 뒤에만 다시 넣을 수 있다
 //  · 절단 도구 — 붙은 옵션의 수치만 다시 굴린다 (티어 그대로)
 // 레전드 후보 풀은 빌더 블러드 제작(wgBLegendPool)과 같은 세트 부위 레전드 옵션. 저장은 없다 (사용자: 저장 기능 필요 없음)
@@ -221,7 +221,8 @@ const BL_SET_NAME = {hn: '투구·목걸이', cg: '갑옷·장갑', brb: '신발
 const BL_GR_ROW = {'절대': 'gr-abs', '진급': 'gr-adv', '초급': 'gr-beg', '레전드': 'gr-leg'};
 const BL_GR_CLASS = {'절대': 'g-abs', '진급': 'g-adv', '초급': 'g-beg', '레전드': 'g-leg'};
 const BL_GR_NAME = {'절대': '절대자', '진급': '진급', '초급': '초급', '레전드': '레전드'};
-const BL_CAND_N = 3; // 핵심 장기 후보 수 (사용자: 일단 3개)
+const BL_CAND_N = 2; // 핵심 장기 후보 수 — 게임에서 2개를 준다 (2026-10-31 사용자 확인, 그 전엔 3개로 뒀었다)
+const BL_RAND_N = 3; // 후보가 '<랜덤 …>' 줄이면 갈래를 몇 개까지 보여 줄지 — 후보 수와는 다른 이야기(보여 주기용)
 const BL_SIDE = {main: '메인', sub: '서브'};
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -327,7 +328,7 @@ function blUseCore() {
   const it = blItemOf(S.lock || blItem);
   S.cnt.core++;
   S.cand = {n: it.n, c: sample(blCoreOpts(it), BL_CAND_N).map(i => typeof i === 'string'
-    ? {oi: i, vs: sample(it.r.filter(t => !blHas(t)), BL_CAND_N).map(t => ({t, v: rollText(t)}))}
+    ? {oi: i, vs: sample(it.r.filter(t => !blHas(t)), BL_RAND_N).map(t => ({t, v: rollText(t)}))}
     : {oi: i, vs: [{t: it.o[i][0], v: rollText(it.o[i][0]), tips: it.o[i][1] || null}]}).filter(cd => cd.vs.length)};
   blLog(`핵심 장기 — <b>${esc(it.n)}</b> 후보 ${S.cand.c.length}개`);
   blRender();
@@ -452,7 +453,7 @@ function blActHtml() {
         '</div><div class="bl-row"><button class="bl-go sub" onclick="blDropCand()">고르지 않고 닫기</button></div>';
     } else {
       const why = blCoreWhy();
-      h += '<div class="bl-note">메인·서브 6칸이 다 찬 뒤, 고른 레전드의 옵션 중 무작위 3개가 후보로 나옵니다. 레전드 옵션은 최대 2개이고 한 장비에서만 넣을 수 있습니다. 목록은 핵심 장기가 있는 레전드만입니다.</div>' +
+      h += '<div class="bl-note">메인·서브 6칸이 다 찬 뒤, 고른 레전드의 옵션 중 무작위 ' + BL_CAND_N + '개가 후보로 나옵니다. 레전드 옵션은 최대 2개이고 한 장비에서만 넣을 수 있습니다. 목록은 핵심 장기가 있는 레전드만입니다.</div>' +
         (S.lock ? `<div class="bl-row"><small class="bl-note">추출 중인 장비: <b>${esc(S.lock)}</b> (같은 장비만)</small></div>` : '') +
         `<div class="bl-row"><button class="bl-go" onclick="blUseCore()"${why ? ' disabled' : ''}>핵심 장기 쓰기</button>` +
         (!S.lock && blItem ? `<small class="bl-note">고른 장비: <b style="color:#f3e3b5">${esc(blItem)}</b></small>` : '') + '</div>' +
