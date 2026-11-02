@@ -1209,3 +1209,9 @@
     .wt-inv b { color: #f0d595; font-size: 15px; } .wt-inv .wt-btns { margin-top: 8px; }
     @keyframes wtUp { from { opacity: 0; transform: translateY(12px); } }
     @media (max-width: 600px) { .wt-inv { left: 16px; right: 16px; bottom: 16px; width: auto; } }
+
+/* 장비가 메인 스킬을 고정했을 때 (2026-11-02 사용자) — 「타오르는 세계」처럼 메인을 바꾸는 옵션 */
+.ws-lock { margin-left: .4rem; font-size: .78em; font-weight: 400; color: #ffd84a; border: 1px solid #ffd84a55; border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.ws-strip-c.locked { border-color: #ffd84a88; background: rgba(255, 216, 74, .07); cursor: default; }
+.ws-strip-c.locked .ws-strip-t b { color: #ffd84a; }
+.ws-strip-i .ws-noic { color: #ffd84a; font-size: 1.1em; }   /* 아이콘 없는 스킬(장비가 주는 것) */

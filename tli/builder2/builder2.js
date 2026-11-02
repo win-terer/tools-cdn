@@ -1587,6 +1587,16 @@ function renderTalentBoard(opt) {
 // 기대하는 바깥 것: SKILLS · SKILL_LV · preset · KEY_MAP · escapeHtml (빌더는 01_core, 마법사는 스킬 단계에 들어갈 때 받는 skill_data.js)
 // ── 스킬 탭 + 스킬 빌드 ──
 // 스킬 슬롯: 액티브 5 + 패시브 4, 각 슬롯에 보조 5칸 (3번=부귀, 5번=숭고 전용)
+// ── 장비가 주는 스킬 ────────────────────────────────────────────────────────
+// 「타오르는 세계」(목걸이)가 주는 **화염의 정수**는 액티브·보조·패시브 어느 목록 페이지에도 없어
+// update_tlidb 의 SKILL_PAGES 로는 못 긁는다. tlidb 에도 스킬 카드가 없고 용어 설명
+// (Hyperlink 768 /ko/True_Flame_Immolation)뿐이라 아이콘·수치 표가 아예 없다.
+// 그래서 **생성기**(builder/update/build_data_v2.py GRANTED_SKILLS)에서 skill_data.js 에 보태 둔다 —
+// 공유 보기(/tli/view)도 같은 파일을 읽으므로 여기서 따로 끼워 넣지 않는다 (2026-11-02 사용자).
+
+// 「메인 스킬을 N레벨 OO로 바꾼다」 — 장비를 끼면 액티브 1번 칸이 그 스킬로 **고정**된다.
+const FORCE_MAIN_RE = /메인 스킬을 ?\(?(\d+)\)? ?레벨의? ?([가-힣 ]+?)(?:으)?로 바꾼다/;
+
 const SKILL_SLOTS = [
   {id: 'a1', label: '액티브 1', group: 'a'},
   {id: 'a2', label: '액티브 2', group: 'a'},
@@ -3160,6 +3170,29 @@ function findSkill(ref) {
   const i = ref && SKILL_IDX.get(ref.name + '\u001f' + ref.kind);
   return i === undefined || i === null ? -1 : i;
 }
+const forcedMainWhy = f => f.src + '의 「' + f.e + '」 때문에 메인 스킬이 ' + f.name + ' ' + f.lv + '레벨로 고정됩니다.';
+// 지금 낀 장비가 메인 스킬을 고정하는가 — 「메인 스킬을 20레벨 화염의 정수로 바꾼다」
+function forcedMain() {
+  for (const [src, e] of presetOptionLines()) {
+    const m = FORCE_MAIN_RE.exec(e);
+    if (!m) continue;
+    const name = m[2].trim();
+    if (findSkill({name, kind: '액티브'}) < 0) continue;   // 자료에 없는 스킬이면 건드리지 않는다
+    return {name, kind: '액티브', lv: +m[1], src, e};
+  }
+  return null;
+}
+// 고정이면 액티브 1번 칸의 **메인만** 그 스킬로 맞춘다 — 보조는 그대로 둔다(끼운 보조가 날아가면 안 된다).
+function applyForcedMain() {
+  const f = forcedMain();
+  if (!f) return null;
+  if (!preset.skills) preset.skills = {};
+  const sk = preset.skills.a1 || (preset.skills.a1 = {main: null, sup: [null, null, null, null, null]});
+  if (!sk.main || sk.main.name !== f.name || sk.main.kind !== f.kind || +sk.main.lv !== f.lv)
+    sk.main = {name: f.name, kind: f.kind, lv: f.lv};
+  return f;
+}
+
 const wsSlot = id => SKILL_SLOTS.find(s => s.id === id);
 const wsSk = id => (preset.skills || {})[id] || null;
 const wsIcon = ref => { const i = findSkill(ref); return i >= 0 && SKILLS[i].icon ? SKILLS[i].icon : ''; };
@@ -3207,6 +3240,10 @@ function wsSetTarget(slot, socket) {
 function wsPick(i) {
   if (guardShareView()) return;
   const s = SKILLS[i], {slot, socket} = wsTarget;
+  if (slot === 'a1' && socket === null) {        // 장비가 고정한 메인은 바꿀 수 없다
+    const f = forcedMain();
+    if (f) { alert(forcedMainWhy(f) + '\n바꾸려면 그 장비를 빼세요.'); return; }
+  }
   if (!preset.skills) preset.skills = {};
   const sk = preset.skills[slot] || (preset.skills[slot] = {main: null, sup: [null, null, null, null, null]});
   if (socket === null) {
@@ -3232,6 +3269,10 @@ function wsPick(i) {
 }
 function wsClear(slot) {
   if (guardShareView()) return;
+  if (slot === 'a1') {
+    const f = forcedMain();
+    if (f) { alert(forcedMainWhy(f) + '\n비우려면 그 장비를 빼세요.'); return; }
+  }
   if (preset.skills) preset.skills[slot] = null;
   wsTarget = {slot, socket: null};
   persistPreset();
@@ -3343,15 +3384,17 @@ function wsRender() {
   });
   const onSet = new Set();
   if (sk) (wsTarget.socket === null ? [sk.main] : sk.sup).forEach(x => { if (x) onSet.add(x.name + '\u001f' + x.kind); });
+  const fm = forcedMain();     // 장비가 메인을 고정했으면 눌러 보기 전에 화면에서 알려 준다
   const head = wsTarget.socket === null
-    ? (sl.id === 'a1' ? `${sl.label} · <b>메인 스킬</b>` : `<b>${sl.label}</b>`) // '메인 스킬'은 액티브 1 만 (사용자 요청)
+    ? (sl.id === 'a1' ? `${sl.label} · <b>메인 스킬</b>` + (fm ? ` <span class="ws-lock" title="${escapeHtml(forcedMainWhy(fm))}">🔒 ${escapeHtml(fm.src)} 고정</span>` : '') : `<b>${sl.label}</b>`) // '메인 스킬'은 액티브 1 만 (사용자 요청)
     : `${sl.label} <span class="ws-mn">${escapeHtml(sk && sk.main ? sk.main.name : '')}</span> · <b>보조 ${wsTarget.socket + 1}</b> <span class="gbm-hint">${WS_SOCK_NAME[wsTarget.socket]}</span>`;
   // 고른 칸 한눈에 — 메인 + 보조 1~5, 눌러서 그 자리로 (사용자 요청)
   const cellOf = (ref, k) => {
     const tgt = wsTarget.socket === k, ic = ref ? wsIcon(ref) : '';
-    const lab = k === null ? (sl.id === 'a1' ? '메인 스킬' : sl.label) : '보조 ' + (k + 1);
-    return `<div class="ws-strip-c${tgt ? ' tgt' : ''}${ref ? ' have' : ''}${k === null ? ' main' : ''}" onclick="wsSetTarget('${sl.id}', ${k})" oncontextmenu="return wsUnequip('${sl.id}', ${k})" title="${escapeHtml(ref ? ref.name : lab)}">` +
-      `<span class="ws-strip-i">${ic ? `<img src="${ic}" alt="">` : (k === null ? '+' : k + 1)}</span>` +
+    const lock = k === null && sl.id === 'a1' && fm;
+    const lab = k === null ? (sl.id === 'a1' ? (lock ? '메인 스킬 🔒' : '메인 스킬') : sl.label) : '보조 ' + (k + 1);
+    return `<div class="ws-strip-c${tgt ? ' tgt' : ''}${ref ? ' have' : ''}${k === null ? ' main' : ''}${lock ? ' locked' : ''}" onclick="wsSetTarget('${sl.id}', ${k})" oncontextmenu="return wsUnequip('${sl.id}', ${k})" title="${escapeHtml(lock ? forcedMainWhy(fm) : (ref ? ref.name : lab))}">` +
+      `<span class="ws-strip-i">${ic ? `<img src="${ic}" alt="">` : (ref ? '<b class="ws-noic">⬥</b>' : (k === null ? '+' : k + 1))}</span>` +
       `<span class="ws-strip-t"><small>${escapeHtml(lab)}${k !== null && k % 2 === 0 ? ' · ' + WS_SOCK_NAME[k].split('·')[0] : ''}</small><b>${ref ? escapeHtml(ref.name) : '<i>비어 있음</i>'}</b></span></div>`;
   };
   const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>';
@@ -7510,6 +7553,7 @@ function pageOnSwitch() { heroMsg = ''; gbMsg = ''; gbExtra.clear(); gbSlot = 0;
 function wzScPath(el, root) { const c = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(x => x && x !== 'on')[0] : ''; const sel = c ? '.' + CSS.escape(c) : el.tagName.toLowerCase(); return [sel, [...root.querySelectorAll(sel)].indexOf(el)]; }
 function wzScFind(root, path) { try { return root.querySelectorAll(path[0])[path[1]] || null; } catch (e) { return null; } }
 function pageRender() {
+  applyForcedMain();        // 장비가 메인 스킬을 고정하면 액티브 1번 칸을 먼저 맞춘다
   const app = document.getElementById('wzApp');
   if (wzStep === 'list') { app.innerHTML = wzListHtml(); return; }
   const i = WZ_STEPS.findIndex(s => s.id === wzStep);
