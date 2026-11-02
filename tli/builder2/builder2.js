@@ -3173,7 +3173,11 @@ function findSkill(ref) {
 const forcedMainWhy = f => f.src + '의 「' + f.e + '」 때문에 메인 스킬이 ' + f.name + ' ' + f.lv + '레벨로 고정됩니다.';
 // 지금 낀 장비가 메인 스킬을 고정하는가 — 「메인 스킬을 20레벨 화염의 정수로 바꾼다」
 function forcedMain() {
-  for (const [src, e] of presetOptionLines()) {
+  // 스킬·장비 자료는 그 단계에 처음 들어갈 때 받는다(WZ_DATA) — 아직 없으면 조용히 넘어간다.
+  if (typeof SKILLS === 'undefined') return null;
+  let lines;
+  try { lines = presetOptionLines(); } catch (e) { return null; }   // 장비 자료가 아직일 수 있다
+  for (const [src, e] of lines) {
     const m = FORCE_MAIN_RE.exec(e);
     if (!m) continue;
     const name = m[2].trim();
