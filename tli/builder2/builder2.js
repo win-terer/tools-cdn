@@ -3202,11 +3202,12 @@ const wsSk = id => (preset.skills || {})[id] || null;
 const wsIcon = ref => { const i = findSkill(ref); return i >= 0 && SKILLS[i].icon ? SKILLS[i].icon : ''; };
 // 아이콘이 없는 스킬(장비가 주는 것 — tlidb 에 스킬 카드가 없어 그림이 아예 없다)은 ⬥ 로 그린다.
 // <img src=""> 를 그대로 두면 브라우저가 깨진 그림(엑박)을 보여 준다 (2026-11-02 사용자).
-// 주소가 있으면 그림, 없으면 ⬥. 받다 실패하면 숨긴다 — 저장소의 다른 자리와 같은 방식으로,
-// onerror 안에 따옴표를 겹치지 않는다(겹치면 속성이 거기서 끊겨 깨진다).
+// 주소가 있으면 그림, 없으면 「그림 없음」. 장비가 주는 스킬은 tlidb 에 스킬 카드가 없어
+// 아이콘이 아예 없다 — <img src=""> 를 그대로 두면 브라우저가 깨진 그림(엑박)을 보여 준다.
+// 받다 실패하면 숨긴다. onerror 안에 따옴표를 겹치지 않는다(겹치면 속성이 거기서 끊겨 더 깨진다).
 const wsImg = (src, cls) => src
   ? `<img src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-  : `<b class="ws-noic${cls ? ' ' + cls : ''}">⬥</b>`;
+  : `<span class="ws-noic${cls ? ' ' + cls : ''}" title="이 스킬은 아이콘 그림이 없습니다">그림<br>없음</span>`;
 const WS_SOCK_NAME = ['촉발체·일반', '일반', '부귀·일반', '일반', '숭고·일반'];
 function wsPool() { // 지금 자리에 들어갈 수 있는 스킬 (빌더 skillPickPool 과 같은 규칙)
   const {slot, socket} = wsTarget, grp = wsSlot(slot).group, sk = wsSk(slot);
@@ -3375,7 +3376,7 @@ function wsRender() {
           const sp = sk && sk.sup[k], ic = sp ? wsIcon(sp) : '';
           const tgt = on && wsTarget.socket === k;
           return `<span class="ws-sock${sp ? ' have' : ''}${tgt ? ' tgt' : ''}${k === 0 || k === 2 || k === 4 ? ' sp' : ''}" onclick="event.stopPropagation();wsSetTarget('${sl.id}', ${k})" oncontextmenu="event.stopPropagation();return wsUnequip('${sl.id}', ${k})" ` +
-            `title="보조 ${k + 1} (${WS_SOCK_NAME[k]})${sp ? ' — ' + escapeHtml(sp.name) : ''}">${sp ? wsImg(ic) : k + 1}</span>`;
+            `title="보조 ${k + 1} (${WS_SOCK_NAME[k]})${sp ? ' — ' + escapeHtml(sp.name) : ''}">${sp && ic ? wsImg(ic) : k + 1}</span>`;
         }).join('') + '</div></div>' +
         (sk ? `<button class="gbm-del" onclick="event.stopPropagation();wsClear('${sl.id}')" title="이 칸 비우기">✕</button>` : '') + '</div>';
     });
