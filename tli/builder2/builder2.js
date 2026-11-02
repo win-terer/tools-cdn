@@ -3200,12 +3200,12 @@ function applyForcedMain() {
 const wsSlot = id => SKILL_SLOTS.find(s => s.id === id);
 const wsSk = id => (preset.skills || {})[id] || null;
 const wsIcon = ref => { const i = findSkill(ref); return i >= 0 && SKILLS[i].icon ? SKILLS[i].icon : ''; };
-// 주소가 있으면 그림, 없으면 「그림 없음」. 장비가 주는 스킬은 tlidb 에 스킬 카드가 없어 아이콘이
+// 주소가 있으면 그림, 없으면 「이미지 없음」. 장비가 주는 스킬은 tlidb 에 스킬 카드가 없어 아이콘이
 // 아예 없는데, <img src=""> 를 그대로 두면 브라우저가 깨진 그림(엑박)을 보여 준다 (2026-11-02 사용자).
 // 받다 실패하면 숨긴다. onerror 안에 따옴표를 겹치지 않는다(겹치면 속성이 거기서 끊겨 더 깨진다).
 const wsImg = (src, cls) => src
   ? `<img src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-  : `<span class="ws-noic${cls ? ' ' + cls : ''}" title="이 스킬은 아이콘 그림이 없습니다">그림<br>없음</span>`;
+  : `<span class="ws-noic${cls ? ' ' + cls : ''}" title="이 스킬은 아이콘 그림이 없습니다">이미지<br>없음</span>`;
 const WS_SOCK_NAME = ['촉발체·일반', '일반', '부귀·일반', '일반', '숭고·일반'];
 function wsPool() { // 지금 자리에 들어갈 수 있는 스킬 (빌더 skillPickPool 과 같은 규칙)
   const {slot, socket} = wsTarget, grp = wsSlot(slot).group, sk = wsSk(slot);

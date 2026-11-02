@@ -1219,6 +1219,6 @@
 .ws-noic { display: grid; place-items: center; text-align: center; color: #5d6b82; background: #0e1420;
   font-size: 9px; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; }
 .ws-main .ws-noic { width: 100%; height: 100%; border-radius: inherit; font-size: 11px; }
-.ws-strip-i .ws-noic { width: 100%; height: 100%; font-size: 9px; }
+.ws-strip-i .ws-noic { width: 100%; height: 100%; font-size: 8px; }
 .ws-cell .ws-noic { width: 52px; height: 52px; border-radius: 10px; font-size: 11px; }
 .ws-ch .ws-noic { width: 48px; height: 48px; border-radius: 10px; font-size: 11px; flex: none; }
