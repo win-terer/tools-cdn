@@ -3205,7 +3205,7 @@ const wsIcon = ref => { const i = findSkill(ref); return i >= 0 && SKILLS[i].ico
 // 받다 실패하면 숨긴다. onerror 안에 따옴표를 겹치지 않는다(겹치면 속성이 거기서 끊겨 더 깨진다).
 const wsImg = (src, cls) => src
   ? `<img src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-  : `<span class="ws-noic${cls ? ' ' + cls : ''}" title="이 스킬은 아이콘 그림이 없습니다">이미지<br>없음</span>`;
+  : `<span class="ws-noic${cls ? ' ' + cls : ''}" title="이 스킬은 아이콘 그림이 없습니다">이미지 없음</span>`;
 const WS_SOCK_NAME = ['촉발체·일반', '일반', '부귀·일반', '일반', '숭고·일반'];
 function wsPool() { // 지금 자리에 들어갈 수 있는 스킬 (빌더 skillPickPool 과 같은 규칙)
   const {slot, socket} = wsTarget, grp = wsSlot(slot).group, sk = wsSk(slot);

@@ -822,6 +822,20 @@
     .wt-inv b { color: #f0d595; font-size: 15px; } .wt-inv .wt-btns { margin-top: 8px; }
     @keyframes wtUp { from { opacity: 0; transform: translateY(12px); } }
     @media (max-width: 600px) { .wt-inv { left: 16px; right: 16px; bottom: 16px; width: auto; } }
+
+/* 장비가 메인 스킬을 고정했을 때 (2026-11-02 사용자) — 「타오르는 세계」처럼 메인을 바꾸는 옵션 */
+.ws-lock { margin-left: .4rem; font-size: .78em; font-weight: 400; color: #ffd84a; border: 1px solid #ffd84a55; border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.ws-strip-c.locked { border-color: #ffd84a88; background: rgba(255, 216, 74, .07); cursor: default; }
+.ws-strip-c.locked .ws-strip-t b { color: #ffd84a; }
+/* 아이콘이 없는 스킬(장비가 주는 것 — tlidb 에 스킬 카드가 없다). 그림 자리에 글자로 알린다.
+   금색이면 고른 스킬보다 더 튄다 — 흐린 회색으로 */
+.ws-noic { display: grid; place-items: center; text-align: center; color: #5d6b82; background: #0e1420;
+  font-size: 9px; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; padding: 0 2px;
+  word-break: keep-all; overflow-wrap: anywhere; }   /* 낱말은 안 쪼개고 사이에서 줄을 바꾼다 */
+.ws-main .ws-noic { width: 100%; height: 100%; border-radius: inherit; font-size: 11px; }
+.ws-strip-i .ws-noic { width: 100%; height: 100%; font-size: 8px; }
+.ws-cell .ws-noic { width: 52px; height: 52px; border-radius: 10px; font-size: 11px; }
+.ws-ch .ws-noic { width: 48px; height: 48px; border-radius: 10px; font-size: 11px; flex: none; }
     /* /tli/slate 단독 화면 — 틀(frame.css)·석판 칸(builder2.css 의 wsb-·wg-) 위에 페이지 배치만 */
     .sp-body #slateApp { width: min(var(--page-w, 1320px), calc(100% - 32px)); margin: 16px auto 32px; }
     .sp-body #slateApp .gbm { width: 100%; height: auto; }

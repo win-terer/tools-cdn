@@ -1678,6 +1678,16 @@ function sealBoxHtml() {
 // 기대하는 바깥 것: SKILLS · SKILL_LV · preset · KEY_MAP · escapeHtml (빌더는 01_core, 마법사는 스킬 단계에 들어갈 때 받는 skill_data.js)
 // ── 스킬 탭 + 스킬 빌드 ──
 // 스킬 슬롯: 액티브 5 + 패시브 4, 각 슬롯에 보조 5칸 (3번=부귀, 5번=숭고 전용)
+// ── 장비가 주는 스킬 ────────────────────────────────────────────────────────
+// 「타오르는 세계」(목걸이)가 주는 **화염의 정수**는 액티브·보조·패시브 어느 목록 페이지에도 없어
+// update_tlidb 의 SKILL_PAGES 로는 못 긁는다. tlidb 에도 스킬 카드가 없고 용어 설명
+// (Hyperlink 768 /ko/True_Flame_Immolation)뿐이라 아이콘·수치 표가 아예 없다.
+// 그래서 **생성기**(builder/update/build_data_v2.py GRANTED_SKILLS)에서 skill_data.js 에 보태 둔다 —
+// 공유 보기(/tli/view)도 같은 파일을 읽으므로 여기서 따로 끼워 넣지 않는다 (2026-11-02 사용자).
+
+// 「메인 스킬을 N레벨 OO로 바꾼다」 — 장비를 끼면 액티브 1번 칸이 그 스킬로 **고정**된다.
+const FORCE_MAIN_RE = /메인 스킬을 ?\(?(\d+)\)? ?레벨의? ?([가-힣 ]+?)(?:으)?로 바꾼다/;
+
 const SKILL_SLOTS = [
   {id: 'a1', label: '액티브 1', group: 'a'},
   {id: 'a2', label: '액티브 2', group: 'a'},
