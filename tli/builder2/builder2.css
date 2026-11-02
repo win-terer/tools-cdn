@@ -1214,4 +1214,10 @@
 .ws-lock { margin-left: .4rem; font-size: .78em; font-weight: 400; color: #ffd84a; border: 1px solid #ffd84a55; border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
 .ws-strip-c.locked { border-color: #ffd84a88; background: rgba(255, 216, 74, .07); cursor: default; }
 .ws-strip-c.locked .ws-strip-t b { color: #ffd84a; }
-.ws-strip-i .ws-noic { color: #ffd84a; font-size: 1.1em; }   /* 아이콘 없는 스킬(장비가 주는 것) */
+/* 아이콘이 없는 스킬(장비가 주는 것 — tlidb 에 스킬 카드가 없다). 자리마다 그림 크기가 달라 각각 맞춘다 */
+.ws-noic { display: grid; place-items: center; color: #ffd84a; line-height: 1; }
+.ws-strip-i .ws-noic { font-size: 16px; }
+.ws-main .ws-noic { width: 100%; height: 100%; font-size: 24px; background: #0e1420; border-radius: inherit; }
+.ws-sock .ws-noic { width: 100%; height: 100%; font-size: 12px; }
+.ws-cell .ws-noic { width: 52px; height: 52px; border-radius: 10px; font-size: 26px; background: #0e1420; }
+.ws-ch .ws-noic { width: 48px; height: 48px; border-radius: 10px; font-size: 24px; background: #0e1420; flex: none; }

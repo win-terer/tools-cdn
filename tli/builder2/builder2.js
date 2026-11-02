@@ -3200,6 +3200,13 @@ function applyForcedMain() {
 const wsSlot = id => SKILL_SLOTS.find(s => s.id === id);
 const wsSk = id => (preset.skills || {})[id] || null;
 const wsIcon = ref => { const i = findSkill(ref); return i >= 0 && SKILLS[i].icon ? SKILLS[i].icon : ''; };
+// 아이콘이 없는 스킬(장비가 주는 것 — tlidb 에 스킬 카드가 없어 그림이 아예 없다)은 ⬥ 로 그린다.
+// <img src=""> 를 그대로 두면 브라우저가 깨진 그림(엑박)을 보여 준다 (2026-11-02 사용자).
+// 주소가 있으면 그림, 없으면 ⬥. 받다 실패하면 숨긴다 — 저장소의 다른 자리와 같은 방식으로,
+// onerror 안에 따옴표를 겹치지 않는다(겹치면 속성이 거기서 끊겨 깨진다).
+const wsImg = (src, cls) => src
+  ? `<img src="${src}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+  : `<b class="ws-noic${cls ? ' ' + cls : ''}">⬥</b>`;
 const WS_SOCK_NAME = ['촉발체·일반', '일반', '부귀·일반', '일반', '숭고·일반'];
 function wsPool() { // 지금 자리에 들어갈 수 있는 스킬 (빌더 skillPickPool 과 같은 규칙)
   const {slot, socket} = wsTarget, grp = wsSlot(slot).group, sk = wsSk(slot);
@@ -3331,7 +3338,7 @@ function wsCard(s) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는
   let det = dedup((s.details || []).map(clean));
   if (det.join('\n') === dsc.join('\n')) det = [];
   return '<div class="ws-card">' +
-    `<div class="ws-ch"><img src="${s.icon || ''}" alt=""><div><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.kind)}${s.level ? ' · Lv.' + escapeHtml(s.level) : ''}</small></div></div>` +
+    `<div class="ws-ch">${wsImg(s.icon, 'big')}<div><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.kind)}${s.level ? ' · Lv.' + escapeHtml(s.level) : ''}</small></div></div>` +
     `<div class="icard-tags">${(s.tags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('')}</div>` +
     (s.weapon ? `<div class="sk-weapon">${escapeHtml(s.weapon)}</div>` : '') +
     (s.stats && s.stats.length ? `<div class="icard-attrs">${s.stats.map(p => `<div>${escapeHtml(p[0])} <b class="m">${escapeHtml(p[1])}</b></div>`).join('')}</div>` : '') +
@@ -3362,13 +3369,13 @@ function wsRender() {
       side += `<div class="ws-slot${on ? ' on' : ''}"${sk ? ` draggable="true" ondragstart="wsDrag='${sl.id}';this.classList.add('drag')"` : ''} ` +
         `ondragover="wsDragOver(event,'${sl.id}')" ondrop="wsDrop(event,'${sl.id}')" ondragend="wsDrag=null;pageRender()" onclick="wsSetTarget('${sl.id}', null)" oncontextmenu="return wsUnequip('${sl.id}', null)">` + // 칸 카드 어디를 눌러도 (사용자 요청)
         `<div class="ws-main${on && wsTarget.socket === null ? ' tgt' : ''}" title="${sk && sk.main ? escapeHtml(sk.main.name) : '스킬 고르기'}">` +
-        (mi ? `<img src="${mi}" alt="">` : '<span class="ws-plus">+</span>') + '</div>' +
+        (sk && sk.main ? wsImg(mi) : '<span class="ws-plus">+</span>') + '</div>' +
         `<div class="ws-info"><small>${sl.label}</small><b>${sk && sk.main ? escapeHtml(sk.main.name) : '<span class="ws-none">비어 있음</span>'}</b>` +
         '<div class="ws-socks">' + [0, 1, 2, 3, 4].map(k => {
           const sp = sk && sk.sup[k], ic = sp ? wsIcon(sp) : '';
           const tgt = on && wsTarget.socket === k;
           return `<span class="ws-sock${sp ? ' have' : ''}${tgt ? ' tgt' : ''}${k === 0 || k === 2 || k === 4 ? ' sp' : ''}" onclick="event.stopPropagation();wsSetTarget('${sl.id}', ${k})" oncontextmenu="event.stopPropagation();return wsUnequip('${sl.id}', ${k})" ` +
-            `title="보조 ${k + 1} (${WS_SOCK_NAME[k]})${sp ? ' — ' + escapeHtml(sp.name) : ''}">${ic ? `<img src="${ic}" alt="">` : k + 1}</span>`;
+            `title="보조 ${k + 1} (${WS_SOCK_NAME[k]})${sp ? ' — ' + escapeHtml(sp.name) : ''}">${sp ? wsImg(ic) : k + 1}</span>`;
         }).join('') + '</div></div>' +
         (sk ? `<button class="gbm-del" onclick="event.stopPropagation();wsClear('${sl.id}')" title="이 칸 비우기">✕</button>` : '') + '</div>';
     });
@@ -3398,7 +3405,7 @@ function wsRender() {
     const lock = k === null && sl.id === 'a1' && fm;
     const lab = k === null ? (sl.id === 'a1' ? (lock ? '메인 스킬 🔒' : '메인 스킬') : sl.label) : '보조 ' + (k + 1);
     return `<div class="ws-strip-c${tgt ? ' tgt' : ''}${ref ? ' have' : ''}${k === null ? ' main' : ''}${lock ? ' locked' : ''}" onclick="wsSetTarget('${sl.id}', ${k})" oncontextmenu="return wsUnequip('${sl.id}', ${k})" title="${escapeHtml(lock ? forcedMainWhy(fm) : (ref ? ref.name : lab))}">` +
-      `<span class="ws-strip-i">${ic ? `<img src="${ic}" alt="">` : (ref ? '<b class="ws-noic">⬥</b>' : (k === null ? '+' : k + 1))}</span>` +
+      `<span class="ws-strip-i">${ref ? wsImg(ic) : (k === null ? '+' : k + 1)}</span>` +
       `<span class="ws-strip-t"><small>${escapeHtml(lab)}${k !== null && k % 2 === 0 ? ' · ' + WS_SOCK_NAME[k].split('·')[0] : ''}</small><b>${ref ? escapeHtml(ref.name) : '<i>비어 있음</i>'}</b></span></div>`;
   };
   const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>';
@@ -3419,7 +3426,7 @@ function wsGridHtml(shown, onSet) {
   return shown.map(i => {
     const s = SKILLS[i], on = onSet.has(s.name + '\u001f' + s.kind), rec = !on && used.has(s.name + '\u001f' + s.kind);
     return `<div class="ws-cell${on ? ' on' : ''}${rec ? ' rec' : ''}" onclick="wsPick(${i})"${on ? ` oncontextmenu="wsPick(${i});return false"` : ''} onmouseenter="wsFocusOn(${i})" title="${escapeHtml(s.name)}">` +
-      `<img src="${s.icon || ''}" loading="lazy" alt="" onerror="this.style.visibility='hidden'"><span>${escapeHtml(s.name)}</span>` +
+      `${wsImg(s.icon)}<span>${escapeHtml(s.name)}</span>` +
       (on ? '<i class="ws-tick">✓</i>' : rec ? '<i class="ws-rec" title="같은 성격(자극·영약 / 일반)의 다른 칸에서 쓰는 보조">다른 칸 사용 중</i>' : '') + '</div>';
   }).join('');
 }
