@@ -1720,6 +1720,18 @@ function slotEnergy(sl) {
   for (let i = 0; i <= last; i++) sum += SUP_ENERGY[sl.group][i];
   return sum;
 }
+// 보조칸 확장 에너지 한 줄 — 합계와 상한. 액티브·패시브가 **하나의 예산**(531)을 나눠 쓰므로
+// 그룹 소계만 보면 넘었는지 알 수 없다 (2026-11-03 사용자 — 빌더 2·보기 화면에 이 줄이 없었다)
+function skEnergyTotal() { return SKILL_SLOTS.reduce((t, sl) => t + slotEnergy(sl), 0); }
+function skEnergyHtml() {
+  const n = skEnergyTotal(), over = n - SK_ENERGY_MAX;
+  // 문구는 템플릿 한 덩어리로 — 영어판 사전이 조각이 아니라 문장 단위로 찾는다. 초과분은 따로 <i> 로 감싸
+  // '⚡ 에너지 {0} / {1}' 열쇠를 그대로 쓰게 한다
+  const tip = over > 0 ? `보유 에너지 최대치(${SK_ENERGY_MAX})를 ${over} 초과했습니다`
+    : `보조칸 확장에 쓰는 에너지 (최대 ${SK_ENERGY_MAX})`;
+  return `<span class="sk-energy${over > 0 ? ' over' : ''}" title="${tip}">⚡ 에너지 ${n} / ${SK_ENERGY_MAX}` +
+    (over > 0 ? `<i> · ${over} 초과</i>` : '') + '</span>';
+}
 // 스킬 카드 stats의 "메인 속성:" 값을 배열로 파싱 (예: "힘, 민첩" → ['힘','민첩'], 없으면 []) — 1회 계산 후 캐시
 function skillAttrs(s) {
   if (!s._attrs) {
@@ -3378,7 +3390,7 @@ function wsSealHtml() {
 function wsRender() {
   // ── 왼쪽: 9칸
   const energy = g => SKILL_SLOTS.filter(s => s.group === g).reduce((t, s) => t + slotEnergy(s), 0);
-  let side = '';
+  let side = `<div class="gbm-cap ws-etot">보조칸 확장 ${skEnergyHtml()}</div>`; // 합계·상한 (2026-11-03 사용자)
   ['a', 'p'].forEach(g => {
     side += `<div class="gbm-cap">${g === 'a' ? '액티브' : '패시브'} <span class="ws-en">보조 에너지 ${energy(g)}</span></div>`;
     SKILL_SLOTS.filter(s => s.group === g).forEach(sl => {
