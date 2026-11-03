@@ -1892,8 +1892,19 @@ function bloodLegendCorr(o) {
   const i = (it.opts || []).findIndex(op => norm(op) === eff);
   return i >= 0 && it.corr[i] ? it.corr[i][1] : null;
 }
-// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개
-function corrLimit(v) { return v.kind === 'blood' ? 3 : 2; }
+// ── 침식 규칙 (2026-11-03 사용자) ──
+// 레전드는 '옵션 줄이 침식되는 것'과 '침식으로 생긴 기본 옵션' 중 하나만 둔다 — 둘 다는 안 된다.
+// 장갑만 특이 케이스라 3줄 넘게 침식되기도 하고 침식 기본 옵션이 여러 줄 달리기도 한다 →
+// 실제 상한을 모르니 장갑은 막지 않는다(사용자 '제한 없음'). 제작 장비는 장갑이라도 다른 부위와 같다.
+const GLOVE_PARTS = ['힘 글러브', '민첩 장갑', '지혜 장갑'];
+const gloveParts = () => (typeof PARTS !== 'undefined' && PARTS.GLOVES) || GLOVE_PARTS;
+const isLegendGlove = v => !!(v && v.kind === 'item' && gloveParts().includes(v.part));
+// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개, 레전드 장갑은 줄 수만큼 (19 = 공유 코드 자리 한계 20 안)
+function corrLimit(v) { return v.kind === 'blood' ? 3 : isLegendGlove(v) ? 19 : 2; }
+// 침식 기본 옵션 개수 — 레전드 1개, 레전드 장갑은 후보 전부
+function eroBaseLimit(v) { return isLegendGlove(v) ? 99 : 1; }
+// 레전드 택1 — 장갑이 아니면 침식 강화와 침식 기본 옵션을 함께 둘 수 없다
+const eroExclusive = v => !!(v && v.kind === 'item' && !isLegendGlove(v));
 
 // 로그에서 온 옵션의 티어 (어픽스 ID 끝자리) — 칩 표기 T0/T1/T2
 function affixTier(o) {
@@ -1993,6 +2004,13 @@ const SLATES = {
   const n = +String(l).replace(/\D/g, '');
   if (n && n < 14) { SLATES[394004].boost = {v: 70}; SLATES[394005].spread = {v: -50}; }
 })();
+// ── 같은 석판인데 번호가 다르게 오는 것 (2026-11-03 제보) ──
+// 우리 키는 tlidb 상세 페이지 id(=보통 로그 UniqueItmId)다. 로그가 그 번호 대신 다른 번호로 적어 보내는 석판이 있어
+// '석판 #261010 (모양·방향 미확정)' 으로만 보였다. 261010 은 신의 계보 — 그 자리에 계보를 넣으면
+// 보드 24칸이 정확히 꽉 차고 겹침도 없어 같은 석판임이 확인된다 (공유 1ua1q5m2).
+// 새 번호가 또 나오면 여기 한 줄만 더하면 된다.
+const SLATE_ALIAS = {261010: 1010};
+const slateId = u => SLATE_ALIAS[+u] || +u;
 // 신격의 석판 = 신 6종 × 모양 6변형 (id 26xx01~06, tlidb 아이콘 코드 순서는 Z1·Z2·L1·L2·O·T) + 빌더 전용 ㅗ(26xx07)
 // 색은 신마다 고정, 모양은 변형별 테트로미노. 소켓 = 5칸(하위~레전드 중위, 핵심 불가 — 핵심은 계보 전용)
 const GOD_SHAPES = [ // [표시 이름(그림 기준, 2026-10-15 정리 — 예전 Z1·L1·T 는 tlidb 아이콘 코드라 그림과 달랐다), 칸]
@@ -3855,35 +3873,52 @@ function wgEroList(v) { // 빌더 slotOptList 와 같은 순번 — 레전드 op
     ...(v.opts.extra || []).map(o => one(o, tierEffect(o), prev(o)))];
   return ['basic', 'main', 'sub'].flatMap(c => v.opts[c].map(o => one(o, tierEffect(o), prev(o))));
 }
-// ── 레전드 침식 기본 옵션 — 레전드를 침식하면 기본 옵션이 하나 생기는 경우가 있다 (2026-11-03 사용자).
-//   후보는 제작 장비의 '침식 기본' 풀과 같다(같은 부위). 침식 강화(v.ero, 옵션 줄 순번)와는 따로 센다
-const WG_EB_MAX = 1;
+// 화면에 쓰는 침식 상한 — 장갑은 상한을 두지 않으므로 실제 옵션 줄 수가 곧 상한이다
+const wgEroLimit = v => Math.min(corrLimit(v), Math.max(1, wgEroList(v).length));
+// ── 오른쪽 상자 접기 (2026-11-03 사용자) — 후보가 긴 상자는 접어 두고 머리를 눌러 편다. 칸을 옮겨도 그대로 둔다
+let wgFold = {};
+const wgFolded = (id, dflt) => (wgFold[id] === undefined ? !!dflt : wgFold[id]);
+function wgFoldTog(id, dflt) { wgFold[id] = !wgFolded(id, dflt); pageRender(); }
+const wgFoldH = (id, dflt, title, right) => `<div class="wg-addh fold${wgFolded(id, dflt) ? ' shut' : ''}" onclick="wgFoldTog('${id}',${dflt ? 1 : 0})" title="누르면 ${wgFolded(id, dflt) ? '펼치기' : '접기'}">` +
+  `<b><i class="wg-caret">${wgFolded(id, dflt) ? '▸' : '▾'}</i>${title}</b><span>${right}</span></div>`;
+
+// ── 레전드 침식 기본 옵션 — 레전드를 침식하면 기본 옵션이 생기는 경우가 있다 (2026-11-03 사용자).
+//   후보는 제작 장비의 '침식 기본' 풀과 같다(같은 부위). 침식 강화(v.ero, 옵션 줄 순번)와 **택1** 이고,
+//   장갑만 예외로 둘 다·여러 줄이 된다(eroBaseLimit·corrLimit·eroExclusive — 00_gear.js).
 const wgEroBasePool = v => v && v.kind === 'item' && v.part ? GEAR_ROWS.filter(r => r.source === v.part && r.type === '침식 기본') : [];
 function wgPickEroBase(i) {
   if (guardShareView()) return;
   const v = wgCur(wgSlot), r = wgEroBasePool(v)[i];
   if (!r) return;
-  const k = rowKey(r), eb = v.eroBase || [], x = eb.findIndex(o => o.k === k);
+  const k = rowKey(r), eb = v.eroBase || [], x = eb.findIndex(o => o.k === k), max = eroBaseLimit(v);
   if (x >= 0) eb.splice(x, 1); // 다시 누르면 빼기
-  else { eb.push({k, effect: r.effect, source: r.source, type: r.type}); if (eb.length > WG_EB_MAX) eb.shift(); } // 다 찼으면 바꿔 끼운다
+  else if ((v.ero || []).length && eroExclusive(v)) { wgMsg = '이 장비는 옵션 줄 침식과 침식 기본 옵션 중 하나만 둡니다 — 왼쪽 침식을 먼저 빼 주세요 (장갑은 둘 다 됩니다)'; pageRender(); return; }
+  else { eb.push({k, effect: r.effect, source: r.source, type: r.type}); if (eb.length > max) eb.shift(); } // 다 찼으면 바꿔 끼운다
   if (eb.length) v.eroBase = eb; else delete v.eroBase;
   wgMsg = ''; persistPreset(); pageRender();
 }
 function wgEroBaseBox(v) {
   const pool = wgEroBasePool(v);
   if (!pool.length) return '';
-  const eb = v.eroBase || [];
-  return `<div class="wg-addbox"><div class="wg-addh"><b>침식 기본 옵션</b><span>${eb.length} / ${WG_EB_MAX}</span></div>` +
-    `<div class="wg-addd">침식으로 기본 옵션이 생겼으면 고릅니다 — 제작 장비의 침식 기본 옵션과 같은 후보 (다시 누르면 빼기)</div>` +
-    '<div class="wg-list wg-randlist">' + pool.map((r, i) =>
-      `<div class="wg-opt${eb.some(o => o.k === rowKey(r)) ? ' on' : ''}" onclick="wgPickEroBase(${i})"><span>${wgOptHtml(r.effect, r.tips)}</span></div>`).join('') + '</div></div>';
+  const eb = v.eroBase || [], max = eroBaseLimit(v), lock = !eb.length && (v.ero || []).length && eroExclusive(v);
+  const id = 'eb', shut = wgFolded(id, true); // 기본은 접어 둔다 (사용자)
+  return `<div class="wg-addbox">` + wgFoldH(id, true, '침식 기본 옵션', eb.length + ' / ' + (max > 9 ? '제한 없음' : max)) +
+    (shut
+      ? eb.map(o => '<div class="wg-addcur"><span class="wg-addv">' + wgOptHtml(o.effect, wgTips(o)) + '</span></div>').join('') // 고른 것은 한 줄에 하나씩
+      : `<div class="wg-addd">침식으로 기본 옵션이 생겼으면 고릅니다 — 제작 장비의 침식 기본 옵션과 같은 후보 (다시 누르면 빼기)${
+          eroExclusive(v) ? ' · 이 장비는 옵션 줄 침식과 택1 입니다' : ' · 장갑은 여러 줄 달 수 있습니다'}</div>` +
+        (lock ? '<div class="wg-addd wg-lock">왼쪽 옵션 줄의 침식을 빼면 고를 수 있습니다</div>' : '') +
+        '<div class="wg-list wg-randlist">' + pool.map((r, i) =>
+          `<div class="wg-opt${eb.some(o => o.k === rowKey(r)) ? ' on' : ''}${lock ? ' dis' : ''}" onclick="wgPickEroBase(${i})"><span>${wgOptHtml(r.effect, r.tips)}</span></div>`).join('') + '</div>') +
+    '</div>';
 }
 function wgToggleEro(i) {
   if (guardShareView()) return;
   const v = wgCur(wgSlot); if (!v) return;
-  const ero = v.ero || [], at = ero.indexOf(i);
+  const ero = v.ero || [], at = ero.indexOf(i), lim = wgEroLimit(v);
   if (at >= 0) ero.splice(at, 1);
-  else if (ero.length >= corrLimit(v)) { wgMsg = '침식 강화는 옵션 ' + corrLimit(v) + '개까지입니다'; pageRender(); return; }
+  else if ((v.eroBase || []).length && eroExclusive(v)) { wgMsg = '이 장비는 옵션 줄 침식과 침식 기본 옵션 중 하나만 둡니다 — 오른쪽 침식 기본 옵션을 먼저 빼 주세요 (장갑은 둘 다 됩니다)'; pageRender(); return; }
+  else if (ero.length >= lim) { wgMsg = '침식 강화는 옵션 ' + lim + '개까지입니다'; pageRender(); return; }
   else { ero.push(i); ero.sort((a, b) => a - b); }
   if (ero.length) v.ero = ero; else delete v.ero;
   wgRandSync(v, i); // 고른 랜덤 옵션은 침식화 후보 문구로 바꿔 끼운다
@@ -4028,30 +4063,49 @@ function wgSetGaura(nm) {
 // ── 랜덤 옵션 고르기 — "<랜덤 …>" 줄에 실제로 붙은 후보를 고른다 (2026-10-12, 사용자 요청)
 // 저장은 로그 복원과 같은 v.rand[줄] = 문구(계산·공유가 그대로 읽는다). 고른 후보 순번은 v.randSel[줄] —
 // 침식을 켜고 끄면 같은 순번의 침식화 후보 문구로 바꿔 끼운다 (후보 목록과 침식화 목록은 순서가 같다)
+// 한 장비의 후보 목록 — GEAR_ROWS 에 'type = 레전드 이름'(침식화는 '이름 침식화') 으로 들어 있다.
+// 그중 장비가 늘 갖는 고정 옵션 줄을 빼면 '<랜덤 …>' 자리에 들어갈 후보만 남는다(봉합 시뮬레이터와 같은 방법).
+// 보통 줄 ↔ 침식화 줄은 **순번**으로 맞춘다 — mid 끝자리 규칙이 장비마다 달라(…11↔…10, …03↔…04) 계산으로는 안 된다.
+// 한계: 후보 묶음이 줄마다 갈리는 장비(신들의 애도의 '여섯 신' 줄)는 데이터에 구분이 없어 같은 목록을 보여 준다.
+const wgSkel = t => String(t).replace(/[\s\d.,()+%–~\-]/g, '');
+let WG_RPOOL = new Map();
+function wgRandPool(name, opts) {
+  if (!name || typeof GEAR_ROWS === 'undefined') return null;
+  if (WG_RPOOL.has(name)) return WG_RPOOL.get(name);
+  const mine = GEAR_ROWS.filter(r => r.type === name), ups = GEAR_ROWS.filter(r => r.type === name + ' 침식화');
+  const fixed = new Set((opts || []).filter(o => !/랜덤/.test(String(o))).map(o => wgSkel(plainText(String(o)))));
+  const pool = mine.map((r, i) => ({row: r, up: ups.length === mine.length ? ups[i] : null}))
+    .filter(x => !fixed.has(wgSkel(x.row.effect)));
+  // 장비 행에 못 들어가고 '랜덤 풀' 로만 남은 후보도 있다 (가짜 신의 허물) — 끝자리 1 = 보통, 0 = 침식화
+  const ex = GEAR_ROWS.filter(r => r.type === '랜덤 풀' && r.source === name);
+  const exP = ex.filter(r => !String(r.mid || '').endsWith('0')), exU = ex.filter(r => String(r.mid || '').endsWith('0'));
+  exP.forEach((r, i) => pool.push({row: r, up: exU.length === exP.length ? exU[i] : null}));
+  const out = pool.length ? pool : null;
+  WG_RPOOL.set(name, out);
+  return out;
+}
 function wgRandSlots(v) {
   if (!v || v.kind !== 'item') return [];
   const it = ITEMS[wgItemIdx(v.name)] || v.snap || {};
-  if (!it.pools || !it.pools.length) return [];
+  const pool = wgRandPool(v.name, it.opts);
+  if (!pool) return [];
   return (it.opts || []).map((o, oi) => {
     // plainText 는 '<랜덤 …>' 자체를 태그로 보고 지우므로 직접 푼다
     const nm = String(typeof o === 'string' ? o : (o && o.effect) || '').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
-    const pool = it.pools.find(x => !x.corr && x.name === nm);
-    if (!pool || /아우라 보유/.test(nm)) return null; // 랜덤 오라 줄은 '부여 오라' 고르기가 따로 맡는다
-    return {oi, name: nm, pool, corr: it.pools.find(x => x.corr && x.name === nm) || null};
+    if (!/^<\s*랜덤/.test(nm) || /아우라 보유/.test(nm)) return null; // 랜덤 오라 줄은 '부여 오라' 고르기가 따로 맡는다
+    return {oi, name: nm, pool};
   }).filter(Boolean);
 }
 function wgRandPlain(html) { // 줄바꿈(<br>)은 \n 으로 남기고 태그만 벗긴다
   return String(html).split(/<br\s*\/?>/i).map(x => plainText(x).trim()).filter(Boolean).join('\n');
 }
 function wgRandText(v, s, k) {
-  const row = s.pool.rows[k]; if (!row) return '';
-  const d = /<span class="pool-d">(.*?)<\/span>/.exec(row[1]);
-  const base = d ? plainText(d[1]).trim() : wgRandPlain(row[1]);
-  const c = s.corr && s.corr.rows[k];
-  if (!(v.ero || []).includes(s.oi) || !c) return base;
-  if (!d) return wgRandPlain(c[1]);
-  const extra = String(c[1]).split(/<br\s*\/?>/i).slice(1).join('<br>'); // 침식화 줄 = 이름(효과는 위) + 덧붙는 효과
-  return [base, wgRandPlain(extra)].filter(Boolean).join('\n');
+  const c = s.pool[k]; if (!c) return '';
+  const base = wgRandPlain(c.row.effect);
+  if (!(v.ero || []).includes(s.oi) || !c.up) return base;
+  const up = wgRandPlain(c.up.effect);
+  // 침식화 줄이 '이름 + 덧붙는 효과' 로 이어 붙어 오는 장비가 있다(신들의 애도) — 이름은 그대로 두고 뒤만 새 줄로
+  return up.indexOf(base) === 0 ? [base, up.slice(base.length).trim()].filter(Boolean).join('\n') : up;
 }
 function wgRandSync(v, oi) { // 침식 여부가 바뀐 줄의 고른 후보 문구를 다시 만든다
   const k = v && v.randSel && v.randSel[oi];
@@ -4072,26 +4126,35 @@ function wgPickRand(oi, k) {
 function wgRandBoxes(v) {
   return wgRandSlots(v).map(s => {
     const sel = v.randSel ? v.randSel[s.oi] : null, log = sel == null && v.rand && v.rand[s.oi] != null;
-    return `<div class="wg-addbox"><div class="wg-addh"><b>랜덤 옵션</b><span>${escapeHtml(s.name)}${log ? ' · 로그' : ''}</span></div>` +
-      `<div class="wg-addd">${s.oi + 1}번째 옵션 줄에 붙은 후보를 고릅니다 (다시 누르면 빼기)${s.corr ? ' · 그 줄을 침식하면 침식화 후보 수치로 바뀝니다' : ''}</div>` +
-      `<div class="wg-list wg-randlist">` + s.pool.rows.map((r, k) =>
-        `<div class="wg-opt${sel === k ? ' on' : ''}" onclick="wgPickRand(${s.oi},${k})"><span>${r[1]}</span></div>`).join('') + '</div></div>';
+    const id = 'rd' + s.oi, shut = wgFolded(id, sel != null); // 이미 고른 줄은 접어 둔다
+    const cur = sel != null ? s.pool[sel] : null;
+    return `<div class="wg-addbox">` + wgFoldH(id, sel != null, '랜덤 옵션', escapeHtml(s.name) + (log ? ' · 로그' : '')) +
+      (shut
+        ? `<div class="wg-addcur"><span class="wg-addv">${cur ? wgOptHtml(cur.row.effect, cur.row.tips) : '아직 안 고름 — 머리를 눌러 고르세요'}</span></div>`
+        : `<div class="wg-addd">${s.oi + 1}번째 옵션 줄에 붙은 후보를 고릅니다 (다시 누르면 빼기) · 그 줄을 침식하면 침식화 수치로 바뀝니다</div>` +
+          `<div class="wg-list wg-randlist">` + s.pool.map((c, k) =>
+            `<div class="wg-opt${sel === k ? ' on' : ''}" onclick="wgPickRand(${s.oi},${k})"><span>${wgOptHtml(c.row.effect, c.row.tips)}</span></div>`).join('') + '</div>') +
+      '</div>';
   }).join('');
 }
 function wgViewBody() {
-  const v = wgCur(wgSlot), lim = corrLimit(v), n = (v.ero || []).length;
+  const v = wgCur(wgSlot), lim = wgEroLimit(v), n = (v.ero || []).length;
   const kind = wgSlot === 'belt' ? 'blend' : (wgSlot === 'weapon1' || wgSlot === 'weapon2') ? 'tower' : null;
   let right = `<div class="wg-addbox"><div class="wg-addh"><b>침식</b><span>${n} / ${lim}</span></div>` +
-    `<div class="wg-addd">왼쪽 옵션 줄을 누르면 침식으로 강화합니다 (${v.kind === 'blood' ? '블러드 3개' : '최대 ' + lim + '개'}). 레전드는 침식 수치, 제작·블러드는 한 단계 위 티어 수치로 보여 줍니다.</div></div>`;
+    `<div class="wg-addd">왼쪽 옵션 줄을 누르면 침식으로 강화합니다 (${v.kind === 'blood' ? '블러드 3개' : isLegendGlove(v) ? '장갑은 제한 없음' : '최대 ' + lim + '개'}). 레전드는 침식 수치, 제작·블러드는 한 단계 위 티어 수치로 보여 줍니다.${
+      eroExclusive(v) && wgEroBasePool(v).length ? ' 이 장비는 침식 기본 옵션과 택1 입니다.' : ''}</div></div>`;
   right += wgEroBaseBox(v);
+  right += wgRandBoxes(v); // 침식 바로 아래 — 조향·시퀀스 상자가 남은 자리를 다 차지(grow)해 아래로 밀리던 것 (2026-11-03)
   if (kind) {
-    const cur = v[kind];
-    right += `<div class="wg-addbox grow"><div class="wg-addh"><b>${WG_ADD[kind]}</b><span>${kind === 'blend' ? '벨트 전용' : escapeHtml(v.part) + ' 전용'} · 한 줄</span></div>` +
-      `<div class="wg-addcur">${cur ? '<span class="wg-addv">' + wgOptHtml(cur.effect, ((kind === 'blend' ? BLENDS : TOWERS).find(x => x.effect === cur.effect) || {}).tips) + '</span>' + ` <button onclick="wgAddPick('${kind}',${(kind === 'blend' ? BLENDS : TOWERS).findIndex(x => x.effect === cur.effect)})" title="빼기">✕</button>` : '<span>없음 — 아래에서 고르세요</span>'}</div>` +
-      `<div class="ws-filter"><input type="search" placeholder="${WG_ADD[kind]} 검색" value="${escapeHtml(wgAddQ)}" oninput="wgAddSearch(this.value)"></div>` +
-      `<div class="wg-list" id="wgAddList">${wgAddRows()}</div></div>`;
+    // 조향·시퀀스도 접는다 — 후보가 길어 아래 상자를 다 밀어낸다 (2026-11-03 사용자). 기본은 접힘
+    const cur = v[kind], shut = wgFolded('add', true);
+    right += `<div class="wg-addbox${shut ? '' : ' grow'}">` +
+      wgFoldH('add', true, WG_ADD[kind], (kind === 'blend' ? '벨트 전용' : escapeHtml(v.part) + ' 전용') + ' · 한 줄') +
+      `<div class="wg-addcur">${cur ? '<span class="wg-addv">' + wgOptHtml(cur.effect, ((kind === 'blend' ? BLENDS : TOWERS).find(x => x.effect === cur.effect) || {}).tips) + '</span>' + ` <button onclick="wgAddPick('${kind}',${(kind === 'blend' ? BLENDS : TOWERS).findIndex(x => x.effect === cur.effect)})" title="빼기">✕</button>` : `<span>없음 — ${shut ? '머리를 눌러 고르세요' : '아래에서 고르세요'}</span>`}</div>` +
+      (shut ? '' :
+        `<div class="ws-filter"><input type="search" placeholder="${WG_ADD[kind]} 검색" value="${escapeHtml(wgAddQ)}" oninput="wgAddSearch(this.value)"></div>` +
+        `<div class="wg-list" id="wgAddList">${wgAddRows()}</div>`) + '</div>';
   }
-  right += wgRandBoxes(v);
   const ga = wgGaura(v);
   if (ga) right += `<div class="wg-addbox"><div class="wg-addh"><b>부여 오라</b><span>Lv.${ga.lv}${ga.log ? ' · 로그' : ''}</span></div>` +
     '<div class="wg-addd">장비가 주는 오라 중 어느 것인지 고릅니다 (다시 누르면 빼기)</div>' +
@@ -5320,7 +5383,7 @@ async function codeToPreset(code) {
         Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
         if (Object.keys(ot).length) p.slots[s.id].otr = ot;
       }
-      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, 1).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
+      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, eroBaseLimit(p.slots[s.id])).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -5353,11 +5416,14 @@ async function codeToPreset(code) {
     if ((s.id === 'weapon1' || s.id === 'weapon2') && p.slots[s.id] && Array.isArray(v.tw) && str(v.tw[0], 300)) {
       p.slots[s.id].tower = {effect: str(v.tw[0], 300), seq: str(v.tw[1] || '', 50)};
     }
-    // 침식 강화 인덱스 — 정수·중복 제거·상한(레전드·제작 2, 블러드 3)
+    // 침식 강화 인덱스 — 정수·중복 제거·상한(레전드·제작 2, 블러드 3, 레전드 장갑은 줄 수만큼)
     if (p.slots[s.id] && Array.isArray(v.er)) {
       const ero = [...new Set(v.er.map(n => parseInt(n, 10)).filter(n => n >= 0 && n < 20))].sort((a, b) => a - b).slice(0, corrLimit(p.slots[s.id]));
       if (ero.length) p.slots[s.id].ero = ero;
     }
+    // 레전드는 옵션 줄 침식과 침식 기본 옵션 중 하나만 둔다 (장갑 제외, 2026-11-03 사용자) —
+    // 둘 다 담긴 옛 코드·남이 만든 코드는 옵션 줄 침식 쪽을 남긴다
+    if (p.slots[s.id] && eroExclusive(p.slots[s.id]) && (p.slots[s.id].ero || []).length) delete p.slots[s.id].eroBase;
   });
   // 추억 복원
   MEM_PARTS.forEach(pt => {
@@ -5429,9 +5495,16 @@ async function codeToPreset(code) {
   // 석판 보드 배치 (v2 sb 필드) — 보드 파생 행(◈ 출처 포함)은 여기서 재구성 (인코딩 때 tal에서 제외됨)
   if (Array.isArray(pl.sb)) {
     p.slateBd = pl.sb.slice(0, 12).filter(e => Array.isArray(e) && +e[0] && +e[1]).map(e => ({
-      u: +e[0], i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
+      u: slateId(e[0]), i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
       t: (Array.isArray(e[3]) ? e[3] : []).slice(0, 8).map(x => x ? String(x) : '')
     }));
+    // 모르는 번호로 담겨 가져오기 때 방향 보정을 못 받은 피스가 옛 코드에 남아 있다 (2026-11-03 신의 계보 261010) —
+    // 지금 자리에 안 들어가는 것만 회전을 다시 찾는다. 제대로 놓인 피스는 건드리지 않는다
+    p.slateBd.forEach((s, pi) => {
+      if (sbCellsFree(p.slateBd, slateCells(s.u, s.i, s.d), pi)) return;
+      const d = sbFitDir(p.slateBd, s.u, s.i, s.d, pi);
+      if (d >= 0) s.d = d;
+    });
     if (p.slateBd.length) rebuildSlateTalents(p); else delete p.slateBd;
   }
   // 정령 (v2 pc 필드)
@@ -6480,7 +6553,7 @@ function buildPresetFromLog(r, liSrc) {
   };
   let slateBd = null;
   if ((r.slates || []).length) {
-    slateBd = r.slates.slice(0, 12).map(s => ({u: s.uniq || s.base, i: s.idx, d: s.dir || 0, f: s.inf || 0, sh: s.shape || 0, t: (s.nodes || []).slice(0, 8)}));
+    slateBd = r.slates.slice(0, 12).map(s => ({u: slateId(s.uniq || s.base), i: s.idx, d: s.dir || 0, f: s.inf || 0, sh: s.shape || 0, t: (s.nodes || []).slice(0, 8)}));
     slateBd.forEach(s => { if (!SLATES[s.u]) missNames.add('석판 #' + s.u); }); // 미지원 석판 — keeper 크라우드소싱
     // 신격 변형은 로그의 ShapeId가 정답 — 매핑된 것은 추측 없이 바로 확정 (미매핑 ShapeId는 수집해 보정으로)
     slateBd.forEach(s => {

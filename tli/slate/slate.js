@@ -145,8 +145,19 @@ function bloodLegendCorr(o) {
   const i = (it.opts || []).findIndex(op => norm(op) === eff);
   return i >= 0 && it.corr[i] ? it.corr[i][1] : null;
 }
-// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개
-function corrLimit(v) { return v.kind === 'blood' ? 3 : 2; }
+// ── 침식 규칙 (2026-11-03 사용자) ──
+// 레전드는 '옵션 줄이 침식되는 것'과 '침식으로 생긴 기본 옵션' 중 하나만 둔다 — 둘 다는 안 된다.
+// 장갑만 특이 케이스라 3줄 넘게 침식되기도 하고 침식 기본 옵션이 여러 줄 달리기도 한다 →
+// 실제 상한을 모르니 장갑은 막지 않는다(사용자 '제한 없음'). 제작 장비는 장갑이라도 다른 부위와 같다.
+const GLOVE_PARTS = ['힘 글러브', '민첩 장갑', '지혜 장갑'];
+const gloveParts = () => (typeof PARTS !== 'undefined' && PARTS.GLOVES) || GLOVE_PARTS;
+const isLegendGlove = v => !!(v && v.kind === 'item' && gloveParts().includes(v.part));
+// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개, 레전드 장갑은 줄 수만큼 (19 = 공유 코드 자리 한계 20 안)
+function corrLimit(v) { return v.kind === 'blood' ? 3 : isLegendGlove(v) ? 19 : 2; }
+// 침식 기본 옵션 개수 — 레전드 1개, 레전드 장갑은 후보 전부
+function eroBaseLimit(v) { return isLegendGlove(v) ? 99 : 1; }
+// 레전드 택1 — 장갑이 아니면 침식 강화와 침식 기본 옵션을 함께 둘 수 없다
+const eroExclusive = v => !!(v && v.kind === 'item' && !isLegendGlove(v));
 
 // 로그에서 온 옵션의 티어 (어픽스 ID 끝자리) — 칩 표기 T0/T1/T2
 function affixTier(o) {
@@ -246,6 +257,13 @@ const SLATES = {
   const n = +String(l).replace(/\D/g, '');
   if (n && n < 14) { SLATES[394004].boost = {v: 70}; SLATES[394005].spread = {v: -50}; }
 })();
+// ── 같은 석판인데 번호가 다르게 오는 것 (2026-11-03 제보) ──
+// 우리 키는 tlidb 상세 페이지 id(=보통 로그 UniqueItmId)다. 로그가 그 번호 대신 다른 번호로 적어 보내는 석판이 있어
+// '석판 #261010 (모양·방향 미확정)' 으로만 보였다. 261010 은 신의 계보 — 그 자리에 계보를 넣으면
+// 보드 24칸이 정확히 꽉 차고 겹침도 없어 같은 석판임이 확인된다 (공유 1ua1q5m2).
+// 새 번호가 또 나오면 여기 한 줄만 더하면 된다.
+const SLATE_ALIAS = {261010: 1010};
+const slateId = u => SLATE_ALIAS[+u] || +u;
 // 신격의 석판 = 신 6종 × 모양 6변형 (id 26xx01~06, tlidb 아이콘 코드 순서는 Z1·Z2·L1·L2·O·T) + 빌더 전용 ㅗ(26xx07)
 // 색은 신마다 고정, 모양은 변형별 테트로미노. 소켓 = 5칸(하위~레전드 중위, 핵심 불가 — 핵심은 계보 전용)
 const GOD_SHAPES = [ // [표시 이름(그림 기준, 2026-10-15 정리 — 예전 Z1·L1·T 는 tlidb 아이콘 코드라 그림과 달랐다), 칸]

@@ -145,8 +145,19 @@ function bloodLegendCorr(o) {
   const i = (it.opts || []).findIndex(op => norm(op) === eff);
   return i >= 0 && it.corr[i] ? it.corr[i][1] : null;
 }
-// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개
-function corrLimit(v) { return v.kind === 'blood' ? 3 : 2; }
+// ── 침식 규칙 (2026-11-03 사용자) ──
+// 레전드는 '옵션 줄이 침식되는 것'과 '침식으로 생긴 기본 옵션' 중 하나만 둔다 — 둘 다는 안 된다.
+// 장갑만 특이 케이스라 3줄 넘게 침식되기도 하고 침식 기본 옵션이 여러 줄 달리기도 한다 →
+// 실제 상한을 모르니 장갑은 막지 않는다(사용자 '제한 없음'). 제작 장비는 장갑이라도 다른 부위와 같다.
+const GLOVE_PARTS = ['힘 글러브', '민첩 장갑', '지혜 장갑'];
+const gloveParts = () => (typeof PARTS !== 'undefined' && PARTS.GLOVES) || GLOVE_PARTS;
+const isLegendGlove = v => !!(v && v.kind === 'item' && gloveParts().includes(v.part));
+// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개, 레전드 장갑은 줄 수만큼 (19 = 공유 코드 자리 한계 20 안)
+function corrLimit(v) { return v.kind === 'blood' ? 3 : isLegendGlove(v) ? 19 : 2; }
+// 침식 기본 옵션 개수 — 레전드 1개, 레전드 장갑은 후보 전부
+function eroBaseLimit(v) { return isLegendGlove(v) ? 99 : 1; }
+// 레전드 택1 — 장갑이 아니면 침식 강화와 침식 기본 옵션을 함께 둘 수 없다
+const eroExclusive = v => !!(v && v.kind === 'item' && !isLegendGlove(v));
 
 // 로그에서 온 옵션의 티어 (어픽스 ID 끝자리) — 칩 표기 T0/T1/T2
 function affixTier(o) {

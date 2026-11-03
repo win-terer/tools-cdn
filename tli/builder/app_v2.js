@@ -185,7 +185,7 @@ async function codeToPreset(code) {
         Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
         if (Object.keys(ot).length) p.slots[s.id].otr = ot;
       }
-      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, 1).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
+      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, eroBaseLimit(p.slots[s.id])).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -218,11 +218,14 @@ async function codeToPreset(code) {
     if ((s.id === 'weapon1' || s.id === 'weapon2') && p.slots[s.id] && Array.isArray(v.tw) && str(v.tw[0], 300)) {
       p.slots[s.id].tower = {effect: str(v.tw[0], 300), seq: str(v.tw[1] || '', 50)};
     }
-    // 침식 강화 인덱스 — 정수·중복 제거·상한(레전드·제작 2, 블러드 3)
+    // 침식 강화 인덱스 — 정수·중복 제거·상한(레전드·제작 2, 블러드 3, 레전드 장갑은 줄 수만큼)
     if (p.slots[s.id] && Array.isArray(v.er)) {
       const ero = [...new Set(v.er.map(n => parseInt(n, 10)).filter(n => n >= 0 && n < 20))].sort((a, b) => a - b).slice(0, corrLimit(p.slots[s.id]));
       if (ero.length) p.slots[s.id].ero = ero;
     }
+    // 레전드는 옵션 줄 침식과 침식 기본 옵션 중 하나만 둔다 (장갑 제외, 2026-11-03 사용자) —
+    // 둘 다 담긴 옛 코드·남이 만든 코드는 옵션 줄 침식 쪽을 남긴다
+    if (p.slots[s.id] && eroExclusive(p.slots[s.id]) && (p.slots[s.id].ero || []).length) delete p.slots[s.id].eroBase;
   });
   // 추억 복원
   MEM_PARTS.forEach(pt => {
@@ -294,9 +297,16 @@ async function codeToPreset(code) {
   // 석판 보드 배치 (v2 sb 필드) — 보드 파생 행(◈ 출처 포함)은 여기서 재구성 (인코딩 때 tal에서 제외됨)
   if (Array.isArray(pl.sb)) {
     p.slateBd = pl.sb.slice(0, 12).filter(e => Array.isArray(e) && +e[0] && +e[1]).map(e => ({
-      u: +e[0], i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
+      u: slateId(e[0]), i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
       t: (Array.isArray(e[3]) ? e[3] : []).slice(0, 8).map(x => x ? String(x) : '')
     }));
+    // 모르는 번호로 담겨 가져오기 때 방향 보정을 못 받은 피스가 옛 코드에 남아 있다 (2026-11-03 신의 계보 261010) —
+    // 지금 자리에 안 들어가는 것만 회전을 다시 찾는다. 제대로 놓인 피스는 건드리지 않는다
+    p.slateBd.forEach((s, pi) => {
+      if (sbCellsFree(p.slateBd, slateCells(s.u, s.i, s.d), pi)) return;
+      const d = sbFitDir(p.slateBd, s.u, s.i, s.d, pi);
+      if (d >= 0) s.d = d;
+    });
     if (p.slateBd.length) rebuildSlateTalents(p); else delete p.slateBd;
   }
   // 정령 (v2 pc 필드)
@@ -613,8 +623,19 @@ function bloodLegendCorr(o) {
   const i = (it.opts || []).findIndex(op => norm(op) === eff);
   return i >= 0 && it.corr[i] ? it.corr[i][1] : null;
 }
-// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개
-function corrLimit(v) { return v.kind === 'blood' ? 3 : 2; }
+// ── 침식 규칙 (2026-11-03 사용자) ──
+// 레전드는 '옵션 줄이 침식되는 것'과 '침식으로 생긴 기본 옵션' 중 하나만 둔다 — 둘 다는 안 된다.
+// 장갑만 특이 케이스라 3줄 넘게 침식되기도 하고 침식 기본 옵션이 여러 줄 달리기도 한다 →
+// 실제 상한을 모르니 장갑은 막지 않는다(사용자 '제한 없음'). 제작 장비는 장갑이라도 다른 부위와 같다.
+const GLOVE_PARTS = ['힘 글러브', '민첩 장갑', '지혜 장갑'];
+const gloveParts = () => (typeof PARTS !== 'undefined' && PARTS.GLOVES) || GLOVE_PARTS;
+const isLegendGlove = v => !!(v && v.kind === 'item' && gloveParts().includes(v.part));
+// 침식 강화 개수 — 레전드·제작 2개, 블러드 3개, 레전드 장갑은 줄 수만큼 (19 = 공유 코드 자리 한계 20 안)
+function corrLimit(v) { return v.kind === 'blood' ? 3 : isLegendGlove(v) ? 19 : 2; }
+// 침식 기본 옵션 개수 — 레전드 1개, 레전드 장갑은 후보 전부
+function eroBaseLimit(v) { return isLegendGlove(v) ? 99 : 1; }
+// 레전드 택1 — 장갑이 아니면 침식 강화와 침식 기본 옵션을 함께 둘 수 없다
+const eroExclusive = v => !!(v && v.kind === 'item' && !isLegendGlove(v));
 
 // 로그에서 온 옵션의 티어 (어픽스 ID 끝자리) — 칩 표기 T0/T1/T2
 function affixTier(o) {
@@ -1879,6 +1900,13 @@ const SLATES = {
   const n = +String(l).replace(/\D/g, '');
   if (n && n < 14) { SLATES[394004].boost = {v: 70}; SLATES[394005].spread = {v: -50}; }
 })();
+// ── 같은 석판인데 번호가 다르게 오는 것 (2026-11-03 제보) ──
+// 우리 키는 tlidb 상세 페이지 id(=보통 로그 UniqueItmId)다. 로그가 그 번호 대신 다른 번호로 적어 보내는 석판이 있어
+// '석판 #261010 (모양·방향 미확정)' 으로만 보였다. 261010 은 신의 계보 — 그 자리에 계보를 넣으면
+// 보드 24칸이 정확히 꽉 차고 겹침도 없어 같은 석판임이 확인된다 (공유 1ua1q5m2).
+// 새 번호가 또 나오면 여기 한 줄만 더하면 된다.
+const SLATE_ALIAS = {261010: 1010};
+const slateId = u => SLATE_ALIAS[+u] || +u;
 // 신격의 석판 = 신 6종 × 모양 6변형 (id 26xx01~06, tlidb 아이콘 코드 순서는 Z1·Z2·L1·L2·O·T) + 빌더 전용 ㅗ(26xx07)
 // 색은 신마다 고정, 모양은 변형별 테트로미노. 소켓 = 5칸(하위~레전드 중위, 핵심 불가 — 핵심은 계보 전용)
 const GOD_SHAPES = [ // [표시 이름(그림 기준, 2026-10-15 정리 — 예전 Z1·L1·T 는 tlidb 아이콘 코드라 그림과 달랐다), 칸]
@@ -5291,7 +5319,7 @@ function buildPresetFromLog(r, liSrc) {
   };
   let slateBd = null;
   if ((r.slates || []).length) {
-    slateBd = r.slates.slice(0, 12).map(s => ({u: s.uniq || s.base, i: s.idx, d: s.dir || 0, f: s.inf || 0, sh: s.shape || 0, t: (s.nodes || []).slice(0, 8)}));
+    slateBd = r.slates.slice(0, 12).map(s => ({u: slateId(s.uniq || s.base), i: s.idx, d: s.dir || 0, f: s.inf || 0, sh: s.shape || 0, t: (s.nodes || []).slice(0, 8)}));
     slateBd.forEach(s => { if (!SLATES[s.u]) missNames.add('석판 #' + s.u); }); // 미지원 석판 — keeper 크라우드소싱
     // 신격 변형은 로그의 ShapeId가 정답 — 매핑된 것은 추측 없이 바로 확정 (미매핑 ShapeId는 수집해 보정으로)
     slateBd.forEach(s => {
@@ -10724,9 +10752,12 @@ function closeCorrPicker() { document.getElementById('corrModal').style.display 
 function renderCorrList() {
   const v = preset.slots[corrSlotId];
   if (!v) return;
-  const lim = corrLimit(v), ero = v.ero || [];
-  document.getElementById('corrModalSub').textContent = `— 옵션 최대 ${lim}개 강화 · 현재 ${ero.length}/${lim}`;
   const list = slotOptList(v);
+  // 레전드 장갑은 상한을 두지 않는다 — 실제 옵션 줄 수가 곧 상한 (2026-11-03 사용자)
+  const lim = Math.min(corrLimit(v), Math.max(1, list.length)), ero = v.ero || [];
+  document.getElementById('corrModalSub').textContent = (eroExclusive(v) && (v.eroBase || []).length
+    ? '— 침식 기본 옵션이 붙어 있어 옵션 줄은 침식할 수 없습니다 (빌더 2 에서 빼면 됩니다)'
+    : `— 옵션 최대 ${lim}개 강화 · 현재 ${ero.length}/${lim}`);
   document.getElementById('corrList').innerHTML = list.length ? list.map((o, i) => {
     const on = ero.includes(i);
     // 레전드는 침식 수치를 미리보기로, 제작·블러드는 수치 데이터가 없어 마킹만
@@ -10739,9 +10770,12 @@ function toggleCorr(i) {
   if (!v) return;
   const ero = v.ero || [];
   const at = ero.indexOf(i);
+  const lim = Math.min(corrLimit(v), Math.max(1, slotOptList(v).length));
   if (at >= 0) ero.splice(at, 1);
   else {
-    if (ero.length >= corrLimit(v)) { alert(`침식 강화는 옵션 최대 ${corrLimit(v)}개까지입니다.`); return; }
+    // 레전드는 옵션 줄 침식과 침식 기본 옵션 중 하나만 (장갑 제외, 2026-11-03 사용자)
+    if (eroExclusive(v) && (v.eroBase || []).length) { alert('이 장비는 옵션 줄 침식과 침식 기본 옵션 중 하나만 둘 수 있습니다.\n침식 기본 옵션을 먼저 빼 주세요 (장갑은 둘 다 됩니다).'); return; }
+    if (ero.length >= lim) { alert(`침식 강화는 옵션 최대 ${lim}개까지입니다.`); return; }
     ero.push(i);
     ero.sort((a, b) => a - b);
   }

@@ -179,7 +179,7 @@
   } catch (e) {}
   if (tliI18n) document.documentElement.setAttribute('data-i18n', '');
   if (tliEn) {
-    const EN_I18N_V = 'eef27b6272';
+    const EN_I18N_V = 'c4684c2c62';
     document.documentElement.classList.add('wt-i18n-wait');
     const st = document.createElement('style'); st.textContent = 'html.wt-i18n-wait body{visibility:hidden!important}'; document.head.appendChild(st);
     setTimeout(() => document.documentElement.classList.remove('wt-i18n-wait'), 4000);
