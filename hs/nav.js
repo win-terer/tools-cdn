@@ -179,7 +179,7 @@
   } catch (e) {}
   if (tliI18n) document.documentElement.setAttribute('data-i18n', '');
   if (tliEn) {
-    const EN_I18N_V = 'f413b444a9';
+    const EN_I18N_V = 'eef27b6272';
     document.documentElement.classList.add('wt-i18n-wait');
     const st = document.createElement('style'); st.textContent = 'html.wt-i18n-wait body{visibility:hidden!important}'; document.head.appendChild(st);
     setTimeout(() => document.documentElement.classList.remove('wt-i18n-wait'), 4000);
@@ -612,7 +612,7 @@
         const me = window.WT_ME;
         if (!me || !me.login) { location.href = loginHref(); return; }
         if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
-        menu.innerHTML = '<a href="/tli/db/?tab=tips&amp;mine=1">📝 내 글</a><a href="/tli/u/?me=1">📚 내가 공유한 빌드</a><a href="#" data-out="1">↩ 로그아웃</a>';
+        menu.innerHTML = '<a href="/tli/u/?me=1">📝 내 글</a><a href="#" data-out="1">↩ 로그아웃</a>';
         const r = lgBtn.getBoundingClientRect();
         menu.style.left = Math.min(r.left, innerWidth - 160) + 'px';
         menu.style.top = r.bottom + 4 + 'px';
