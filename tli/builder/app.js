@@ -12707,6 +12707,7 @@ function tipsPaintChips() {
     box.insertBefore(c, inp);
   });
   inp.placeholder = tipFormTags.length ? '태그 더 넣기' : '태그 — 쉼표나 Enter 로 구분. 예: 부귀 숭고, 스킬';
+  tipsCount();
 }
 /** 쉼표로 끊어 칩으로. 중복·빈 값은 버리고 8개까지 */
 function tipsCommitTags(raw) {
@@ -12734,6 +12735,35 @@ function tipsWireTagInput() {
   inp.addEventListener('blur', () => { if (inp.value.trim()) { tipsCommitTags(inp.value); inp.value = ''; } });
 }
 
+// 서버가 보는 한도와 같은 값 (tips.js TITLE_MIN/MAX · BODY_MIN/MAX · TAG_MAX)
+const TIP_LIM = {title: [2, 60], body: [5, 4000], tags: 8};
+/** 글자수 — 칸 높이를 늘리지 않으려고 단추 줄에 한 줄로 얹는다. 모자라거나 꽉 차면 색이 바뀐다.
+ *  이름('제목'·'태그'·'본문')은 따로 <em> 에 둔다 — 영어판 사전이 글자 조각 단위라 숫자와 섞이면 못 찾는다 */
+function tipsCount() {
+  const el = document.getElementById('tipFCount'); if (!el) return;
+  const one = (label, v, min, max) => {
+    const cls = (v > max || (v && v < min)) ? ' class="bad"' : v >= max * 0.9 ? ' class="warn"' : '';
+    return `<span><em>${label}</em> <i${cls}>${v}</i> / ${max}</span>`;
+  };
+  const nt = (document.getElementById('tipFTitle').value || '').trim().length;
+  const nb = (document.getElementById('tipFBody').value || '').trim().length;
+  el.title = `제목 ${TIP_LIM.title[0]}~${TIP_LIM.title[1]}자 · 태그 ${TIP_LIM.tags}개 · 본문 ${TIP_LIM.body[0]}~${TIP_LIM.body[1]}자`;
+  el.innerHTML = one('제목', nt, TIP_LIM.title[0], TIP_LIM.title[1])
+    + one('태그', tipFormTags.length, 0, TIP_LIM.tags)
+    + one('본문', nb, TIP_LIM.body[0], TIP_LIM.body[1]);
+}
+/** 글쓰기 칸을 어디에 둘지 — 고치는 중이면 그 글 자리에, 아니면 목록 위 제자리에 (2026-11-03 사용자:
+ *  고치기를 누르면 맨 위에 다시 생겨서 좁은 화면에서는 글이 안 보였다) */
+function tipsPlaceForm(id) {
+  const form = document.getElementById('tipsForm'), res = document.getElementById('tipsResults');
+  if (!form || !res) return null;
+  res.querySelectorAll('.tip-card.editing').forEach(c => c.classList.remove('editing'));
+  const card = id ? res.querySelector('.tip-card[data-tipid="' + String(id).replace(/"/g, '') + '"]') : null;
+  form.classList.toggle('inline', !!card);
+  if (card) { card.classList.add('editing'); card.insertAdjacentElement('afterend', form); }
+  else res.insertAdjacentElement('beforebegin', form);
+  return card;
+}
 function tipsOpenForm(id) {
   const me = tipMe();
   if (!me) { location.href = '/api/auth/discord?to=' + encodeURIComponent(location.pathname + '?tab=tips'); return; }
@@ -12749,12 +12779,18 @@ function tipsOpenForm(id) {
   document.getElementById('tipFSave').textContent = t ? '고치기' : '올리기';
   document.getElementById('tipsForm').style.display = '';
   document.getElementById('tipsNewBtn').style.display = 'none';
-  setTimeout(() => document.getElementById('tipFTitle').focus(), 0);
+  tipsCount();
+  tipsPlaceForm(tipsEditId);   // 고치는 중이면 그 글 자리로 (새 글은 목록 위)
+  setTimeout(() => {
+    document.getElementById('tipFTitle').focus();
+    try { document.getElementById('tipsForm').scrollIntoView({block: 'nearest', behavior: 'smooth'}); } catch (e) {}
+  }, 0);
 }
 function tipsCloseForm() {
   tipsEditId = '';
   document.getElementById('tipsForm').style.display = 'none';
   document.getElementById('tipsNewBtn').style.display = '';
+  tipsPlaceForm('');           // 제자리(목록 위)로 돌려 두고 숨긴 글도 되살린다
 }
 function tipsSave() {
   const btn = document.getElementById('tipFSave'), msg = document.getElementById('tipFMsg');
@@ -12801,6 +12837,8 @@ function tipDate(iso) { return String(iso || '').slice(0, 10).replace(/-/g, '.')
 
 function renderTips() {
   const box = document.getElementById('tipsResults'); if (!box) return;
+  // 고치는 중이면 글쓰기 칸이 목록 안에 들어가 있다 — innerHTML 로 지워지지 않게 먼저 빼 두고, 그린 뒤 다시 넣는다
+  tipsPlaceForm('');
   const bar = document.getElementById('tipsTagBar');
   const me = tipMe();
   const q = document.getElementById('tipsSearch').value.trim();
@@ -12822,7 +12860,7 @@ function renderTips() {
 
   box.innerHTML = rows.map(t => {
     const edited = t.up && t.up !== t.at;
-    return `<div class="tip-card">
+    return `<div class="tip-card" data-tipid="${escapeHtml(t.id)}">
       <h4 data-noi18n>${highlight(t.title, kws)}</h4>
       <div class="tip-meta">${t.au
         ? `<a class="tip-who" href="/tli/u/?k=${t.au}" title="이 사람이 쓴 글 모아보기">${DC_MARK}<b data-noi18n>${escapeHtml(t.author)}</b></a>`
@@ -12839,6 +12877,7 @@ function renderTips() {
           : '')
       + `</div></div>`;
   }).join('');
+  if (tipsEditId) tipsPlaceForm(tipsEditId);   // 목록이 다시 그려져도 고치던 자리를 지킨다
 }
 
 function totalStartHtml() {
