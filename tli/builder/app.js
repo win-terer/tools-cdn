@@ -14012,6 +14012,8 @@ async function likeShare() {
 }
 // ── 공유 올리기 ──
 let shareUpSel = [], shareUpMainName = '', shareTitleEdited = false, shareLockedTag = null, shareUpEditing = false;
+// 로그인 여부는 표시용 쿠키(wtun)로만 본다 — 안내 문구를 고르는 데만 쓰고, 실제 판단은 서버가 HttpOnly 쿠키로 한다
+function shareLoggedIn() { try { return /(?:^|;\s*)wtun=/.test(document.cookie); } catch (e) { return false; } }
 function shareItemsHtml(items) { // 예전 글에 저장된 레전드 칩 (지금은 새로 만들지 않음)
   return (items || []).map(n => `<span class="share-tag item">${escapeHtml(n)}</span>`).join('');
 }
@@ -14067,6 +14069,13 @@ function openShareUp(editing) { // editing = 기존 공유 글 수정 (제목·�
   } catch (e) {}
   // 수정은 이미 비밀번호를 확인하고 들어왔으므로 입력 줄을 숨긴다
   document.getElementById('sharePwdRow').style.display = shareUpEditing ? 'none' : '';
+  // 가이드 영상(선택, 2026-11-03 사용자) — 올릴 때만. 수정은 보기 화면 [🎬 영상 올리기]로 따로 한다.
+  // 디스코드로 로그인했으면 승인 없이 바로 붙는다(서버가 계정으로 판단, 여기 문구는 안내용).
+  document.getElementById('shareUpVidRow').style.display = shareUpEditing ? 'none' : '';
+  document.getElementById('shareUpVid').value = '';
+  document.getElementById('shareUpVidHint').textContent = shareLoggedIn()
+    ? '로그인되어 있어 바로 프리셋 맨 아래에 붙습니다 · 제목은 유튜브에서 자동으로'
+    : '관리자가 확인한 뒤 프리셋 맨 아래에 붙습니다 · 디스코드로 로그인하면 바로 붙어요';
   document.getElementById('shareUpHead').textContent = shareUpEditing ? '✏ 공유 글 수정' : '🌐 프리셋 공유 올리기';
   document.getElementById('shareUpSubmit').textContent = shareUpEditing ? '수정 저장' : '올리기';
   document.getElementById('shareUpModal').style.display = 'flex'; modalHistPush();
@@ -14132,13 +14141,17 @@ async function submitShare() {
       exitShareView();
       showToast('✏ 공유 글이 수정되었습니다.');
     } else {
-      const d = await shareApi('/share', {method: 'POST', body: JSON.stringify(Object.assign({pwd}, payload))});
+      const vid = (document.getElementById('shareUpVid').value || '').trim();
+      const d = await shareApi('/share', {method: 'POST', body: JSON.stringify(Object.assign({pwd, video: vid || undefined}, payload))});
       try { localStorage.setItem('tlidb_author_v1', author); localStorage.setItem('tlidb_share_pwd_v1', pwd); } catch (e) {}
       closeShareUp();
       shareList = [];
+      // 영상이 잘못돼도 프리셋은 이미 올라갔다 — 링크부터 주고 영상 쪽 사정은 따로 알린다
+      const vnote = d.vmsg ? '\n\n⚠ 영상은 붙이지 못했습니다: ' + d.vmsg + '\n(보기 화면 [⋯ 작성자 → 🎬 영상 올리기]에서 다시 넣을 수 있어요)'
+        : vid ? (d.vauto ? '\n\n🎬 가이드 영상도 붙였습니다.' : '\n\n🎬 가이드 영상은 관리자 확인 뒤에 붙습니다.') : '';
       const link = location.origin + '/tli/view/?preset=' + d.id; // 공유 링크는 보기 화면 (2026-10-09)
-      try { await navigator.clipboard.writeText(link); alert('공유 완료! 링크가 클립보드에 복사되었습니다.\n' + link); }
-      catch (e) { wtCopyBox('공유 완료! 아래 링크를 복사해서 나눠주세요.', link); }
+      try { await navigator.clipboard.writeText(link); alert('공유 완료! 링크가 클립보드에 복사되었습니다.\n' + link + vnote); }
+      catch (e) { wtCopyBox('공유 완료! 아래 링크를 복사해서 나눠주세요.' + vnote, link); }
     }
   } catch (e) { alert((editing ? '수정 실패: ' : '공유 실패: ') + e.message); }
   hideVeil();

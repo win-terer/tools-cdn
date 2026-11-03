@@ -7175,6 +7175,8 @@ async function wbStgCodes() { // 올릴 단계 [{t, code}] (진행 순서) — �
   }
   return out;
 }
+// 로그인 여부는 표시용 쿠키(wtun)로만 본다 — 안내 문구를 고르는 데만 쓰고, 실제 판단은 서버가 HttpOnly 쿠키로 한다
+function wbLoggedIn() { try { return /(?:^|;\s*)wtun=/.test(document.cookie); } catch (e) { return false; } }
 function wbShareOpen() {
   window.wtEv && wtEv('share_open'); if (!SHARE_ONLINE) { alert('온라인 주소(https)에서만 공유할 수 있습니다.'); return; }
   const mainSk = ['a1', 'a2', 'a3', 'a4', 'a5', 'p1', 'p2', 'p3', 'p4'].map(id => preset.skills && preset.skills[id] && preset.skills[id].main).find(Boolean);
@@ -7203,6 +7205,10 @@ function wbShareOpen() {
     grp('성향·능력치', SHARE_EXTRA_TAGS) + grp('콘텐츠', SHARE_CONTENT_TAGS) + grp('스킬 태그', SHARE_SKILL_TAGS) +
     `<div class="wb-field"><b>작성자</b><input id="wbAuthor" maxlength="10" placeholder="2~10자 (한글·영문·숫자·#)" value="${escapeHtml(au)}"></div>` +
     (se ? '' : `<div class="wb-field"><b>비밀번호</b><input id="wbPwd" type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" style="-webkit-text-security:disc" maxlength="20" placeholder="4~20자 — 내 글을 고치거나 지울 때" value="${escapeHtml(pw)}"></div>`) +
+    // 가이드 영상(선택, 2026-11-03 사용자) — 올릴 때만. 수정은 보기 화면 [⋯ 작성자 → 🎬 영상 올리기]로 따로 한다.
+    // 로그인했으면 승인 없이 바로 붙는다(판단은 서버가 계정으로 — 여기 문구는 안내일 뿐).
+    (se ? '' : '<div class="wb-field"><b>가이드 영상</b><input id="wbVid" maxlength="200" placeholder="유튜브 링크 (선택) — https://youtu.be/…"></div>'
+      + `<div class="wb-note">${wbLoggedIn() ? '영상은 로그인되어 있어 바로 빌드 맨 아래에 붙습니다.' : '영상은 관리자가 확인한 뒤에 붙습니다 — 디스코드로 로그인하면 바로 붙어요.'} 제목은 유튜브에서 자동으로 가져옵니다.</div>`) +
     '<div class="wb-note">태그는 목록에서 찾을 때 쓰입니다 (1~10개). 작성자·비밀번호는 이 브라우저에 기억됩니다.</div>' +
     `<div class="wb-btns"><button class="wz-btn pri" id="wbShareGo" onclick="wbShareSubmit()">${se ? '수정 저장' : '올리기'}</button><button class="wz-btn" onclick="wbClose()">취소</button></div>`, 'wb-share');
   wbTitleSync(); wbStgRen();
@@ -7239,6 +7245,8 @@ async function wbShareSubmit() {
     // 예전 수정 사본 이름의 '✏ ' 는 코드에 싣지 않는다 (2026-10-13 이전에 [수정]으로 불러둔 빌드)
     const code = await presetToCode(Object.assign({}, preset, {name: String(preset.name || '').replace(/^✏\s*/, '') || preset.name}));
     const body = {code, main: wbShareMain, title, tags: wbShareTags, author, unlisted: wbUnlisted};
+    const vidEl = document.getElementById('wbVid'), vid = vidEl ? vidEl.value.trim() : '';
+    if (!se && vid) body.video = vid;
     if (wbStages) {
       body.stages = await wbStgCodes(); body.code = body.stages[body.stages.length - 1].code;
       body.main = wbMainOf(await wbStgPreset(wbStgOrd(wbStages).pop().src)).name; // 대표 = 마지막 단계
@@ -7255,6 +7263,9 @@ async function wbShareSubmit() {
     mySharesPut({id: se ? se.id : d.id, title: title || [wbShareMain, ...wbShareTags].join(' ').slice(0, 40), unl: wbUnlisted ? 1 : 0}); // [🔗 내 공유] 에서 다시 찾게
     if (se) wbDropCopy(preset.id, true);
     wbPop(`<h3>${se ? '공유 글을 고쳤습니다' : '공유했습니다'}</h3><div class="wb-msg">${wbUnlisted ? `🔒 링크로만 공유됩니다 — 공유 목록·검색에는 나오지 않고, 이 링크를 받은 사람만 볼 수 있습니다. <b>${UNLISTED_DAYS}일 동안 아무도 열지 않으면 자동으로 지워집니다.</b>` : '이 링크로 누구나 빌드를 볼 수 있습니다.'} 링크는 빌드 목록의 [🔗 내 공유]에서 다시 찾을 수 있습니다.${se ? ' 추천·조회수는 그대로입니다. 수정하려고 불러온 사본은 내 빌드에서 지웠습니다.' : ''}</div>` +
+      (se || !vid ? '' : d.vmsg
+        ? `<div class="wb-unlw">⚠ 가이드 영상은 붙이지 못했습니다: ${escapeHtml(d.vmsg)} — 보기 화면 [⋯ 작성자 → 🎬 영상 올리기]에서 다시 넣을 수 있습니다.</div>`
+        : `<div class="wb-msg">🎬 가이드 영상${d.vauto ? '도 붙였습니다.' : '은 관리자가 확인한 뒤에 붙습니다.'}</div>`) +
       `<input class="wb-link" readonly value="${escapeHtml(link)}" onclick="this.select()">` +
       `<div class="wb-btns"><button class="wz-btn pri" onclick="wbCopy('${escapeHtml(link)}')">링크 복사</button><a class="wz-btn" href="${escapeHtml(link)}" target="_blank">열어 보기</a>` +
       '<button class="wz-btn" onclick="wbClose()">닫기</button></div>');

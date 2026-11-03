@@ -591,9 +591,21 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
       else location.href = '/tli/farm/';
       return;
     } else if (a === 'vreq') {
-      dialog('🎬 가이드 영상 추가', [{ k: 'video', label: '유튜브 주소', ph: 'https://youtu.be/…' }, { k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }],
-        '요청', async v => { const r = await api('/api/vshare/video-req', { id, pwd: v.pwd, video: v.video }); if (!r.ok) return r.error; RO.vwait = (RO.vwait || 0) + 1; render(); toast('요청했습니다 — 관리자가 확인한 뒤 보입니다'); return ''; },
-        '작성자만 요청할 수 있고, 관리자가 확인한 뒤 글에 붙습니다.');
+      // 디스코드로 로그인한 글쓴이(·부관리자)는 비밀번호도 승인도 없이 바로 붙는다 (2026-11-03 사용자)
+      const now = !!(RO.mine || RO.mod);
+      dialog('🎬 가이드 영상 추가', [{ k: 'video', label: '유튜브 주소', ph: 'https://youtu.be/…' }].concat(
+        now ? [] : [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }]),
+        now ? '추가' : '요청', async v => {
+          const r = await api('/api/vshare/video-req', { id, pwd: v.pwd || '', video: v.video });
+          if (!r.ok) return r.error;
+          if (r.auto && r.video) {
+            let have = []; try { have = JSON.parse(RO.item.videos || '[]'); } catch (e) {}
+            have.push(r.video); RO.item.videos = JSON.stringify(have);
+          } else RO.vwait = (RO.vwait || 0) + 1;
+          render(); toast(r.auto ? '영상을 붙였습니다' : '요청했습니다 — 관리자가 확인한 뒤 보입니다');
+          return '';
+        },
+        now ? '로그인되어 있어 바로 글에 붙습니다.' : '작성자만 요청할 수 있고, 관리자가 확인한 뒤 글에 붙습니다.');
     } else if (a === 'edit') {   // 비밀번호 확인 → 수정 모드 (화면에서 바로 고치고 저장, 2026-10-28 사용자)
       if (RO.admin || RO.mine || RO.mod) return edStart('');
       dialog('글 수정', [{ k: 'pwd', label: '글 비밀번호', type: 'password', value: pw }], '수정하기', async v => {
