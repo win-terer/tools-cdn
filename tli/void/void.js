@@ -538,13 +538,17 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
   function upload() {
     if (!S.some(x => x.size)) return toast('찍은 노드가 없습니다');
     let me = {}; try { me = JSON.parse(localStorage.getItem(ME) || '{}') || {}; } catch (e) {}
+    // 로그인하고 올리면 비밀번호를 받지 않고(계정에 붙은 글은 비밀번호로 안 열린다) 작성자를 디스코드 닉네임으로
+    // 채워 둔다 — 빌드 공유와 같은 규칙 (2026-11-03 사용자). 진짜 판단은 서버가 HttpOnly 쿠키로 한다.
+    const lg = !!(window.WT_ME && window.WT_ME.login && !window.WT_ME.banned);
+    const au = (lg && window.wtMyName && window.wtMyName()) || me.author || '';
     dialog('📤 파밍 빌드 공유', [
       { k: 'title', label: '제목', value: '', ph: '예: 화폐 위주 나침반 파밍 (2~40자)' },
       // 난이도·정령 필수 (2026-10-30 사용자) — 둘 다 안 골라도 올라간다
       { k: 'tiers', label: '난이도', type: 'chips', multi: 1, opts: FARM_TIERS, value: me.tiers || [], opt: 1 },
       { k: 'pact', label: '정령 필수', type: 'chips', opts: FARM_PACTS, value: me.pact || '', opt: 1 },
-      { k: 'author', label: '작성자', value: me.author || '', ph: '한글·영문·숫자 2~10자' },
-      { k: 'pwd', label: '삭제·수정 비밀번호', type: 'password', value: me.pwd || '', ph: '4~20자' },
+      { k: 'author', label: '작성자', value: au, ph: '한글·영문·숫자 2~10자' },
+      ...(lg ? [] : [{ k: 'pwd', label: '삭제·수정 비밀번호', type: 'password', value: me.pwd || '', ph: '4~20자' }]),
       { k: 'video', label: '가이드 영상 (유튜브 주소)', opt: 1, ph: 'https://youtu.be/…' },
     ], '올리기', async v => {
       const r = await api('/api/vshare', { title: v.title, author: v.author, pwd: v.pwd, code: encode(), memo: M.trim() || undefined, video: v.video || undefined,
@@ -553,13 +557,14 @@ if (!window.wtCopyBox) window.wtCopyBox = (m, t) => prompt(m, t);
         if (r.dup) { location.href = location.pathname + '?s=' + r.dup; return ''; }
         return r.error;
       }
-      try { localStorage.setItem(ME, JSON.stringify({ author: v.author, pwd: v.pwd, tiers: v.tiers, pact: v.pact })); } catch (e) {}
+      try { localStorage.setItem(ME, JSON.stringify({ author: v.author, pwd: v.pwd || me.pwd || '', tiers: v.tiers, pact: v.pact })); } catch (e) {}
       setMine(r.id, v.pwd);
       if (window.wtEv) window.wtEv('void_upload');
       if (r.vmsg) alert('글은 올라갔지만 영상은 등록하지 못했습니다: ' + r.vmsg);
       location.href = location.pathname + '?s=' + r.id;
       return '';
-    }, `현재 찍은 배치${G.p || G.c.some(x => x) ? '·탐침·나침반' : ''}${G.s.some(x => x) ? '·정령' : ''}${M.trim() ? '·메모' : ''}가 그대로 올라갑니다. 영상은 관리자가 확인한 뒤 보입니다.`);
+    }, `현재 찍은 배치${G.p || G.c.some(x => x) ? '·탐침·나침반' : ''}${G.s.some(x => x) ? '·정령' : ''}${M.trim() ? '·메모' : ''}가 그대로 올라갑니다. `
+      + (lg ? '디스코드 계정에 연결되어 비밀번호 없이 고치고 지울 수 있고, 영상도 바로 붙습니다.' : '영상은 관리자가 확인한 뒤 보입니다.'));
   }
   async function openShared(id) {
     const r = await api('/api/vshare?id=' + encodeURIComponent(id));

@@ -2625,6 +2625,7 @@ async function codeToPreset(code) {
         Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
         if (Object.keys(ot).length) p.slots[s.id].otr = ot;
       }
+      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, 1).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -2832,6 +2833,7 @@ function buildCodePayload(p) {
       if (v.rand) slots[s.id].rd = v.rand;              // "<랜덤 …>" 자리의 복원 문구
       if (v.gaura) slots[s.id].ga = v.gaura;            // 부여 오라 선택
       if (v.otr) slots[s.id].ot = v.otr;                // 옵션 티어 (기본 T1 이 아닌 것만)
+      if (v.eroBase && v.eroBase.length) slots[s.id].eb = v.eroBase.map(encEntry); // 침식 기본 옵션 (2026-11-03)
     }
     else if (v.kind === 'blood') slots[s.id] = {k: 'b', p: v.part, n: v.name || '', ab: v.aberrant ? 1 : 0, o: v.opts.blood.map(encEntry), ba: (v.opts.base || []).map(o => o.effect), x: (v.opts.extra || []).map(o => o.k ? encEntry(o) : {e: o.effect, s: o.source, t: o.type, tr: o.tiers})};
     else slots[s.id] = {k: 'c', p: v.part, n: v.name || '', b: v.opts.basic.map(encEntry), m: v.opts.main.map(encEntry), s: v.opts.sub.map(encEntry)};
@@ -3131,6 +3133,7 @@ function slotOptionLines(sid, v) {
       const opts = (ro.opts || []).map((o, i) =>
         (ero.includes(i) && rd[i] == null && corr && corr[i]) ? corr[i][1] : o);
       opts.forEach(o => String(typeof o === 'string' ? o : optEff(o)).split(/<br\s*\/?>|\n/).forEach(x => add('레전드 ' + part, x))); // 한 자리에 두 줄(랜덤 옵션 침식화)
+      (v.eroBase || []).forEach(o => add('레전드 ' + part, tierEffect(o))); // 침식으로 생긴 기본 옵션 — 제작 기본 옵션과 같은 계산
     }
     // 제작 옵션은 화면과 같은 티어(T0/T1/T2) 기준 수치로, 침식된 옵션은 침식(T0+) 수치로
     if (v.opts) {
@@ -4027,7 +4030,8 @@ function wsRenderGrid() { // 검색어 입력 중에는 격자만 다시 그린�
 // 칸·옵션 규칙은 빌더와 같은 공용 조각(00_gear.js). 장비 데이터(gear_data.js: PARTS·GEAR_ROWS·ITEMS, 약 1.3MB)는
 // 이 단계에 처음 들어올 때 받는다. 저장 형식은 빌더와 같다 — 레전드 {kind:'item', name, part, snap},
 // 제작 {kind:'custom', part, name, opts:{basic, main, sub}}. 계산 연동은 넣지 않는다(사용자 2026-10-08).
-// 블러드 {kind:'blood', part, aberrant, name, opts:{blood, base, extra}}. 덧붙임: 조향 v.blend(벨트) · 시퀀스 v.tower(무기) · 침식 v.ero(옵션 순번).
+// 블러드 {kind:'blood', part, aberrant, name, opts:{blood, base, extra}}. 덧붙임: 조향 v.blend(벨트) · 시퀀스 v.tower(무기) · 침식 v.ero(옵션 순번)
+// · 레전드 침식 기본 옵션 v.eroBase(제작 옵션과 같은 모양 [{k, effect, source, type}]).
 // 제작 옵션 표기 티어는 preset.tier (빌더와 같은 값 — 인형 아래 T2/T1/T0).
 let wgBStage = 'bases', wgAberr = null;
 let wgMode = 'pick', wgAddQ = ''; // 칸 화면: 'view' = 고른 장비 보기(+조향·시퀀스·침식) / 'pick' = 고르기·고치기 (사용자 제안)
@@ -4432,6 +4436,29 @@ function wgEroList(v) { // 빌더 slotOptList 와 같은 순번 — 레전드 op
     ...(v.opts.extra || []).map(o => one(o, tierEffect(o), prev(o)))];
   return ['basic', 'main', 'sub'].flatMap(c => v.opts[c].map(o => one(o, tierEffect(o), prev(o))));
 }
+// ── 레전드 침식 기본 옵션 — 레전드를 침식하면 기본 옵션이 하나 생기는 경우가 있다 (2026-11-03 사용자).
+//   후보는 제작 장비의 '침식 기본' 풀과 같다(같은 부위). 침식 강화(v.ero, 옵션 줄 순번)와는 따로 센다
+const WG_EB_MAX = 1;
+const wgEroBasePool = v => v && v.kind === 'item' && v.part ? GEAR_ROWS.filter(r => r.source === v.part && r.type === '침식 기본') : [];
+function wgPickEroBase(i) {
+  if (guardShareView()) return;
+  const v = wgCur(wgSlot), r = wgEroBasePool(v)[i];
+  if (!r) return;
+  const k = rowKey(r), eb = v.eroBase || [], x = eb.findIndex(o => o.k === k);
+  if (x >= 0) eb.splice(x, 1); // 다시 누르면 빼기
+  else { eb.push({k, effect: r.effect, source: r.source, type: r.type}); if (eb.length > WG_EB_MAX) eb.shift(); } // 다 찼으면 바꿔 끼운다
+  if (eb.length) v.eroBase = eb; else delete v.eroBase;
+  wgMsg = ''; persistPreset(); pageRender();
+}
+function wgEroBaseBox(v) {
+  const pool = wgEroBasePool(v);
+  if (!pool.length) return '';
+  const eb = v.eroBase || [];
+  return `<div class="wg-addbox"><div class="wg-addh"><b>침식 기본 옵션</b><span>${eb.length} / ${WG_EB_MAX}</span></div>` +
+    `<div class="wg-addd">침식으로 기본 옵션이 생겼으면 고릅니다 — 제작 장비의 침식 기본 옵션과 같은 후보 (다시 누르면 빼기)</div>` +
+    '<div class="wg-list wg-randlist">' + pool.map((r, i) =>
+      `<div class="wg-opt${eb.some(o => o.k === rowKey(r)) ? ' on' : ''}" onclick="wgPickEroBase(${i})"><span>${wgOptHtml(r.effect, r.tips)}</span></div>`).join('') + '</div></div>';
+}
 function wgToggleEro(i) {
   if (guardShareView()) return;
   const v = wgCur(wgSlot); if (!v) return;
@@ -4524,7 +4551,9 @@ function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 �
     return (it.img ? `<div class="wg-iimg"><img src="${it.img}" alt="" onerror="this.remove()"></div>` : '') +
       `<div class="wg-iname">${escapeHtml(v.name)}</div>` +
       (it.attrs && it.attrs.length ? `<div class="icard-attrs">${it.attrs.map(l => `<div>${l}</div>`).join('')}</div>` : '') +
-      addSec + line('옵션', (it.opts || []).length) + wgGauraLine(v);
+      addSec + line('옵션', (it.opts || []).length) +
+      ((v.eroBase || []).length ? '<div class="wg-vsec">침식 기본 옵션</div>' + v.eroBase.map(o => `<div class="wg-vo wg-vbase"><span>${wgOptHtml(o.effect, wgTips(o))}</span></div>`).join('') : '') +
+      wgGauraLine(v);
   }
   const bs = wgBaseRow(v.base), bsec = bs ? `<div class="wg-vsec">베이스 · ${escapeHtml(bs.name)}${bs.lv ? ' (Lv ' + bs.lv + ')' : ''}</div>` +
     wgBaseLines(bs).map(l => `<div class="wg-vo wg-vbase"><span>${escapeHtml(l)}</span></div>`).join('') : '';
@@ -4635,6 +4664,7 @@ function wgViewBody() {
   const kind = wgSlot === 'belt' ? 'blend' : (wgSlot === 'weapon1' || wgSlot === 'weapon2') ? 'tower' : null;
   let right = `<div class="wg-addbox"><div class="wg-addh"><b>침식</b><span>${n} / ${lim}</span></div>` +
     `<div class="wg-addd">왼쪽 옵션 줄을 누르면 침식으로 강화합니다 (${v.kind === 'blood' ? '블러드 3개' : '최대 ' + lim + '개'}). 레전드는 침식 수치, 제작·블러드는 한 단계 위 티어 수치로 보여 줍니다.</div></div>`;
+  right += wgEroBaseBox(v);
   if (kind) {
     const cur = v[kind];
     right += `<div class="wg-addbox grow"><div class="wg-addh"><b>${WG_ADD[kind]}</b><span>${kind === 'blend' ? '벨트 전용' : escapeHtml(v.part) + ' 전용'} · 한 줄</span></div>` +
@@ -4686,7 +4716,7 @@ function wgSlotHtml(sl) {
   return `<div class="wg-slot${on ? ' on' : ''}${v ? ' have' : ''}${lock ? ' lock' : ''}" style="grid-column:${cx};grid-row:${cy}" onclick="wgPick('${sl.id}')">` +
     `<div class="wg-sico">${ico}</div><small>${escapeHtml(sl.label)}${v ? ' · <i class="wg-k ' + v.kind + '">' + WG_KIND[v.kind] + '</i>' : ''}</small><b>${nm}</b>` +
     (sub ? `<em>${escapeHtml(sub)}</em>` : '') +
-    (v && (v.blend || v.tower || (v.ero || []).length) ? '<span class="wg-addb">' + [v.blend ? '조향' : '', v.tower ? '시퀀스' : '', (v.ero || []).length ? '침식 ' + v.ero.length : ''].filter(Boolean).join(' · ') + '</span>' : '') +
+    (v && (v.blend || v.tower || (v.ero || []).length || (v.eroBase || []).length) ? '<span class="wg-addb">' + [v.blend ? '조향' : '', v.tower ? '시퀀스' : '', (v.ero || []).length ? '침식 ' + v.ero.length : '', (v.eroBase || []).length ? '침식 기본' : ''].filter(Boolean).join(' · ') + '</span>' : '') +
     (v ? `<button class="gbm-del" onclick="event.stopPropagation();wgClear('${sl.id}')" title="이 칸 비우기">✕</button>` : '') + '</div>';
 }
 function wgRender() {
@@ -6248,7 +6278,7 @@ function vwVidReq() {
   const now = vwVidNow();
   const stSel = !VW.stages ? '' : `<div class="wb-field"><b>단계</b><select id="vwVrSt"><option value="">모든 단계</option>${VW.stages.map((x, i) => `<option value="${vwEsc(x.t)}"${i === VW.st ? ' selected' : ''}>${vwEsc(x.t)} 단계만</option>`).join('')}</select></div>`;
   vwPop('<h3>🎬 영상 올리기</h3><div class="wb-msg">이 빌드를 설명하는 <b>유튜브 영상 링크</b>를 넣어 주세요. 제목은 유튜브에서 자동으로 가져옵니다.<br>'
-    + (now ? '디스코드로 로그인되어 있어 <b>바로 빌드 맨 아래에 붙습니다</b>.' : '관리자가 확인한 뒤 빌드 맨 아래에 붙고, 그 전까지는 <b>승인 대기 중</b>으로 보입니다.') + '</div>' +
+    + (now ? '디스코드로 로그인되어 있어 바로 빌드 맨 아래에 붙습니다.' : '관리자가 확인한 뒤 빌드 맨 아래에 붙고, 그 전까지는 <b>승인 대기 중</b>으로 보입니다.') + '</div>' +
     '<div class="wb-field"><b>링크</b><input id="vwVrUrl" placeholder="https://youtu.be/… (시작 시각 ?t= 포함 가능)"></div>' + stSel +
     (now ? '' : `<div class="wb-field"><b>비밀번호</b><input id="vwVrPw" type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" style="-webkit-text-security:disc" maxlength="20" placeholder="글 올릴 때 등록한 비밀번호" value="${vwEsc(saved)}"></div>`) +
     '<div class="wb-btns"><button class="wz-btn pri" id="vwVrGo" onclick="vwVidReqGo()">올리기</button><button class="wz-btn" onclick="vwClose()">취소</button></div>');

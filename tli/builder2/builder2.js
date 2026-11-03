@@ -2552,6 +2552,7 @@ function slotOptionLines(sid, v) {
       const opts = (ro.opts || []).map((o, i) =>
         (ero.includes(i) && rd[i] == null && corr && corr[i]) ? corr[i][1] : o);
       opts.forEach(o => String(typeof o === 'string' ? o : optEff(o)).split(/<br\s*\/?>|\n/).forEach(x => add('레전드 ' + part, x))); // 한 자리에 두 줄(랜덤 옵션 침식화)
+      (v.eroBase || []).forEach(o => add('레전드 ' + part, tierEffect(o))); // 침식으로 생긴 기본 옵션 — 제작 기본 옵션과 같은 계산
     }
     // 제작 옵션은 화면과 같은 티어(T0/T1/T2) 기준 수치로, 침식된 옵션은 침식(T0+) 수치로
     if (v.opts) {
@@ -3448,7 +3449,8 @@ function wsRenderGrid() { // 검색어 입력 중에는 격자만 다시 그린�
 // 칸·옵션 규칙은 빌더와 같은 공용 조각(00_gear.js). 장비 데이터(gear_data.js: PARTS·GEAR_ROWS·ITEMS, 약 1.3MB)는
 // 이 단계에 처음 들어올 때 받는다. 저장 형식은 빌더와 같다 — 레전드 {kind:'item', name, part, snap},
 // 제작 {kind:'custom', part, name, opts:{basic, main, sub}}. 계산 연동은 넣지 않는다(사용자 2026-10-08).
-// 블러드 {kind:'blood', part, aberrant, name, opts:{blood, base, extra}}. 덧붙임: 조향 v.blend(벨트) · 시퀀스 v.tower(무기) · 침식 v.ero(옵션 순번).
+// 블러드 {kind:'blood', part, aberrant, name, opts:{blood, base, extra}}. 덧붙임: 조향 v.blend(벨트) · 시퀀스 v.tower(무기) · 침식 v.ero(옵션 순번)
+// · 레전드 침식 기본 옵션 v.eroBase(제작 옵션과 같은 모양 [{k, effect, source, type}]).
 // 제작 옵션 표기 티어는 preset.tier (빌더와 같은 값 — 인형 아래 T2/T1/T0).
 let wgBStage = 'bases', wgAberr = null;
 let wgMode = 'pick', wgAddQ = ''; // 칸 화면: 'view' = 고른 장비 보기(+조향·시퀀스·침식) / 'pick' = 고르기·고치기 (사용자 제안)
@@ -3853,6 +3855,29 @@ function wgEroList(v) { // 빌더 slotOptList 와 같은 순번 — 레전드 op
     ...(v.opts.extra || []).map(o => one(o, tierEffect(o), prev(o)))];
   return ['basic', 'main', 'sub'].flatMap(c => v.opts[c].map(o => one(o, tierEffect(o), prev(o))));
 }
+// ── 레전드 침식 기본 옵션 — 레전드를 침식하면 기본 옵션이 하나 생기는 경우가 있다 (2026-11-03 사용자).
+//   후보는 제작 장비의 '침식 기본' 풀과 같다(같은 부위). 침식 강화(v.ero, 옵션 줄 순번)와는 따로 센다
+const WG_EB_MAX = 1;
+const wgEroBasePool = v => v && v.kind === 'item' && v.part ? GEAR_ROWS.filter(r => r.source === v.part && r.type === '침식 기본') : [];
+function wgPickEroBase(i) {
+  if (guardShareView()) return;
+  const v = wgCur(wgSlot), r = wgEroBasePool(v)[i];
+  if (!r) return;
+  const k = rowKey(r), eb = v.eroBase || [], x = eb.findIndex(o => o.k === k);
+  if (x >= 0) eb.splice(x, 1); // 다시 누르면 빼기
+  else { eb.push({k, effect: r.effect, source: r.source, type: r.type}); if (eb.length > WG_EB_MAX) eb.shift(); } // 다 찼으면 바꿔 끼운다
+  if (eb.length) v.eroBase = eb; else delete v.eroBase;
+  wgMsg = ''; persistPreset(); pageRender();
+}
+function wgEroBaseBox(v) {
+  const pool = wgEroBasePool(v);
+  if (!pool.length) return '';
+  const eb = v.eroBase || [];
+  return `<div class="wg-addbox"><div class="wg-addh"><b>침식 기본 옵션</b><span>${eb.length} / ${WG_EB_MAX}</span></div>` +
+    `<div class="wg-addd">침식으로 기본 옵션이 생겼으면 고릅니다 — 제작 장비의 침식 기본 옵션과 같은 후보 (다시 누르면 빼기)</div>` +
+    '<div class="wg-list wg-randlist">' + pool.map((r, i) =>
+      `<div class="wg-opt${eb.some(o => o.k === rowKey(r)) ? ' on' : ''}" onclick="wgPickEroBase(${i})"><span>${wgOptHtml(r.effect, r.tips)}</span></div>`).join('') + '</div></div>';
+}
 function wgToggleEro(i) {
   if (guardShareView()) return;
   const v = wgCur(wgSlot); if (!v) return;
@@ -3945,7 +3970,9 @@ function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 �
     return (it.img ? `<div class="wg-iimg"><img src="${it.img}" alt="" onerror="this.remove()"></div>` : '') +
       `<div class="wg-iname">${escapeHtml(v.name)}</div>` +
       (it.attrs && it.attrs.length ? `<div class="icard-attrs">${it.attrs.map(l => `<div>${l}</div>`).join('')}</div>` : '') +
-      addSec + line('옵션', (it.opts || []).length) + wgGauraLine(v);
+      addSec + line('옵션', (it.opts || []).length) +
+      ((v.eroBase || []).length ? '<div class="wg-vsec">침식 기본 옵션</div>' + v.eroBase.map(o => `<div class="wg-vo wg-vbase"><span>${wgOptHtml(o.effect, wgTips(o))}</span></div>`).join('') : '') +
+      wgGauraLine(v);
   }
   const bs = wgBaseRow(v.base), bsec = bs ? `<div class="wg-vsec">베이스 · ${escapeHtml(bs.name)}${bs.lv ? ' (Lv ' + bs.lv + ')' : ''}</div>` +
     wgBaseLines(bs).map(l => `<div class="wg-vo wg-vbase"><span>${escapeHtml(l)}</span></div>`).join('') : '';
@@ -4056,6 +4083,7 @@ function wgViewBody() {
   const kind = wgSlot === 'belt' ? 'blend' : (wgSlot === 'weapon1' || wgSlot === 'weapon2') ? 'tower' : null;
   let right = `<div class="wg-addbox"><div class="wg-addh"><b>침식</b><span>${n} / ${lim}</span></div>` +
     `<div class="wg-addd">왼쪽 옵션 줄을 누르면 침식으로 강화합니다 (${v.kind === 'blood' ? '블러드 3개' : '최대 ' + lim + '개'}). 레전드는 침식 수치, 제작·블러드는 한 단계 위 티어 수치로 보여 줍니다.</div></div>`;
+  right += wgEroBaseBox(v);
   if (kind) {
     const cur = v[kind];
     right += `<div class="wg-addbox grow"><div class="wg-addh"><b>${WG_ADD[kind]}</b><span>${kind === 'blend' ? '벨트 전용' : escapeHtml(v.part) + ' 전용'} · 한 줄</span></div>` +
@@ -4107,7 +4135,7 @@ function wgSlotHtml(sl) {
   return `<div class="wg-slot${on ? ' on' : ''}${v ? ' have' : ''}${lock ? ' lock' : ''}" style="grid-column:${cx};grid-row:${cy}" onclick="wgPick('${sl.id}')">` +
     `<div class="wg-sico">${ico}</div><small>${escapeHtml(sl.label)}${v ? ' · <i class="wg-k ' + v.kind + '">' + WG_KIND[v.kind] + '</i>' : ''}</small><b>${nm}</b>` +
     (sub ? `<em>${escapeHtml(sub)}</em>` : '') +
-    (v && (v.blend || v.tower || (v.ero || []).length) ? '<span class="wg-addb">' + [v.blend ? '조향' : '', v.tower ? '시퀀스' : '', (v.ero || []).length ? '침식 ' + v.ero.length : ''].filter(Boolean).join(' · ') + '</span>' : '') +
+    (v && (v.blend || v.tower || (v.ero || []).length || (v.eroBase || []).length) ? '<span class="wg-addb">' + [v.blend ? '조향' : '', v.tower ? '시퀀스' : '', (v.ero || []).length ? '침식 ' + v.ero.length : '', (v.eroBase || []).length ? '침식 기본' : ''].filter(Boolean).join(' · ') + '</span>' : '') +
     (v ? `<button class="gbm-del" onclick="event.stopPropagation();wgClear('${sl.id}')" title="이 칸 비우기">✕</button>` : '') + '</div>';
 }
 function wgRender() {
@@ -5292,6 +5320,7 @@ async function codeToPreset(code) {
         Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
         if (Object.keys(ot).length) p.slots[s.id].otr = ot;
       }
+      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, 1).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -5499,6 +5528,7 @@ function buildCodePayload(p) {
       if (v.rand) slots[s.id].rd = v.rand;              // "<랜덤 …>" 자리의 복원 문구
       if (v.gaura) slots[s.id].ga = v.gaura;            // 부여 오라 선택
       if (v.otr) slots[s.id].ot = v.otr;                // 옵션 티어 (기본 T1 이 아닌 것만)
+      if (v.eroBase && v.eroBase.length) slots[s.id].eb = v.eroBase.map(encEntry); // 침식 기본 옵션 (2026-11-03)
     }
     else if (v.kind === 'blood') slots[s.id] = {k: 'b', p: v.part, n: v.name || '', ab: v.aberrant ? 1 : 0, o: v.opts.blood.map(encEntry), ba: (v.opts.base || []).map(o => o.effect), x: (v.opts.extra || []).map(o => o.k ? encEntry(o) : {e: o.effect, s: o.source, t: o.type, tr: o.tiers})};
     else slots[s.id] = {k: 'c', p: v.part, n: v.name || '', b: v.opts.basic.map(encEntry), m: v.opts.main.map(encEntry), s: v.opts.sub.map(encEntry)};
@@ -7189,6 +7219,10 @@ function wbShareOpen() {
   let au = '', pw = '';
   try { au = localStorage.getItem('tlidb_author_v1') || ''; pw = localStorage.getItem('tlidb_share_pwd_v1') || ''; } catch (e) {}
   if (se) { au = se.author || au; wbTitleEdited = !!se.title; }
+  // 로그인하고 올리면 비밀번호를 받지 않는다 — 계정에 붙은 글은 어차피 비밀번호로 열리지 않는다(서버 pwdGate, 2026-11-03 사용자).
+  // 작성자 칸은 디스코드 닉네임으로 채워 두되 그대로 고칠 수 있다. 닉네임이 작성자 규칙에 안 맞으면 예전처럼 기억값.
+  const lg = !se && wbLoggedIn();
+  if (lg) au = (window.wtMyName && window.wtMyName()) || au;
   wbUnlisted = !!(se && se.unlisted);
   wbStages = se && se.stages && se.stages.length ? se.stages.map((k, i) => ({t: k.t, src: k.t === se.stageT ? 'cur' : 'k' + i})) : null;
   wbStgPickOn = false;
@@ -7204,12 +7238,13 @@ function wbShareOpen() {
     `<div class="wb-tgrp"><small>히어로</small><div><button class="wb-tag on lock" title="빌드에서 고른 히어로라 여기서는 못 바꿉니다">🔒 ${escapeHtml(preset.hero.trait)}</button></div></div>` +
     grp('성향·능력치', SHARE_EXTRA_TAGS) + grp('콘텐츠', SHARE_CONTENT_TAGS) + grp('스킬 태그', SHARE_SKILL_TAGS) +
     `<div class="wb-field"><b>작성자</b><input id="wbAuthor" maxlength="10" placeholder="2~10자 (한글·영문·숫자·#)" value="${escapeHtml(au)}"></div>` +
-    (se ? '' : `<div class="wb-field"><b>비밀번호</b><input id="wbPwd" type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" style="-webkit-text-security:disc" maxlength="20" placeholder="4~20자 — 내 글을 고치거나 지울 때" value="${escapeHtml(pw)}"></div>`) +
+    (se || lg ? '' : `<div class="wb-field"><b>비밀번호</b><input id="wbPwd" type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" style="-webkit-text-security:disc" maxlength="20" placeholder="4~20자 — 내 글을 고치거나 지울 때" value="${escapeHtml(pw)}"></div>`) +
     // 가이드 영상(선택, 2026-11-03 사용자) — 올릴 때만. 수정은 보기 화면 [⋯ 작성자 → 🎬 영상 올리기]로 따로 한다.
     // 로그인했으면 승인 없이 바로 붙는다(판단은 서버가 계정으로 — 여기 문구는 안내일 뿐).
     (se ? '' : '<div class="wb-field"><b>가이드 영상</b><input id="wbVid" maxlength="200" placeholder="유튜브 링크 (선택) — https://youtu.be/…"></div>'
       + `<div class="wb-note">${wbLoggedIn() ? '영상은 로그인되어 있어 바로 빌드 맨 아래에 붙습니다.' : '영상은 관리자가 확인한 뒤에 붙습니다 — 디스코드로 로그인하면 바로 붙어요.'} 제목은 유튜브에서 자동으로 가져옵니다.</div>`) +
-    '<div class="wb-note">태그는 목록에서 찾을 때 쓰입니다 (1~10개). 작성자·비밀번호는 이 브라우저에 기억됩니다.</div>' +
+    `<div class="wb-note">태그는 목록에서 찾을 때 쓰입니다 (1~10개). ${lg
+      ? '디스코드 계정에 연결되어 비밀번호 없이 고치고 지울 수 있습니다.' : '작성자·비밀번호는 이 브라우저에 기억됩니다.'}</div>` +
     `<div class="wb-btns"><button class="wz-btn pri" id="wbShareGo" onclick="wbShareSubmit()">${se ? '수정 저장' : '올리기'}</button><button class="wz-btn" onclick="wbClose()">취소</button></div>`, 'wb-share');
   wbTitleSync(); wbStgRen();
   if (se && se.bundle) { delete se.bundle; persistPreset(); wbStgOn(true); } // 보기 화면 [🪜 여러 빌드로 묶기] — 묶음 모드 + 고르기 목록부터
@@ -7233,11 +7268,11 @@ function wbTitleSync() {
   if (el) el.value = [wbShareMain, ...wbShareTags].join(' ').trim().slice(0, 40);
 }
 async function wbShareSubmit() {
-  const se = preset.shareEdit, pe = document.getElementById('wbPwd');
-  const title = document.getElementById('wbTitle').value.trim(), author = document.getElementById('wbAuthor').value.trim(), pwd = se ? se.pwd : pe.value;
+  const se = preset.shareEdit, pe = document.getElementById('wbPwd'); // 로그인하고 올리면 비밀번호 칸이 아예 없다
+  const title = document.getElementById('wbTitle').value.trim(), author = document.getElementById('wbAuthor').value.trim(), pwd = se ? se.pwd : (pe ? pe.value : '');
   if (title && (title.length < 2 || title.length > 40)) { showToast('제목은 2~40자로 입력해 주세요'); return; }
   if (!/^[가-힣A-Za-z0-9#]{2,10}$/.test(author)) { showToast('작성자는 한글·영문·숫자·# 2~10자입니다'); return; }
-  if (!se && !/^\S{4,20}$/.test(pwd)) { showToast('비밀번호는 공백 없는 4~20자입니다'); return; }
+  if (!se && pe && !/^\S{4,20}$/.test(pwd)) { showToast('비밀번호는 공백 없는 4~20자입니다'); return; }
   const btn = document.getElementById('wbShareGo');
   btn.disabled = true; btn.textContent = '올리는 중…';
   try {
@@ -7257,15 +7292,15 @@ async function wbShareSubmit() {
     const d = await res.json().catch(() => ({ok: false, error: '서버 응답을 해석할 수 없습니다'}));
     if (!d.ok) throw new Error(d.error || '요청에 실패했습니다');
     try { localStorage.setItem('tli_share_dirty', String(Date.now())); } catch (e) {} // 공유 목록 캐시 건너뛰기
-    try { localStorage.setItem('tlidb_author_v1', author); if (!se) localStorage.setItem('tlidb_share_pwd_v1', pwd); } catch (e) {}
+    try { localStorage.setItem('tlidb_author_v1', author); if (!se && pwd) localStorage.setItem('tlidb_share_pwd_v1', pwd); } catch (e) {}
     const link = location.origin + '/tli/view/?preset=' + (se ? se.id : d.id);
     // 수정 저장이 끝나면 수정용 사본은 내 빌드에서 지운다 (사본은 [수정]이 만든 것 — 2026-10-13 사용자). 실패하면 아래 catch 라 사본이 남는다
     mySharesPut({id: se ? se.id : d.id, title: title || [wbShareMain, ...wbShareTags].join(' ').slice(0, 40), unl: wbUnlisted ? 1 : 0}); // [🔗 내 공유] 에서 다시 찾게
     if (se) wbDropCopy(preset.id, true);
-    wbPop(`<h3>${se ? '공유 글을 고쳤습니다' : '공유했습니다'}</h3><div class="wb-msg">${wbUnlisted ? `🔒 링크로만 공유됩니다 — 공유 목록·검색에는 나오지 않고, 이 링크를 받은 사람만 볼 수 있습니다. <b>${UNLISTED_DAYS}일 동안 아무도 열지 않으면 자동으로 지워집니다.</b>` : '이 링크로 누구나 빌드를 볼 수 있습니다.'} 링크는 빌드 목록의 [🔗 내 공유]에서 다시 찾을 수 있습니다.${se ? ' 추천·조회수는 그대로입니다. 수정하려고 불러온 사본은 내 빌드에서 지웠습니다.' : ''}</div>` +
+    wbPop(`<h3>${se ? '공유 글을 고쳤습니다' : '공유했습니다'}</h3><div class="wb-msg">${wbUnlisted ? `🔒 링크로만 공유됩니다 — 공유 목록·검색에는 나오지 않고, 이 링크를 받은 사람만 볼 수 있습니다. <b>${UNLISTED_DAYS}일 동안 아무도 열지 않으면 자동으로 지워집니다.</b>` : '이 링크로 누구나 빌드를 볼 수 있습니다.'} 링크는 빌드 목록의 [🔗 내 공유]에서 다시 찾을 수 있습니다.${se ? ' 추천·조회수는 그대로입니다. 수정하려고 불러온 사본은 내 빌드에서 지웠습니다.' : (pwd ? '' : ' 디스코드 계정에 연결되어 비밀번호 없이 고치고 지울 수 있습니다.')}</div>` +
       (se || !vid ? '' : d.vmsg
         ? `<div class="wb-unlw">⚠ 가이드 영상은 붙이지 못했습니다: ${escapeHtml(d.vmsg)} — 보기 화면 [⋯ 작성자 → 🎬 영상 올리기]에서 다시 넣을 수 있습니다.</div>`
-        : `<div class="wb-msg">🎬 가이드 영상${d.vauto ? '도 붙였습니다.' : '은 관리자가 확인한 뒤에 붙습니다.'}</div>`) +
+        : `<div class="wb-msg">${d.vauto ? '🎬 가이드 영상도 붙였습니다.' : '🎬 가이드 영상은 관리자가 확인한 뒤에 붙습니다.'}</div>`) +
       `<input class="wb-link" readonly value="${escapeHtml(link)}" onclick="this.select()">` +
       `<div class="wb-btns"><button class="wz-btn pri" onclick="wbCopy('${escapeHtml(link)}')">링크 복사</button><a class="wz-btn" href="${escapeHtml(link)}" target="_blank">열어 보기</a>` +
       '<button class="wz-btn" onclick="wbClose()">닫기</button></div>');

@@ -185,6 +185,7 @@ async function codeToPreset(code) {
         Object.entries(v.ot).forEach(([k2, t]) => { if (/^\d{1,2}$/.test(k2) && /^[0-9]$/.test(String(t))) ot[k2] = String(t); });
         if (Object.keys(ot).length) p.slots[s.id].otr = ot;
       }
+      if (Array.isArray(v.eb)) { const eb = v.eb.slice(0, 1).map(decEntry).filter(Boolean); if (eb.length) p.slots[s.id].eroBase = eb; }
     } else if (kind === 'custom') {
       const src = isV2 ? {basic: v.b, main: v.m, sub: v.s} : (v.opts || {});
       p.slots[s.id] = {kind: 'custom', part: str(v.p != null ? v.p : v.part, 30), name: str(v.n != null ? v.n : v.name, 30), opts: {
@@ -392,6 +393,7 @@ function buildCodePayload(p) {
       if (v.rand) slots[s.id].rd = v.rand;              // "<랜덤 …>" 자리의 복원 문구
       if (v.gaura) slots[s.id].ga = v.gaura;            // 부여 오라 선택
       if (v.otr) slots[s.id].ot = v.otr;                // 옵션 티어 (기본 T1 이 아닌 것만)
+      if (v.eroBase && v.eroBase.length) slots[s.id].eb = v.eroBase.map(encEntry); // 침식 기본 옵션 (2026-11-03)
     }
     else if (v.kind === 'blood') slots[s.id] = {k: 'b', p: v.part, n: v.name || '', ab: v.aberrant ? 1 : 0, o: v.opts.blood.map(encEntry), ba: (v.opts.base || []).map(o => o.effect), x: (v.opts.extra || []).map(o => o.k ? encEntry(o) : {e: o.effect, s: o.source, t: o.type, tr: o.tiers})};
     else slots[s.id] = {k: 'c', p: v.part, n: v.name || '', b: v.opts.basic.map(encEntry), m: v.opts.main.map(encEntry), s: v.opts.sub.map(encEntry)};
@@ -1378,6 +1380,7 @@ function slotOptionLines(sid, v) {
       const opts = (ro.opts || []).map((o, i) =>
         (ero.includes(i) && rd[i] == null && corr && corr[i]) ? corr[i][1] : o);
       opts.forEach(o => String(typeof o === 'string' ? o : optEff(o)).split(/<br\s*\/?>|\n/).forEach(x => add('레전드 ' + part, x))); // 한 자리에 두 줄(랜덤 옵션 침식화)
+      (v.eroBase || []).forEach(o => add('레전드 ' + part, tierEffect(o))); // 침식으로 생긴 기본 옵션 — 제작 기본 옵션과 같은 계산
     }
     // 제작 옵션은 화면과 같은 티어(T0/T1/T2) 기준 수치로, 침식된 옵션은 침식(T0+) 수치로
     if (v.opts) {
@@ -10070,7 +10073,7 @@ function slotResistLines(v) {
     const it = idx >= 0 ? ITEMS[idx] : v.snap;
     // 침식 강화된 옵션은 침식 수치로 합산 (corr는 opts와 1:1 순서 대응)
     const opts = (it.opts || []).map((o, i) => v.ero && v.ero.includes(i) && it.corr && it.corr[i] ? it.corr[i][1] : o);
-    lines = [...(it.attrs || []), ...opts].map(stripHtml);
+    lines = [...(it.attrs || []), ...opts, ...(v.eroBase || []).map(o => o.effect)].map(stripHtml); // + 침식 기본 옵션
   } else if (v.kind === 'blood') {
     // 침식 통합 순번은 기본→레전드→추가 (합산 라인 순서와 별개), 침식된 옵션은 침식 수치로
     const nb = (v.opts.base || []).length, nl = v.opts.blood.length, ero = v.ero || [];
@@ -10843,6 +10846,7 @@ function renderPreset() {
       const ga = grantedAuras().find(g => g.sid === s.id && g.rand); // 랜덤 부여 오라 장비 (고독한 자의 부츠)
       content = `<span class="plink legend" data-pslot="${s.id}">${escapeHtml(v.name)}</span><span class="pbadge leg">레전드</span>` +
         (v.ero && v.ero.length ? `<span class="psum corr-cnt">🔥 침식 ${v.ero.length}/2</span>` : '') +
+        (v.eroBase && v.eroBase.length ? `<span class="psum corr-cnt" title="${escapeHtml(v.eroBase.map(o => o.effect).join(' / '))}">침식 기본 ${v.eroBase.length}</span>` : '') +
         (ga ? `<div class="blend-line gaura-line" onclick="openGauraPick('${s.id}')" title="장비가 부여하는 오라 — 클릭해서 ${ga.pick ? '교체' : '선택'}">🌟 ${ga.pick ? escapeHtml(ga.pick) + ' Lv.' + ga.lvLo : '부여 오라 미선택 — 클릭해서 선택'}</div>` : '');
       btns = `<button class="btn-sel btn-corr" onclick="openCorrPicker('${s.id}')" title="침식 강화 옵션 마킹 (최대 2개)">침식</button>` +
         (ga ? `<button class="btn-sel btn-gaura" onclick="openGauraPick('${s.id}')" title="장비가 부여하는 오라 선택">오라</button>` : '') +
@@ -11060,7 +11064,8 @@ function collectReport() {
       const it = idx >= 0 ? ITEMS[idx] : v.snap;
       slots.push({label, kind: 'item', name: it.name, img: it.img, tags: it.tags || [],
         attrs: (it.attrs || []).map(stripHtml),
-        opts: (it.opts || []).map((o, i) => ero.includes(i) && it.corr && it.corr[i] ? stripHtml(it.corr[i][1]) + ' [침식]' : stripHtml(o)),
+        opts: (it.opts || []).map((o, i) => ero.includes(i) && it.corr && it.corr[i] ? stripHtml(it.corr[i][1]) + ' [침식]' : stripHtml(o))
+          .concat((v.eroBase || []).map(o => stripHtml(o.effect) + ' [침식 기본]')),
         flavor: it.flavor ? stripHtml(it.flavor) : '', blend: v.blend ? v.blend.effect : '', tower: v.tower ? v.tower.effect : ''});
     } else if (v.kind === 'blood') {
       const nb = (v.opts.base || []).length, nl = v.opts.blood.length;
@@ -14062,13 +14067,16 @@ function openShareUp(editing) { // editing = 기존 공유 글 수정 (제목·�
     `<div class="uic-row grp-row"><span class="uic-row-label">콘텐츠</span><div class="uic-row-btns">${SHARE_CONTENT_TAGS.map(tagBtn).join('')}</div></div>` +
     `<div class="uic-row grp-row"><span class="uic-row-label">스킬 태그</span><div class="uic-row-btns">${SHARE_SKILL_TAGS.map(tagBtn).join('')}</div></div>`;
   filterShareTags(); // 잠긴 히어로 기준으로 다른 히어로 줄 숨김·같은 히어로 타 특성 비활성
+  // 로그인하고 올리면 비밀번호를 받지 않고 작성자를 디스코드 닉네임으로 채운다 — 빌더2와 같은 규칙 (2026-11-03 사용자).
+  // 계정에 붙은 글은 어차피 비밀번호로 열리지 않는다(서버 pwdGate). 닉네임이 작성자 규칙에 안 맞으면 예전처럼 기억값.
+  const shareLg = !shareUpEditing && shareLoggedIn();
   try {
     document.getElementById('shareAuthor').value = (shareUpEditing && shareDetail && shareDetail.author)
-      || localStorage.getItem('tlidb_author_v1') || '';
-    document.getElementById('sharePwd').value = localStorage.getItem('tlidb_share_pwd_v1') || '';
+      || (shareLg && window.wtMyName && window.wtMyName()) || localStorage.getItem('tlidb_author_v1') || '';
+    document.getElementById('sharePwd').value = shareLg ? '' : (localStorage.getItem('tlidb_share_pwd_v1') || '');
   } catch (e) {}
-  // 수정은 이미 비밀번호를 확인하고 들어왔으므로 입력 줄을 숨긴다
-  document.getElementById('sharePwdRow').style.display = shareUpEditing ? 'none' : '';
+  // 수정은 이미 비밀번호를 확인하고 들어왔으므로 입력 줄을 숨긴다 (로그인하고 올릴 때도 마찬가지)
+  document.getElementById('sharePwdRow').style.display = (shareUpEditing || shareLg) ? 'none' : '';
   // 가이드 영상(선택, 2026-11-03 사용자) — 올릴 때만. 수정은 보기 화면 [🎬 영상 올리기]로 따로 한다.
   // 디스코드로 로그인했으면 승인 없이 바로 붙는다(서버가 계정으로 판단, 여기 문구는 안내용).
   document.getElementById('shareUpVidRow').style.display = shareUpEditing ? 'none' : '';
@@ -14121,8 +14129,10 @@ async function submitShare() {
   if (title && (title.length < 2 || title.length > 40)) { alert('제목은 2~40자로 입력해주세요.'); return; }
   const author = document.getElementById('shareAuthor').value.trim();
   if (!/^[가-힣A-Za-z0-9#]{2,10}$/.test(author)) { alert('작성자명은 한글·영문·숫자·# 2~10자로 입력해주세요.'); return; }
-  const pwd = document.getElementById('sharePwd').value;
-  if (!shareUpEditing && !/^\S{4,20}$/.test(pwd)) { alert('삭제용 비밀번호는 공백 없는 4~20자로 입력해주세요.'); return; }
+  const pwdRow = document.getElementById('sharePwdRow');
+  const pwdOn = !shareUpEditing && pwdRow && pwdRow.style.display !== 'none'; // 로그인하고 올리면 줄 자체가 숨어 있다
+  const pwd = pwdOn ? document.getElementById('sharePwd').value : '';
+  if (pwdOn && !/^\S{4,20}$/.test(pwd)) { alert('삭제용 비밀번호는 공백 없는 4~20자로 입력해주세요.'); return; }
   if (shareUpSel.length < 1) { alert('태그를 1개 이상 선택해주세요.'); return; }
   const editing = shareUpEditing && shareEdit && shareDetail;
   showVeil(editing ? '공유 글을 수정하는 중...' : '공유 빌드를 올리는 중...');
@@ -14143,7 +14153,7 @@ async function submitShare() {
     } else {
       const vid = (document.getElementById('shareUpVid').value || '').trim();
       const d = await shareApi('/share', {method: 'POST', body: JSON.stringify(Object.assign({pwd, video: vid || undefined}, payload))});
-      try { localStorage.setItem('tlidb_author_v1', author); localStorage.setItem('tlidb_share_pwd_v1', pwd); } catch (e) {}
+      try { localStorage.setItem('tlidb_author_v1', author); if (pwd) localStorage.setItem('tlidb_share_pwd_v1', pwd); } catch (e) {}
       closeShareUp();
       shareList = [];
       // 영상이 잘못돼도 빌드는 이미 올라갔다 — 링크부터 주고 영상 쪽 사정은 따로 알린다

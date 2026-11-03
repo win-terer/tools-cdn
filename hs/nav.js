@@ -179,7 +179,7 @@
   } catch (e) {}
   if (tliI18n) document.documentElement.setAttribute('data-i18n', '');
   if (tliEn) {
-    const EN_I18N_V = 'b9564e6921';
+    const EN_I18N_V = 'f413b444a9';
     document.documentElement.classList.add('wt-i18n-wait');
     const st = document.createElement('style'); st.textContent = 'html.wt-i18n-wait body{visibility:hidden!important}'; document.head.appendChild(st);
     setTimeout(() => document.documentElement.classList.remove('wt-i18n-wait'), 4000);
@@ -587,6 +587,12 @@
     const lgBtn = nav.querySelector('.wtlogin');
     if (lgBtn) {
       const loginHref = () => '/api/auth/discord?to=' + encodeURIComponent(location.pathname + location.search);
+      // 공유 올리기의 작성자 칸 기본값 — 디스코드 닉네임을 작성자 규칙(한글·영문·숫자·# 2~10자)에 맞게 다듬는다.
+      // 규칙에 안 맞는 글자만 있으면 '' (그때는 칸이 예전처럼 빈 채/기억값으로) (2026-11-03 사용자)
+      window.wtMyName = () => {
+        const n = String((window.WT_ME && window.WT_ME.login && window.WT_ME.name) || '').replace(/[^가-힣A-Za-z0-9#]/g, '').slice(0, 10);
+        return n.length >= 2 ? n : '';
+      };
       const paintLogin = (me) => {
         window.WT_ME = me;
         if (!me || !me.login) {
@@ -606,7 +612,7 @@
         const me = window.WT_ME;
         if (!me || !me.login) { location.href = loginHref(); return; }
         if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
-        menu.innerHTML = '<a href="/tli/db/?tab=tips&amp;mine=1">📝 내 글</a><a href="#" data-out="1">↩ 로그아웃</a>';
+        menu.innerHTML = '<a href="/tli/db/?tab=tips&amp;mine=1">📝 내 글</a><a href="/tli/u/?me=1">📚 내가 공유한 빌드</a><a href="#" data-out="1">↩ 로그아웃</a>';
         const r = lgBtn.getBoundingClientRect();
         menu.style.left = Math.min(r.left, innerWidth - 160) + 'px';
         menu.style.top = r.bottom + 4 + 'px';
