@@ -298,13 +298,14 @@ async function codeToPreset(code) {
   if (Array.isArray(pl.sb)) {
     p.slateBd = pl.sb.slice(0, 12).filter(e => Array.isArray(e) && +e[0] && +e[1]).map(e => ({
       u: slateId(e[0]), i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
+      b: parseInt(e[5], 10) || 0, // 추방 효과 번호 (1~10, 2026-11-04)
       t: (Array.isArray(e[3]) ? e[3] : []).slice(0, 8).map(x => x ? String(x) : '')
     }));
     // 모르는 번호로 담겨 가져오기 때 방향 보정을 못 받은 피스가 옛 코드에 남아 있다 (2026-11-03 신의 계보 261010) —
     // 지금 자리에 안 들어가는 것만 회전을 다시 찾는다. 제대로 놓인 피스는 건드리지 않는다
     p.slateBd.forEach((s, pi) => {
-      if (sbCellsFree(p.slateBd, slateCells(s.u, s.i, s.d), pi)) return;
-      const d = sbFitDir(p.slateBd, s.u, s.i, s.d, pi);
+      if (sbCellsFree(p.slateBd, slateCells(s.u, s.i, s.d, s), pi)) return;
+      const d = sbFitDir(p.slateBd, s.u, s.i, s.d, pi, s);
       if (d >= 0) s.d = d;
     });
     if (p.slateBd.length) rebuildSlateTalents(p); else delete p.slateBd;
@@ -441,7 +442,7 @@ function buildCodePayload(p) {
   }
   const iv = p.inverse ? [p.inverse.pos, p.inverse.opts.low ? 1 : 0, p.inverse.opts.mid ? 1 : 0, p.inverse.opts.abs ? 1 : 0] : undefined;
   const sb = p.slateBd && p.slateBd.length
-    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0]) : undefined; // 석판 보드 배치 (+나방 방향)
+    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0, s.b || 0]) : undefined; // 석판 보드 배치 (+나방 방향·추방 효과)
   // 재능 보드: 찍은 노드는 "노드ID:포인트" 문자열로(짧게), 프리즘 영향 범위는 [계열, 칸들, 장착노드]
   const gb = p.gboard && p.gboard.length ? p.gboard.map(x => x.slice(0, 5).join(':')) : undefined;
   const gpOf = g => g ? [g.b, g.c.map(c => c[0] + ',' + c[1]).join(' '), g.nd || '', g.k || 'p',
@@ -1899,12 +1900,53 @@ const SLATES = {
   260301: {n: '전쟁의 신의 신격', c: [[0,0]], v: 0, god: 1, sl: [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]},
   260401: {n: '기계의 신의 신격', c: [[0,0]], v: 0, god: 1, sl: [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]},
   260501: {n: '힘의 신의 신격', c: [[0,0]], v: 0, god: 1, sl: [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]},
-  394001: {lg: 'nether', n: '명왕의 불완전한 신격: 심판', c: [[0,0],[-3,0]], v: 0, god: 1, boost: {v: 30}, pc: 1, sl: [[1,2,3],[1,2,3]]},
-  394002: {lg: 'nether', n: '명왕의 불완전한 신격: 인펙션', c: [[0,0],[1,0]], v: 1, god: 1, spread: {v: -90}, pc: 1, sl: [[1,2,3],[1,2,3]]},
+  // 불완전한 2종은 SS14 에 와서 게임·tlidb 에서 사라졌다 (2026-11-04 사용자) — 팔레트에서 뺐지만
+  // 옛 공유 코드·지난 로그가 아직 번호를 들고 있어 카탈로그에는 남겨 둔다 (old: 1)
+  394001: {old: 1, lg: 'nether', n: '명왕의 불완전한 신격: 심판', c: [[0,0],[-3,0]], v: 0, god: 1, boost: {v: 30}, pc: 1, sl: [[1,2,3],[1,2,3]]},
+  394002: {old: 1, lg: 'nether', n: '명왕의 불완전한 신격: 인펙션', c: [[0,0],[1,0]], v: 1, god: 1, spread: {v: -90}, pc: 1, sl: [[1,2,3],[1,2,3]]},
   394004: {lg: 'nether', n: '명왕의 신격: 심판', c: [[0,0],[-3,0],[-3,3]], v: 1, god: 1, boost: {v: 40, self: -30}, /* SS14 너프: 70% → 40%, 자체 낙인 -30% (tlidb Judgment, 2026-10-22) */ pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
   394005: {lg: 'nether', n: '명왕의 신격: 인펙션', c: [[0,0],[1,0],[-1,0]], v: 1, god: 1, spread: {v: -88}, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]}, // SS14 너프 -50% → -88% (tlidb Contamination, 2026-10-22). 원점=가운데 칸, c 순서=게임 옵션 순(가운데→아래→위: 1번=가운데·2번=아래·3번=위 칸), 전염 -50% (세이지 실보드·아이템 카드 확정)
-  394006: {lg: 'nether', n: '명왕의 신격: 추방', c: [[0,0],[1,1],[2,2]], v: 0, god: 1, pc: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
+  394006: {lg: 'nether', n: '명왕의 신격: 추방', c: [[0,0],[1,1],[2,2]], v: 0, god: 1, pc: 1, banish: 1, sl: [[1,2,3],[1,2,3],[1,2,3]]},
 };
+// ── 명왕의 신격: 추방 — 10가지 「효과」 중 하나 (tlidb Banishment, 2026-11-04 사용자) ──
+// 조건: 자신과 인접한 신격의 석판 · 인접하지 않은 신격의 석판이 모두 3개 이상일 때 그 효과를 얻는다.
+// 효과 줄은 우리 옵션 표(SLATE_DB)에 없는 전용 문구라 계산에는 안 들어가고 툴팁·안내로만 보여 준다
+// (심판 강화·인펙션 전염과 같은 취급). 저장은 피스의 b = 1~10 (0·없음 = 미선택)
+const BANISH_NEED = 3;
+const BANISH_FX = [
+  {n: '파괴', d: ['파괴 스킬 시전 시 주변 15 미터 내의 적에게 마비를 시전한다.',
+                '파괴 스킬이 마비된 적에게 입히는 대미지 별도 +10%, 마비 효과에 대한 보너스는 해당 효과의 보너스에도 적용된다.']},
+  {n: '슬래시', d: ['메인 슬래시 스킬 시전 시, 100%를 초과하는 슬래시 확률을 1% 보유 시마다 +1% 확률로 메인 슬래시 스킬을 1회 발동하고, 발동한 스킬의 대미지 별도 +40%, 스킬 범위 +40%']},
+  {n: '그림자', d: ['위치 이동 공격 스킬 시전 후 그림자 습격 스킬 대미지 별도 +5%, 4 초간 지속한다.',
+                 '위치 이동 공격 스킬 시전 시 핵심 그림자 습격 스킬을 2 회 발동한다.']},
+  {n: '버스트', d: ['매직 버스트로 시전하는 스킬의 적중 대미지 별도 +5%',
+                 '매직 버스트 충전이 최대치 도달 시 25 미터 내의 가장 가까운 적에게 메인 주술 스킬을 발동하고, 메인 주술 스킬의 매직 버스트 활성화를 시도한다.',
+                 '이동 속도 -30%']},
+  {n: '오멘', d: ['주변 15 미터 내의 강적이 오멘을 최소 4 회 보유한다.',
+                '지속 대미지 부여 시 HP 10% 미만인 적을 도태시킨다.',
+                '강적 도태 시 최대 HP와 최대 보호막 1%를 상실한다. 간격 0.03 초']},
+  {n: '수렁', d: ['적이 저주 효과 1개의 영향을 받을 때마다 지면 스킬이 적에게 입히는 대미지 별도 +10%']},
+  {n: '투사', d: ['투사체 스킬 시전 시 명왕: 투사를 1회 획득한다. 4 초간 지속, 최대 5 회 중첩한다.',
+                '명왕: 투사가 최대치 도달 시 수평 사격 투사체가 영구 관통한다.']},
+  {n: '공양', d: ['비회복 영약 효과는 자신이 아닌 소환체에 작용한다.',
+                '영약 스킬 효과 +40%',
+                '영약 효과를 받는 소환체의 대미지 별도 +15%']},
+  {n: '부착', d: ['부착은 적이 아닌 소환체에 작용한다.',
+                '부착 스킬 시전 시, 가장 가까운 스마트 웨폰 소환체 1개의 최대 HP 80 포인트당 부착 대미지 별도 +1%, 최대 별도 +130%']},
+  {n: '불멸', d: ['치명적 일격을 받을 때 최대 HP의 100%만큼 임시 HP를 획득하고, 이후 4 초간 최대 HP를 100% 잃는다. 해당 효과의 간격 20 초',
+                '해당 효과가 준비와 발동 상태일 때 대미지와 소환체 대미지 별도 +10%']},
+];
+const banishFx = sl => (sl && +sl.b >= 1 && +sl.b <= BANISH_FX.length) ? BANISH_FX[+sl.b - 1] : null;
+// ── 명왕 석판은 꽂은 옵션 수만큼만 칸을 차지한다 (2026-11-04 사용자: 옵션 0~1개면 1칸·2개면 2칸·3개면 3칸) ──
+// 칸 순서(c)와 소켓 번호가 1:1 이라 「마지막으로 채운 소켓까지」를 쓴다 — 가운데를 비워 둬도 번호와 칸이 안 어긋난다.
+// 피스를 안 주면(모양 비교·새로 놓기) 빈 석판으로 보고 1칸.
+function slateUseN(info, sl) {
+  const n = ((info && info.c) || []).length;
+  if (!info || !info.pc) return n;
+  let last = 0;
+  ((sl && sl.t) || []).slice(0, n).forEach((x, i) => { if (x) last = i + 1; });
+  return Math.max(1, last);
+}
 // 시즌별 명왕 수치 — SS14 너프(심판 +70%→+40%·자체 낙인 -30%, 인펙션 -50%→-88%). SS13 데이터로 볼 때(지난 시즌 보관 보기·SS13 실측 시험)는 예전 수치로 (2026-10-22)
 (() => {
   let l = '';  // 빌더(옛)는 SEASON 상수가 이 파일보다 뒤에 선언돼 여기서 읽으면 오류 — 앞서 실린 PD.season_raw 를 본다
@@ -1979,20 +2021,20 @@ const SLATE_ACT = (() => {
   [2, 4, 6, 6, 4, 2].forEach((w, r) => { const st = (6 - w) / 2 + 1; for (let c = st; c < st + w; c++) s.add((r + 1) * 10 + c); });
   return s;
 })();
-function slateCellsXY(u, idx, dir) { // 렌더용 (열, 행) 좌표 — 보드 밖(음수 포함)도 정확히 표현
+function slateCellsXY(u, idx, dir, sl) { // 렌더용 (열, 행) 좌표 — 보드 밖(음수 포함)도 정확히 표현 (sl = 피스 — 명왕은 옵션 수만큼만 칸을 쓴다)
   // Index = 열×10+행 (2026-08-14 리스틸 실보드 사진으로 확정 — 이전엔 행·열이 전치되어 그려졌음)
   // 셰이프 c = [d행, d열] 규약: id = (열0+c[1])×10 + (행0+c[0])
   const info = SLATES[u];
   if (!info) return null;
-  let cells = info.c.map(pt => pt.slice());
+  let cells = info.c.slice(0, slateUseN(info, sl)).map(pt => pt.slice());
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(pt => [pt[1], -pt[0]]);
   const row0 = idx % 10, col0 = (idx / 10) | 0;
   return cells.map(pt => [col0 + pt[1], row0 + pt[0]]);
 }
-function slateCells(u, idx, dir) {
+function slateCells(u, idx, dir, sl) {
   const info = SLATES[u];
   if (!info) return null;
-  let cells = info.c.map(p => p.slice());
+  let cells = info.c.slice(0, slateUseN(info, sl)).map(p => p.slice());
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(c => [c[1], -c[0]]);
   const x0 = idx % 10, y0 = (idx / 10) | 0;
   return cells.map(c => (y0 + c[1]) * 10 + (x0 + c[0]));
@@ -2000,13 +2042,13 @@ function slateCells(u, idx, dir) {
 const SLATE_COLORS = ['#e5534b', '#3fb950', '#4493f8', '#d29922', '#a371f7', '#39c5cf', '#f778ba', '#ffa657', '#7ee787', '#79c0ff', '#ff7b72', '#8b949e'];
 function sbCellsFree(bd, cells, skip) {
   const used = new Set();
-  bd.forEach((s, i) => { if (i !== skip) (slateCells(s.u, s.i, s.d) || [s.i]).forEach(c => used.add(c)); });
+  bd.forEach((s, i) => { if (i !== skip) (slateCells(s.u, s.i, s.d, s) || [s.i]).forEach(c => used.add(c)); });
   return !!cells && cells.every(c => SLATE_ACT.has(c) && !used.has(c));
 }
-function sbFitDir(bd, u, i, d0, skip) { // d0부터 시작해 들어가는 회전값 탐색 (없으면 -1)
+function sbFitDir(bd, u, i, d0, skip, sl) { // d0부터 시작해 들어가는 회전값 탐색 (없으면 -1)
   for (let k = 0; k < 4; k++) {
     const d = (d0 + k) % 4;
-    if (sbCellsFree(bd, slateCells(u, i, d), skip)) return d;
+    if (sbCellsFree(bd, slateCells(u, i, d, sl), skip)) return d;
   }
   return -1;
 }
@@ -2015,7 +2057,7 @@ function sbConflicts(bd) {
   const out = [], used = new Map();
   (bd || []).forEach((s, pi) => {
     let bad = false;
-    (slateCells(s.u, s.i, s.d) || [s.i]).forEach(c => {
+    (slateCells(s.u, s.i, s.d, s) || [s.i]).forEach(c => {
       if (!SLATE_ACT.has(c)) { bad = true; return; }
       if (used.has(c)) { bad = true; if (out.indexOf(used.get(c)) < 0) out.push(used.get(c)); }
       else used.set(c, pi);
@@ -2051,7 +2093,7 @@ function judgeRegion(cells) {
 // ② boost(심판) = 돌 사이 영역에 걸친 석판의 옵션 강화 (정식 +40% · 자기 낙인 -30%, SS14)
 // ③ spread(인펙션) = 자기 옵션을 인접 석판마다 -88%(SS14, 예전 -50%)로 복제해 추가 (세이지 실측 — 카드에 '증식 방향: 양쪽' 필드 존재, InfluenceId 11001로 추정되나 다른 값 미관측이라 방향 제한은 미구현)
 function slateDerived(bd) {
-  const cellsOf = bd.map(s => slateCells(s.u, s.i, s.d) || [s.i]);
+  const cellsOf = bd.map(s => slateCells(s.u, s.i, s.d, s) || [s.i]);
   const adjPieces = si => { // si 피스와 변을 맞댄 피스들
     const out = new Set();
     cellsOf[si].forEach(c => [-10, 10, -1, 1].forEach(d => {
@@ -2121,7 +2163,7 @@ function slateDerived(bd) {
     }
     if (info.spread && (s.t || []).filter(Boolean).length) {
       // 낙인(칸 소켓)만 전염 — 칸 수 이후 항목(재능 포인트 고정, BaseTalentList)은 인펙션 본체 전용 (세이지 실측)
-      const tt = info.pc ? (s.t || []).slice(0, info.c.length) : (s.t || []);
+      const tt = info.pc ? (s.t || []).slice(0, slateUseN(info, s)) : (s.t || []);
       adjPieces(si).forEach(ni => {
         tt.filter(Boolean).forEach(nid => {
           const ri = SLATEIDX.idx[nid];
@@ -2132,13 +2174,19 @@ function slateDerived(bd) {
       });
     }
   });
-  return {copies, boosted, boostV, spreads, boostPairs};
+  return {copies, boosted, boostV, spreads, boostPairs, adj: bd.map((_, i) => adjPieces(i))};
+}
+// 추방 발동 상태 — 변을 맞댄 신격의 석판(인접)과 나머지(비인접)가 각각 3개 이상이어야 한다
+function banishState(bd, pi, dv) { // dv = 이미 계산한 slateDerived (없으면 새로 — 호출이 잦은 곳에선 꼭 넘길 것)
+  const adj = (dv || slateDerived(bd)).adj[pi] || new Set();
+  const far = Math.max(0, (bd || []).length - 1 - adj.size);
+  return {fx: banishFx(bd[pi]), adj: adj.size, far, ok: adj.size >= BANISH_NEED && far >= BANISH_NEED};
 }
 // 피스마다 효과가 닿는 칸(자기 칸 제외) — 마우스를 올리면 빈 칸까지 점선으로 (옵션이 없어 복제·전염이 0건이어도 범위는 보이게, 2026-10-27 사용자)
 //   들불·고향 = 상하좌우 · 나방 = 정해진 한 방향 · 균열 = 좌우 · 인펙션 = 변을 맞댄 칸 · 심판 = 돌 사이 영역
 function slateRange(bd) {
   return bd.map(s => {
-    const info = SLATES[s.u] || {}, cells = slateCells(s.u, s.i, s.d) || [s.i], out = new Set();
+    const info = SLATES[s.u] || {}, cells = slateCells(s.u, s.i, s.d, s) || [s.i], out = new Set();
     const around = ds => cells.forEach(c => ds.forEach(d => out.add(c + d)));
     const cp = info.copy;
     if (cp && cp.a === 'dir') { const di = (s.f || 0) - 1001; if (di >= 0 && di <= 3) out.add(s.i + [-1, -10, 1, 10][di]); }
@@ -2200,7 +2248,7 @@ function talentLabel(r) {
 function sbMoveDelta(pi, grab, target, force) { // 잡은 칸 기준 평행이동 — 행·열 성분 분리(십진 랩 방지). force=겹침 허용(보드 밖만 차단)
   const bd = preset.slateBd, sl = bd[pi];
   const dc = target % 10 - grab % 10, dr = ((target / 10) | 0) - ((grab / 10) | 0);
-  const cells = slateCells(sl.u, sl.i, sl.d) || [sl.i];
+  const cells = slateCells(sl.u, sl.i, sl.d, sl) || [sl.i];
   const moved = [];
   for (const c of cells) {
     const nc = c % 10 + dc, nr = ((c / 10) | 0) + dr;
@@ -2230,6 +2278,14 @@ function slatePieceInfo(bd) {
   // 파생 효과를 툴팁·호버 연동에 반영 (복제 4종 / 심판 강화 / 인펙션 전염)
   const dv = slateDerived(bd);
   dv.boosted.forEach((val, pi) => pieces[pi].nodes.unshift('⚖ 심판 강화 ' + val));
+  bd.forEach((s, pi) => { // 추방: 고른 효과와 발동 조건(인접·비인접 신격의 석판 각 3개 이상)
+    if (!(SLATES[s.u] || {}).banish) return;
+    const st = banishState(bd, pi, dv), fx = st.fx;
+    const head = ['🚫 추방' + (fx ? ': ' + fx.n : ' — 효과를 고르세요') +
+      ' (인접 ' + st.adj + ' · 비인접 ' + st.far + (st.ok ? ' → 발동' : ' — 각 ' + BANISH_NEED + '개 필요') + ')'];
+    if (fx) fx.d.forEach(l => head.push((st.ok ? '· ' : '· (미발동) ') + l));
+    pieces[pi].bn = head; // 툴팁 맨 위 — 명왕 툴팁은 칸 목록으로 갈아끼우므로 nodes 에 섞지 않는다
+  });
   bd.forEach((s, pi) => { // 나방은 방향·로그 값을 툴팁에 표시 (방향 매핑 검증용)
     if (s.u === 1001) pieces[pi].nodes.unshift('복제 방향: ' + (['위', '왼쪽', '아래', '오른쪽'][(s.f || 0) - 1001] || '정보 없음'));
   });
@@ -2271,7 +2327,7 @@ function slateCellTip(bd, p, pi, ci, out) {
         return '고정: ' + (ri !== undefined ? ALL_DATA[ri].effect : '노드 ' + nid);
       });
       // 게임의 칸 번호는 석판 위 칸부터 1번 — 로그의 소켓 순서(c 배열 순)와 다르다 (세이지 인펙션 실측)
-      const ord = (pinfo.c || []).map((_, i) => i).sort((a, b) =>
+      const ord = (pinfo.c || []).slice(0, slateUseN(pinfo, bd[pi])).map((_, i) => i).sort((a, b) =>
         pinfo.c[a][0] - pinfo.c[b][0] || pinfo.c[a][1] - pinfo.c[b][1]);
       tipBody = fixed.concat(fixed.length ? ['✂'] : [], ord.map((ci, no) => {
         const nid = pt[ci];
@@ -2279,6 +2335,11 @@ function slateCellTip(bd, p, pi, ci, out) {
         return (no + 1) + '번 칸: ' + (ri !== undefined ? ALL_DATA[ri].effect : nid ? '노드 ' + nid : '빈 칸');
       }), p.nodes.filter(n => n.startsWith('⚖') || n.startsWith('복제')));
       hlAt = Math.max(0, ord.indexOf(ci)) + (fixed.length ? fixed.length + 1 : 0);
+    }
+    if (p.bn && p.bn.length) { // 추방 효과·발동 조건은 맨 위에
+      const off = p.bn.length + (tipBody.length ? 1 : 0);
+      tipBody = p.bn.concat(tipBody.length ? ['✂'] : [], tipBody);
+      if (hlAt >= 0) hlAt += off;
     }
     // 줄 구성: [전염 섹션(§헤더+원문)] → 구분선(✂) → 원래 옵션 — 전염이 없으면 기존 그대로
     const sprd = p.sprd || [];
@@ -5349,17 +5410,17 @@ function buildPresetFromLog(r, liSrc) {
     // 큰 피스부터 자리를 맞춘다 — 작은 피스가 먼저 "유효"해져 큰 피스의 자리를 막는 것 방지
     // (15번 실측: 2칸 석판이 기만 신격(4칸)의 원점 칸을 선점해 신격이 영영 못 들어가던 문제)
     const order = slateBd.map((s, pi) => pi)
-      .sort((a, b) => ((SLATES[slateBd[b].u] || {}).c || []).length - ((SLATES[slateBd[a].u] || {}).c || []).length);
+      .sort((a, b) => slateUseN(SLATES[slateBd[b].u], slateBd[b]) - slateUseN(SLATES[slateBd[a].u], slateBd[a]));
     for (let pass = 0; pass < 4; pass++) {
       let changed = false;
-      const anyFail = slateBd.some((s, pi) => s.o1 || !sbCellsFree(slateBd, slateCells(s.u, s.i, s.d), pi));
+      const anyFail = slateBd.some((s, pi) => s.o1 || !sbCellsFree(slateBd, slateCells(s.u, s.i, s.d, s), pi));
       order.forEach(pi => {
         const s = slateBd[pi];
         delete s.o1; // 이전 패스의 실패 표시는 재시도
         // 겹침이 남아 있으면 유효해 보이는 피스도 다시 맞춘다 (상호 자리 다툼 해소)
-        if (!anyFail && sbCellsFree(slateBd, slateCells(s.u, s.i, s.d), pi)) return;
-        if (sbCellsFree(slateBd, slateCells(s.u, s.i, s.d), pi)) return; // 이번 순회에서 이미 유효
-        const d = sbFitDir(slateBd, s.u, s.i, s.d, pi);
+        if (!anyFail && sbCellsFree(slateBd, slateCells(s.u, s.i, s.d, s), pi)) return;
+        if (sbCellsFree(slateBd, slateCells(s.u, s.i, s.d, s), pi)) return; // 이번 순회에서 이미 유효
+        const d = sbFitDir(slateBd, s.u, s.i, s.d, pi, s);
         if (d >= 0) { s.d = d; changed = true; return; }
         // 신격의 석판은 같은 신도 모양이 6가지 — 로그에 모양·방향이 없는 경우(덤프 이후 장착)엔
         // 그 신의 다른 모양 중 보드에 들어가는 것을 찾아 쓴다 (모양 추정: 점선 표시)
@@ -5369,7 +5430,7 @@ function buildPresetFromLog(r, liSrc) {
           for (let v = 1; v <= 6; v++) {
             const u2 = gBase + v;
             if (u2 === s.u || !SLATES[u2]) continue;
-            const d2 = sbFitDir(slateBd, u2, s.i, 0, pi);
+            const d2 = sbFitDir(slateBd, u2, s.i, 0, pi, s);
             if (d2 >= 0) { s.u = u2; s.d = d2; changed = true; return; }
           }
         }
@@ -6666,11 +6727,12 @@ function sbPalPick(u) { sbEdit.pal = sbEdit.pal === u ? null : u; sbEdit.sel = n
 function sbSelect(pi) { if (!sbEdit) return; sbEdit.sel = sbEdit.sel === pi ? null : pi; renderSlateBoard(); }
 function sbGodPick(b) { sbEdit.god = sbEdit.god === b ? null : b; sbEdit.pal = null; sbEdit.sel = null; renderSlateBoard(); }
 function sbApply() { rebuildSlateTalents(); persistPreset(); renderPreset(); }
+function sbBanish(v) { const sl = (preset.slateBd || [])[sbEdit && sbEdit.sel]; if (!sl) return; sl.b = +v || 0; sbApply(); }
 function sbCellClick(id) {
   if (!sbEdit) return;
   if (sbSuppressClick) { sbSuppressClick = false; return; } // 드래그 이동 직후의 click
   const bd = preset.slateBd;
-  const hit = bd.findIndex(s => (slateCells(s.u, s.i, s.d) || [s.i]).indexOf(id) >= 0);
+  const hit = bd.findIndex(s => (slateCells(s.u, s.i, s.d, s) || [s.i]).indexOf(id) >= 0);
   if (sbEdit.pal != null && hit < 0) { // 배치 — 들어가는 회전 자동 탐색, 안 맞으면 겹친 채 배치(⚠ 표시 후 옮기면 됨)
     const err = sbLimitErr(sbEdit.pal);
     if (err) { alert(err); return; }
@@ -6684,7 +6746,7 @@ function sbCellClick(id) {
   if (hit >= 0) { sbEdit.sel = hit === sbEdit.sel ? null : hit; sbEdit.pal = null; renderSlateBoard(); return; }
   if (sbEdit.sel != null) { // 선택 피스를 빈 칸으로 이동 — 맞는 회전 우선, 없으면 겹친 채로 이동(⚠ 표시)
     const sl = bd[sbEdit.sel];
-    const d = sbFitDir(bd, sl.u, id, sl.d, sbEdit.sel);
+    const d = sbFitDir(bd, sl.u, id, sl.d, sbEdit.sel, sl);
     sl.i = id;
     if (d >= 0) sl.d = d;
     sbApply();
@@ -6845,7 +6907,7 @@ function renderSlateBoard() {
   });
   const pAll = slatePieceInfo(bd); // 피스 정보(옵션 줄·파생·연결)는 00_slate.js 공용 — 빌더 2 와 같은 툴팁
   const pieces = bd.map((s, pi) => {
-    let cells = s.o1 ? null : slateCellsXY(s.u, s.i, s.d); // o1 = 모양 미확정 → 원점 칸만
+    let cells = s.o1 ? null : slateCellsXY(s.u, s.i, s.d, s); // o1 = 모양 미확정 → 원점 칸만
     let warn = false;
     if (!cells) cells = [[s.i % 10, (s.i / 10) | 0]]; // 미지 모양 — 원점만
     // 겹침은 칸 단위 처리(먼저 놓인 피스가 소유), 보드 밖 칸은 빨간 점선 고스트로 모양 유지
@@ -6872,10 +6934,11 @@ function renderSlateBoard() {
   if (sbEdit) {
     const palBtn = u => {
       const nm = SLATES[u].n.replace('명왕의 불완전한 신격: ', '불완전 ').replace('명왕의 신격: ', '명왕 ').replace('의 신격', '');
-      return `<button class="sb-pal${sbEdit.pal === u ? ' on' : ''}" onclick="sbPalPick(${u})" title="${escapeHtml(SLATES[u].n)} (${SLATES[u].c.length}칸)">${escapeHtml(nm)}</button>`;
+      const nc = SLATES[u].pc ? '1~' + SLATES[u].c.length + '칸 (옵션 수만큼)' : SLATES[u].c.length + '칸';
+      return `<button class="sb-pal${sbEdit.pal === u ? ' on' : ''}" onclick="sbPalPick(${u})" title="${escapeHtml(SLATES[u].n)} (${nc})">${escapeHtml(nm)}</button>`;
     };
     h += '<div class="sb-palette">' + [1003, 1005, 1010, 1001, 1012, 1009, 1011].map(palBtn).join('') + '</div>' +
-         '<div class="sb-palette">' + [394004, 394005, 394006, 394001, 394002].map(palBtn).join('') +
+         '<div class="sb-palette">' + [394004, 394005, 394006].map(palBtn).join('') +
          Object.keys(GOD_BASES).map(b => `<button class="sb-pal${sbEdit.god === +b ? ' on' : ''}" onclick="sbGodPick(${b})">${escapeHtml(GOD_BASES[b])}</button>`).join('') + '</div>';
     if (sbEdit.god != null) { // 신 선택 → 모양 (Z·L·O·T — Z2·L2 변형은 회전으로 커버)
       h += '<div class="sb-palette"><span class="psum" style="align-self:center">' + escapeHtml(GOD_BASES[sbEdit.god]) + ' 모양:</span>' +
@@ -6887,7 +6950,7 @@ function renderSlateBoard() {
   }
   h += `<div class="slate-grid" style="grid-template-columns:repeat(${bx1 - bx0 + 1}, 32px)">`;
   const selP = sbEdit && sbEdit.sel != null ? bd[sbEdit.sel] : null;
-  const selCells = new Set((selP ? slateCellsXY(selP.u, selP.i, selP.d) || [[selP.i % 10, (selP.i / 10) | 0]] : []).map(xy => xy[0] + ',' + xy[1]));
+  const selCells = new Set((selP ? slateCellsXY(selP.u, selP.i, selP.d, selP) || [[selP.i % 10, (selP.i / 10) | 0]] : []).map(xy => xy[0] + ',' + xy[1]));
   for (let r = by0; r <= by1; r++) for (let c = bx0; c <= bx1; c++) {
     const key = c + ',' + r;
     const cd = cellOf.get(key);
@@ -6913,7 +6976,16 @@ function renderSlateBoard() {
     const sl = bd[sbEdit.sel], info = SLATES[sl.u] || {};
     const sockBtn = info.sl ? `<button class="btn-sel" onclick="openSbSock()">옵션 ${(sl.t || []).filter(Boolean).length}/${info.sl.length}</button>` : '';
     const shpBtn = (Math.floor((sl.u - 1) / 100) * 100) in GOD_BASES ? `<button class="btn-sel" onclick="sbShape()" title="모양 변형 순환 (소켓 유지)">모양: ${(info.shp || '?').replace(/1$/, '')}</button>` : '';
-    h += `<div class="sb-actions"><b>${escapeHtml(info.n || '#' + sl.u)}</b><button class="btn-sel" onclick="sbRotate()">↻ 회전</button>${shpBtn}${sockBtn}<button class="btn-sel" onclick="sbDelete()">삭제</button><span class="psum">빈 칸 클릭 = 이동</span></div>`;
+    // 추방 효과 (2026-11-04 사용자) — 인접·비인접 신격의 석판이 각각 3개 이상일 때 발동
+    let bnSel = '';
+    if (info.banish) {
+      const st = banishState(bd, sbEdit.sel);
+      bnSel = '<select class="btn-sel" onchange="sbBanish(this.value)" title="추방 효과 — 인접·비인접 신격의 석판 각 ' + BANISH_NEED + '개 이상일 때 발동">' +
+        '<option value="0">추방 효과…</option>' +
+        BANISH_FX.map((f, i) => `<option value="${i + 1}"${+sl.b === i + 1 ? ' selected' : ''}>추방: ${escapeHtml(f.n)}</option>`).join('') +
+        `</select><span class="psum">인접 ${st.adj} · 비인접 ${st.far}${st.ok ? ' ✔' : ''}</span>`;
+    }
+    h += `<div class="sb-actions"><b>${escapeHtml(info.n || '#' + sl.u)}</b><button class="btn-sel" onclick="sbRotate()">↻ 회전</button>${shpBtn}${bnSel}${sockBtn}<button class="btn-sel" onclick="sbDelete()">삭제</button><span class="psum">빈 칸 클릭 = 이동</span></div>`;
   }
   h += '<div class="sb-legend">' + pieces.map(p =>
     `<span class="sb-key" data-pi="${p.pi}"><i style="background:${colOf[p.pi]}"></i>${escapeHtml(p.name)}${p.warn ? ' <span class="sb-warntag">⚠ 겹침·재배치</span>' : p.unsure ? ' <span class="psum">위치만</span>' : ''}</span>`).join('') + '</div>';

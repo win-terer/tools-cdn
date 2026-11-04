@@ -452,6 +452,8 @@
     .wsb-cell.drop-ok { outline: 2px solid #3fb950; outline-offset: -2px; } .wsb-cell.drop-bad { outline: 2px solid #ff5a5a; outline-offset: -2px; }
     .wsb-hint { color: #7d8794; font-size: 12px; } .wsb-hint b { color: #e3b860; }
     .wsb-warn { color: #ffb37a; font-size: 12px; margin: 4px 0; }
+    .wsb-ok { color: #7ee787; } .wsb-no { color: #ffb37a; }  /* 추방 발동 조건 (2026-11-04) */
+    .wsb-acts .wz-btn { padding: 4px 10px; font-size: 12px; }
     .wsb-acts { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
     .wsb-sock { padding: 7px 10px; border: 1px solid #1f2735; border-radius: 10px; margin-bottom: 5px; cursor: pointer; background: #0f141f; }
     .wsb-sock:hover { border-color: #3a4a66; }
