@@ -4057,13 +4057,18 @@ function wgViewOptsHtml(v) {
 function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 옵션 바로 아래(레전드는 옵션 위) (사용자 요청)
   const ero = v.ero || [], list = wgEroList(v);
   let k = 0;
-  const line = (label, n) => { // n 줄을 하나의 묶음으로
+  const line = (label, n, tierable) => { // n 줄을 하나의 묶음으로 (tierable = 제작 티어가 있는 묶음)
     const rows = [];
     for (let j = 0; j < n; j++, k++) {
       const o = list[k], on = ero.includes(k);
       const g = o.o ? optGrade(o.o.type) : null;
       // 레전드: 기본 T1(저렙 레전드는 로그로 T2 등), 침식하면 한 단계 위 (2026-10-27 사용자) / 제작·블러드: 로그 어픽스 ID 끝자리
-      const tr = o.o ? affixTier(o.o) : v.kind === 'item' ? String(Math.max(0, (+((v.otr || {})[k]) || 1) - (on ? 1 : 0))) : null;
+      // 제작·블러드: 로그 어픽스 ID 끝자리. **로그에서 온 빌드가 아니면 ID 가 없다** — 그때는
+      //   그 빌드의 「제작 옵션 티어」(preset.tier)를 쓴다. 손으로 찍은 빌드의 수치는 어차피 그
+      //   티어로 계산돼 있으니 그게 맞는 표기다 (2026-11-07 사용자: "제작 장비에도 옵션 티어 넣어줘").
+      //   기본 옵션은 티어 체계가 달라 묶음 단위로 끈다(tierable=false).
+      const tr = o.o ? (affixTier(o.o) || (tierable ? String(preset.tier || '1') : null))
+        : v.kind === 'item' ? String(Math.max(0, (+((v.otr || {})[k]) || 1) - (on ? 1 : 0))) : null;
       rows.push(`<div class="wg-vo ${WG_GR_ROW[g] || ''}${on ? ' on' : ''}" onclick="wgToggleEro(${k})">` +
         (tr ? `<i class="tier-chip tier-${tr}" title="이 옵션이 붙은 티어 (로그)">${tierLabel(tr)}</i>` : '') +
         `<span>${on && o.corrHtml ? o.corrHtml : o.html}</span>` +
@@ -4084,9 +4089,9 @@ function wgViewOptsCore(v, addSec) { // addSec = 조향·시퀀스 — 기본 �
   const bs = wgBaseRow(v.base), bsec = bs ? `<div class="wg-vsec">베이스 · ${escapeHtml(bs.name)}${bs.lv ? ' (Lv ' + bs.lv + ')' : ''}</div>` +
     wgBaseLines(bs).map(l => `<div class="wg-vo wg-vbase"><span>${escapeHtml(l)}</span></div>`).join('') : '';
   if (v.kind === 'blood') return `<div class="wg-iname">${escapeHtml(v.name || (bs ? bs.name : '블러드 ' + v.part))}${v.aberrant ? ' <small>(이상)</small>' : ''}</div>` + bsec +
-    line('기본 옵션', (v.opts.base || []).length) + addSec + line('레전드 추출 · ' + escapeHtml((v.opts.blood[0] || {}).type || ''), v.opts.blood.length) + line('추가 옵션', (v.opts.extra || []).length);
+    line('기본 옵션', (v.opts.base || []).length) + addSec + line('레전드 추출 · ' + escapeHtml((v.opts.blood[0] || {}).type || ''), v.opts.blood.length) + line('추가 옵션', (v.opts.extra || []).length, 1);
   return `<div class="wg-iname">${escapeHtml(wgCustName(v))}</div>` + bsec +
-    line('기본 옵션', v.opts.basic.length) + addSec + line('메인 옵션', v.opts.main.length) + line('서브 옵션', v.opts.sub.length);
+    line('기본 옵션', v.opts.basic.length) + addSec + line('메인 옵션', v.opts.main.length, 1) + line('서브 옵션', v.opts.sub.length, 1);
 }
 function wgAddPick(kind, i) { if (kind === 'blend') wgPickBlend(i); else wgPickTower(i); }
 function wgAddSearch(val) { wgAddQ = val; const b = document.getElementById('wgAddList'); if (b) b.innerHTML = wgAddRows(); }
