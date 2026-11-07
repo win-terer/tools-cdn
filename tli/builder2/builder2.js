@@ -5817,7 +5817,11 @@ function createLogParser() {
   const RE_GCORE = /\+value\+geniusId \[(\d+)\]/;
   const RE_GNODE = /\+geniusId \[(\d+)\]/;
   const RE_GPT = /\+point \[(\d+)\]/;
-  const RE_BLK = /\+\d+\+/;                              // 덤프 트리의 배열 원소(블록) 경계
+  // 덤프 트리의 배열 원소(블록) 경계 — **줄머리에 붙은 것만**. 앵커가 없으면 어픽스 안쪽 키
+  //   `+extAffix+1+Id [...]` 의 `+1+` 까지 경계로 읽혀 **직전에 읽은 point 가 지워진다**.
+  //   extAffix 를 달고 오는 건 티아 「계시의 예언」 변형(축복) 재능 노드라, 그 노드만 0포인트가 돼
+  //   가져오기에서 통째로 빠졌다 — 게임 33포인트가 빌더에서 28포인트로 왔다 (2026-11-07 사용자).
+  const RE_BLK = /^[|\s]*\+\d+\+/;
   const RE_TATTO = /\+tattoInfo\+/;                       // 운명 휠에 소켓된 천명·숙명 블록 시작
   const RE_TBASE = /\+BaseId \[(\d+)\]/;
   const RE_PAFF = /\+([1-3])\+affixId \[(\d+)\]/;      // 프리즘 옵션 3칸 (PrefixSlots+N+affixId)
