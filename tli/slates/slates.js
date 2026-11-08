@@ -390,11 +390,13 @@ const SLATE_COLORS = ['#e5534b', '#3fb950', '#4493f8', '#d29922', '#a371f7', '#3
 //   전엔 놓은 순번(SLATE_COLORS[pi])이라 같은 석판이 판마다 다른 색이었다. 이제 색이 곧 석판 이름이다.
 //   같은 석판이 여러 장이면 부르는 쪽에서 명도 단계로 가른다(wsbColors·03_editor).
 const SLATE_GOD_COLORS = {260000: '#2dd4bf', 260100: '#d46ad4', 260200: '#5588ff', 260300: '#e5534b', 260400: '#38bdf8', 260500: '#f0883e'};
+//   노랑 넷은 **밝기가 아니라 색끼리** 갈라 둔다 (2026-11-08 사용자: 「너무 비슷한 계열이 되어 구분이 안 된다」)
+//   계보=순노랑 · 일각=레몬(초록 기) · 추별=구릿빛(붉은 기, 어둡게) · 들불=붉은 주황
 const SLATE_HUE = {
-  1010: '#ffd54a',  // 신의 계보 — 밝은 금빛
-  1003: '#d9a327',  // 추락하는 별빛 — 짙은 호박
-  1005: '#e8d27a',  // 신성의 일각 — 연한 금빛
-  1012: '#f2742e',  // 들불 번지는 순간 — 붉은빛 주황
+  1010: '#ffd21f',  // 신의 계보 — 순노랑 (판에 1장)
+  1005: '#e9e36b',  // 신성의 일각 — 레몬 (노랑+초록 기)
+  1003: '#b8762a',  // 추락하는 별빛 — 구릿빛 (노랑+붉은 기, 어둡게)
+  1012: '#f04e23',  // 들불 번지는 순간 — 붉은 주황
   1001: '#8fd3f4',  // 빛이 된 나방 (미지정 — 노랑과 안 겹치게 흰 하늘빛)
   1009: '#a371f7',  // 우주의 균열 (미지정)
   1011: '#3fb950',  // 별들의 고향 (미지정)
@@ -406,6 +408,18 @@ function slateBaseColor(u, pi) {
   const info = SLATES[u] || {};
   if (info.god) return SLATE_GOD_COLORS[Math.floor((u - 1) / 100) * 100] || '#c9a6ff';
   return SLATE_COLORS[pi % SLATE_COLORS.length];
+}
+// 보드 색 한 벌 — 같은 석판이 여러 장이면 **어둡게 ↔ 밝게 번갈아** 간다.
+//   전엔 장마다 흰색을 더해서, 3장째가 되면 옆 노랑과 구분이 안 됐다 (2026-11-08 사용자).
+const SLATE_STEP = ['', ' 58%, #0b1018', ' 62%, #f0f6fc', ' 40%, #0b1018', ' 44%, #f0f6fc'];
+function slateColors(bd) {
+  const cnt = new Map();
+  return (bd || []).map((s, pi) => {
+    const base = slateBaseColor(s.u, pi), n = cnt.get(base) || 0;
+    cnt.set(base, n + 1);
+    const st = SLATE_STEP[Math.min(n, SLATE_STEP.length - 1)];
+    return st ? `color-mix(in srgb, ${base}${st})` : base;
+  });
 }
 function sbCellsFree(bd, cells, skip) {
   const used = new Set();
@@ -1191,14 +1205,7 @@ function wsbMini(u, col) { // 모양 미리보기 (작은 격자)
   return g + '</span>';
 }
 const wsbColorOf = (u, pi) => slateBaseColor(u, pi);   // 색은 00_slate.js 공용 (석판 종류마다 고정)
-function wsbColors(bd) { // 빌더 보드와 같은 규칙 — 같은 색이 여러 장이면 밝기 단계로 구분
-  const cnt = new Map();
-  return bd.map((s, pi) => {
-    const base = wsbColorOf(s.u, pi), n = cnt.get(base) || 0;
-    cnt.set(base, n + 1);
-    return n === 0 ? base : `color-mix(in srgb, ${base} ${Math.max(35, 100 - n * 28)}%, #f0f6fc)`;
-  });
-}
+const wsbColors = bd => slateColors(bd);   // 보드 색 한 벌 — 00_slate.js 공용 (빌더와 같은 규칙)
 function wsbPalPick(u) { wsbPal = wsbPal === u ? null : u; wsbSel = null; wsbSock = null; wsbMsg = ''; pageRender(); }
 function wsbGodPick(b) { wsbGod = wsbGod === b ? null : b; wsbPal = null; wsbMsg = ''; pageRender(); }
 function wsbCellClick(id) {
@@ -1543,7 +1550,12 @@ function sshMiniBoard(bd, cls, ids) {
     // 큰 그림만 칸 번호(data-cid)·피스 번호(data-pi)를 단다 — 마우스 강조가 이걸 보고 움직인다
     const at = ids ? ` data-cid="${c * 10 + r}"` + (pi === undefined ? '' : ` data-pi="${pi}"`) : '';
     if (!act && pi === undefined) { h += `<i class="v"${at}></i>`; continue; }
-    h += pi === undefined ? `<i${at}></i>` : `<i class="on" style="background:${col[pi]}"${at}></i>`;
+    if (pi === undefined) { h += `<i${at}></i>`; continue; }
+    // 같은 석판끼리는 테두리를 터서 한 덩어리로 보이게 (시뮬레이터 .wsb-cell 과 같은 규칙) —
+    // 색만으로는 같은 종류 두 장이 붙어 있을 때 어디서 갈리는지 안 보인다 (2026-11-08 사용자)
+    const same = (dx, dy) => cellOf.get((c + dx) + ',' + (r + dy)) === pi;
+    const j = (same(0, -1) ? ' jt' : '') + (same(1, 0) ? ' jr' : '') + (same(0, 1) ? ' jb' : '') + (same(-1, 0) ? ' jl' : '');
+    h += `<i class="on${j}" style="--sc:${col[pi]}"${at}></i>`;
   }
   return h + '</div>';
 }
@@ -1579,7 +1591,7 @@ function sshPieceList(bd) {
   const col = wsbColors(bd);
   return '<ul class="ssh-plist">' + bd.map((s, pi) => {
     const info = SLATES[s.u] || {}, pc = slatePcCells(s), n = (sshFx[pi] || {size: 0}).size;
-    return `<li data-pi="${pi}"><i style="background:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
+    return `<li data-pi="${pi}"><i style="--sc:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
       (pc ? `<em>${pc}칸</em>` : '') +
       (sshAim.has(pi) ? '<em class="g" title="올린 사람이 정한 방향이 빈 칸을 가리켜, 이웃 석판 쪽으로 돌려 보여 줍니다 (불러올 땐 원래대로)">방향 추정</em>' : '') +
       (n ? `<b title="효과가 닿는 석판 ${n}장">↗${n}</b>` : '') + '</li>';

@@ -888,7 +888,13 @@
     .ssh-mini { display: grid; grid-template-columns: repeat(6, 15px); grid-auto-rows: 15px; gap: 2px; }
     .ssh-mini i { border-radius: 3px; background: #19202c; border: 1px solid #242e3e; }
     .ssh-mini i.v { background: none; border: none; }
-    .ssh-mini i.on { border-color: rgba(255,255,255,.28); }
+    /* 놓인 칸 — 시뮬레이터 .wsb-cell.on 과 같은 모양(속은 옅게, 테두리는 제 색) */
+    .ssh-mini i.on, .ssh-big i.on { background: color-mix(in srgb, var(--sc) 48%, #0f1520); border-color: var(--sc); }
+    /* 같은 석판끼리 터진 테두리 — 조각 하나가 한 덩어리로 보인다 */
+    .ssh-mini i.on.jt, .ssh-big i.on.jt { border-top-color: transparent; border-top-left-radius: 1px; border-top-right-radius: 1px; }
+    .ssh-mini i.on.jb, .ssh-big i.on.jb { border-bottom-color: transparent; border-bottom-left-radius: 1px; border-bottom-right-radius: 1px; }
+    .ssh-mini i.on.jl, .ssh-big i.on.jl { border-left-color: transparent; border-top-left-radius: 1px; border-bottom-left-radius: 1px; }
+    .ssh-mini i.on.jr, .ssh-big i.on.jr { border-right-color: transparent; border-top-right-radius: 1px; border-bottom-right-radius: 1px; }
     .ssh-cbody { width: 100%; display: flex; flex-direction: column; gap: 5px; }
     .ssh-tags { display: flex; flex-wrap: wrap; gap: 3px; min-height: 18px; }
     .ssh-tag { font-size: 11px; border-radius: 4px; padding: 1px 6px; color: #e6edf3;
@@ -918,13 +924,14 @@
     .ssh-mbody { display: flex; gap: 16px; padding: 16px 14px; align-items: flex-start; }
     /* 큰 보드 — 작은 그림과 같은 규칙, 칸만 키웠다 */
     .ssh-big { display: grid; grid-template-columns: repeat(6, 38px); grid-auto-rows: 38px; gap: 4px; flex: none; }
-    .ssh-big i { border-radius: 6px; background: #19202c; border: 1px solid #242e3e; }
+    .ssh-big i { border-radius: 7px; background: #19202c; border: 1.5px solid #242e3e; }
     .ssh-big i.v { background: none; border: none; }
     .ssh-big i.on { border-color: rgba(255,255,255,.28); }
     .ssh-mside { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
     .ssh-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
     .ssh-plist li { display: flex; align-items: center; gap: 7px; color: #c3cedd; font-size: 12px; }
-    .ssh-plist i { width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); flex: none; }
+    .ssh-plist i { width: 11px; height: 11px; border-radius: 3px; border: 1.5px solid var(--sc, #8b9bb4);
+      background: color-mix(in srgb, var(--sc, #8b9bb4) 48%, #0f1520); flex: none; }
     .ssh-plist em { font-style: normal; color: #e3b860; font-size: 11px; }
     /* 마우스 강조 — 시뮬레이터 .wsb-cell.hl/.hl2/.dim/.rng 와 같은 모양 */
     .ssh-big i { transition: opacity .12s, filter .12s; }
