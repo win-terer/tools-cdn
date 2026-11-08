@@ -896,8 +896,13 @@
     .ssh-bar > span { flex: 1; min-width: 120px; color: #8b9bb4; font-size: 12px; }
 
     .ssh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-    .ssh-card { background: #10151e; border: 1px solid #222b3a; border-radius: 10px; padding: 10px; cursor: pointer;
+    .ssh-card { position: relative; background: #10151e; border: 1px solid #222b3a; border-radius: 10px; padding: 10px; cursor: pointer;
       display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    /* 삭제(관리자만) — 카드를 누르면 불러오기라, 단추는 클릭을 가로챈다(event.stopPropagation) */
+    .ssh-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; line-height: 1; padding: 0;
+      background: #1b2230; border: 1px solid #3a2730; color: #8b9bb4; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .55; }
+    .ssh-card:hover .ssh-del { opacity: 1; }
+    .ssh-del:hover { background: #4a1f28; border-color: #8b3a48; color: #ffd7dd; }
     .ssh-card:hover { border-color: #e3b860; background: #141b26; }
     /* 보기 전용 작은 보드 — 편집용 .wsb-board 와 달리 손댈 수 없는 그림 한 장 */
     .ssh-mini { display: grid; grid-template-columns: repeat(6, 15px); grid-auto-rows: 15px; gap: 2px; }

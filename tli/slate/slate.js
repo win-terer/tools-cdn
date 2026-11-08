@@ -1401,6 +1401,7 @@ document.addEventListener('contextmenu', e => {
 
 let sshMode = 'edit';     // 'edit' = 석판 짜기 · 'share' = 올라온 배치
 let sshList = null;       // 서버에서 받은 전체 목록 (null = 아직 안 받음)
+let sshAdmin = false;     // 관리 쿠키로 들어왔나 — 삭제 단추는 이때만 (2026-11-08 사용자)
 let sshErr = '';
 let sshBusy = false;
 let sshNeed = {};         // 칩 → 필요 개수 (0·없음 = 안 고름)
@@ -1472,6 +1473,7 @@ async function sshLoad(fresh) {
     const j = await r.json();
     if (!j || !j.ok) throw new Error((j && j.error) || '목록을 받지 못했습니다.');
     sshList = j.list || [];
+    sshAdmin = !!j.admin;   // 서버가 관리 쿠키를 확인해 준 것만 믿는다 — 단추는 편의일 뿐 빗장은 서버에 있다
   } catch (e) {
     sshErr = (e && e.message) || '목록을 받지 못했습니다.';
   }
@@ -1507,6 +1509,22 @@ function sshTake(id) {   // 이 배치를 편집판으로 — 지금 배치는 �
   wsbApply();   // 파생 재능 행 재생성 + 저장 + 다시 그리기
   hpToast('불러왔습니다 — 옵션 소켓은 비어 있으니 직접 골라 주세요.');
 }
+// 삭제 — 관리자만 보이고, 진짜 빗장은 서버(관리 쿠키 + 같은 출처)에 있다
+async function sshDelete(id) {
+  if (!sshAdmin || sshBusy) return;
+  if (!wtOk('이 배치를 목록에서 지울까요? 되돌릴 수 없습니다.', () => sshDelete(id))) return;
+  sshBusy = true; pageRender();
+  try {
+    const r = await fetch('/api/slshare/delete', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({id})});
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.error) || '지우지 못했습니다.');
+    sshList = (sshList || []).filter(x => x.id !== id);
+    hpToast('지웠습니다.');
+  } catch (e) {
+    hpToast((e && e.message) || '지우지 못했습니다.');
+  }
+  sshBusy = false; pageRender();
+}
 function sshSwitch(m) { sshMode = m; wsbPal = null; wsbSock = null; pageRender(); }
 
 function sshChipRow() {
@@ -1533,6 +1551,7 @@ function sshRender() {
     body = '<div class="ssh-grid">' + page.map(r =>
       `<div class="ssh-card" onclick="sshTake('${r.id}')" title="누르면 이 배치를 편집판으로 불러옵니다">` +
       sshMiniBoard(r._bd) +
+      (sshAdmin ? `<button type="button" class="ssh-del" onclick="event.stopPropagation();sshDelete('${r.id}')" title="이 배치를 지웁니다 (관리자)">✕</button>` : '') +
       `<div class="ssh-cbody"><div class="ssh-tags">${sshTags(r._cnt)}</div>` +
       `<div class="ssh-meta"><span>석판 ${r._bd.length}장</span><em>${r.n > 1 ? '👥 ' + r.n : ''}</em></div></div></div>`).join('') + '</div>' +
       (page.length < rows.length ? `<div class="ssh-more"><button type="button" class="wz-btn" onclick="sshPage++;pageRender()">더 보기 (${rows.length - page.length}개 남음)</button></div>` : '');
