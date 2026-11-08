@@ -2380,6 +2380,48 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
   if (slateIsNether(info)) return r.type !== '새로운 신' && !slateOptSplit(r.effect).name;
   return !/^\[절대자/.test(r.effect || '');
 }
+
+// ── 배치 공유 코드 (2026-11-08 사용자: 석판 배치 공유) ──────────────────────
+// **놓인 모양만** 담는다 — 소켓 옵션·추방 효과·명왕 고정 옵션은 뺀다(사용자: 작성자도 옵션도 볼 필요 없고
+// 중복 등록만 막으면 된다). 그래서 코드 하나가 곧 「같은 배치」이고, 서버는 UNIQUE 로 중복을 막는다.
+//   피스 = u.i.d[.f]  (f = 나방 복제 방향, 없으면 생략) · 피스끼리 '-' · 사전순 정렬로 **한 배치 = 한 글자열**
+const SLATE_CODE_MAX = 24;   // 다이아몬드 활성 칸 수와 같다 — 그보다 많은 피스는 있을 수 없다
+function slateShareCode(bd) {
+  const ps = (bd || []).filter(s => s && SLATES[s.u]).map(s => {
+    const f = +s.f || 0;
+    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (f ? '.' + f : '');
+  });
+  return ps.sort().join('-');
+}
+function slateShareParse(code) { // 코드 → 보드(소켓은 빈 채). 하나라도 어긋나면 null
+  const s = String(code || '').trim();
+  if (!s || s.length > 400) return null;
+  const ps = s.split('-');
+  if (!ps.length || ps.length > SLATE_CODE_MAX) return null;
+  const bd = [], seen = new Set();
+  for (const p of ps) {
+    const m = /^(\d{3,7})\.(\d{1,2})\.([0-3])(?:\.(\d{1,4}))?$/.exec(p);
+    if (!m) return null;
+    if (seen.has(p)) return null;   // 똑같은 피스가 두 번 — 완전히 겹친 배치라 있을 수 없다
+    seen.add(p);
+    const u = +m[1], i = +m[2];
+    if (!SLATES[u]) return null;
+    const col = (i / 10) | 0, row = i % 10;
+    if (col < 1 || col > 6 || row < 1 || row > 6) return null;
+    const sl = {u, i, d: +m[3], t: []};
+    if (m[4]) sl.f = +m[4];
+    bd.push(sl);
+  }
+  return slateShareCode(bd) === s ? bd : null;   // 정렬·표기가 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
+}
+// 칩 거르기용 셈 — 신격 6종은 「제작 석판」 하나로 묶는다(2026-11-08 사용자)
+const SLATE_CHIP_GOD = 'god';
+function slateChipOf(u) { const info = SLATES[u] || {}; return info.god && !info.lg ? SLATE_CHIP_GOD : String(u); }
+function slateChipCount(bd) {
+  const m = {};
+  (bd || []).forEach(s => { const k = slateChipOf(s.u); m[k] = (m[k] || 0) + 1; });
+  return m;
+}
 // 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
 if (!window.wtOk) window.wtOk = (m) => confirm(m);
 if (!window.wtAsk) window.wtAsk = (m, ok, o) => { if (confirm(m)) { if (ok) ok(); } else if (o && o.onCancel) o.onCancel(); };
