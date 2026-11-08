@@ -207,14 +207,17 @@
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
       { href: '/tli/hero/',    label: '히어로',    match: /^\/tli\/hero/ },
       { href: '/tli/talent/',  label: '재능 보드', match: /^\/tli\/talent/ },
-      { href: '/tli/slate/',   label: '석판',      match: /^\/tli\/slate/ },
+      { href: '/tli/slate/',   label: '석판',      match: /^\/tli\/slate(\/|$)/ },   // /tli/slates(배치 공유)는 빌드 공유 쪽
       { href: '/tli/blood/',   label: '봉합',      match: /^\/tli\/blood/ },   // 봉합(블러드 장비) 시뮬레이터 (2026-10-28 메뉴 추가)
       { href: '/tli/void/',    label: '허공의 성도', match: /^\/tli\/void/ },   // 재능 별무리 시뮬레이터 (2026-10-16, 사용자: 빌더 아래로)
     ] },
     // 빌드 공유 — 히어로 빌드(/tli/share) · 파밍 빌드(허공의 성도 배치, /tli/farm) (2026-10-16 사용자)
-    { label: '빌드 공유', match: /^\/tli\/(share|farm)/, kids: [
-      { href: '/tli/share/', label: '히어로 빌드 공유', match: /^\/tli\/share/ },
-      { href: '/tli/farm/',  label: '파밍 빌드 공유',   match: /^\/tli\/farm/ },
+    //   · 석판 배치(/tli/slates, 2026-11-08 사용자: 석판 시뮬 안 탭보다 공유 메뉴에 두는 게 낫다)
+    //   match 는 /tli/slates 만 잡아야 한다 — /tli/slate(시뮬레이터)까지 물면 시뮬이 공유 메뉴로 보인다
+    { label: '빌드 공유', match: /^\/tli\/(share|farm|slates)/, kids: [
+      { href: '/tli/share/',  label: '히어로 빌드 공유', match: /^\/tli\/share/ },
+      { href: '/tli/farm/',   label: '파밍 빌드 공유',   match: /^\/tli\/farm/ },
+      { href: '/tli/slates/', label: '석판 배치 공유',   match: /^\/tli\/slates/ },
     ] },
     // 시세 — 오늘의 시세(/tli/live, ETor 30분마다) (2026-10-20 사용자: 대메뉴로). 초대 전용 /tli/price 는 메뉴에 없음
     { label: '시세', match: /^\/tli\/(live|price)/, kids: [
@@ -672,7 +675,7 @@
     const post = (u, o) => { if (!LIVE) return; try { fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(o), keepalive: true }).catch(() => {}); } catch (e) {} };
     const mode = () => document.documentElement.dataset.tliMode;
     const hsm = /^\/hs\/(db|augments|skills|crystals|tree|ether|journal|guides|tracker|market)(\/|$)/.exec(path);
-    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/blood') ? 'blood' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : path.startsWith('/tli/price') ? 'price' : path.startsWith('/tli/live') ? 'live' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
+    const pg = hsm ? 'hs_' + hsm[1] : path.startsWith('/tli/slates') ? 'slates' : path.startsWith('/tli/slate') ? 'slate' : path.startsWith('/tli/blood') ? 'blood' : path.startsWith('/tli/void') ? 'void' : path.startsWith('/tli/farm') ? 'farm' : path.startsWith('/tli/price') ? 'price' : path.startsWith('/tli/live') ? 'live' : !isTli ? '' : /^\/tli\/ss\d+\/db/.test(path) ? 'ss_db' : /^\/tli\/ss\d+\/view/.test(path) ? 'ss_view'
       : path.startsWith('/tli/db') ? 'db' : path.startsWith('/tli/share') ? 'share' : path.startsWith('/tli/view') ? 'view'
       : path.startsWith('/tli/hero') ? 'hero' : path.startsWith('/tli/tracker/mobile') ? 'tracker_m' : path.startsWith('/tli/tracker/ttd') ? 'tracker_t' : path.startsWith('/tli/tracker') ? 'tracker' : path.startsWith('/tli/talent') ? 'talent'
       : path.startsWith('/tli/preview/changes') ? 'changes' : path.startsWith('/tli/preview') ? 'notes'

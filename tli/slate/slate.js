@@ -1,4 +1,4 @@
-// 생성물 — 고칠 땐 update/src/js/00_gear.js · update/src/js/00_slate.js · update/src/page_common.js · update/src/wz_slate.js · update/src/wz_slshare.js · update/src/slate_page.js (build_html2.build_tool_pages)
+// 생성물 — 고칠 땐 update/src/js/00_gear.js · update/src/js/00_slate.js · update/src/page_common.js · update/src/wz_slate.js · update/src/slate_page.js (build_html2.build_tool_pages)
 // ── 장비 규칙 공용 조각 (2026-10-08) ──
 // 빌더와 빌더 2(마법사)의 장비 단계가 함께 쓴다: 칸 목록·옵션 분류·등급 한도·무기 줄 배치·옵션 키.
 // 기대하는 바깥 것: 없음 (PARTS 는 함수 인자로 받는다 — 빌더는 01_core 의 PARTS, 마법사는 gear_data.js)
@@ -287,6 +287,8 @@ const banishFx = sl => (sl && +sl.b >= 1 && +sl.b <= BANISH_FX.length) ? BANISH_
 function slateUseN(info, sl) {
   const n = ((info && info.c) || []).length;
   if (!info || !info.pc) return n;
+  // 공유 배치에서 온 피스는 소켓이 비어 있고 칸 수만 pcN 으로 들고 온다 (slateShareParse, 2026-11-08)
+  if (sl && sl.pcN) return Math.max(1, Math.min(n, sl.pcN));
   let last = 0;
   ((sl && sl.t) || []).slice(0, n).forEach((x, i) => { if (x) last = i + 1; });
   return Math.max(1, last);
@@ -726,18 +728,39 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
 }
 
 // ── 배치 공유 코드 (2026-11-08 사용자: 석판 배치 공유) ──────────────────────
-// **놓인 모양만** 담는다 — 소켓 옵션·추방 효과·명왕 고정 옵션은 뺀다(사용자: 작성자도 옵션도 볼 필요 없고
-// 중복 등록만 막으면 된다). 그래서 코드 하나가 곧 「같은 배치」이고, 서버는 UNIQUE 로 중복을 막는다.
-//   피스 = u.i.d[.f]  (f = 나방 복제 방향, 없으면 생략) · 피스끼리 '-' · 사전순 정렬로 **한 배치 = 한 글자열**
+// **놓인 모양만** 담는다 — 어떤 옵션을 꽂았는지는 빼고(사용자: 작성자도 옵션도 볼 필요 없다),
+// 모양을 바꾸는 것만 남긴다. 그래서 코드 하나가 곧 「같은 배치」이고 서버는 UNIQUE 로 중복을 막는다.
+//   피스 = u.i.d[.v]  ·  피스끼리 '-'  ·  사전순 정렬 → **한 배치 = 한 글자열**
+//   v = 그 석판만의 보조값(u 가 무엇인지로 뜻이 정해진다):
+//     · 나방 계열(copy.a === 'dir') → 복제 방향 1001~1004
+//     · 명왕(pc)                   → **쓰는 칸 수 1~3**
+//       명왕은 꽂은 옵션 수만큼 칸이 늘어난다(slateUseN). 옵션을 코드에서 뺐더니 칸 수까지
+//       같이 날아가, 1칸 인펙션과 3칸 인펙션이 한 배치로 합쳐졌다 — 칸 수는 모양이라 넣는다
+//       (2026-11-08 사용자: "명왕 한칸 짜리로 쓰는것도 분류를 해줘야할까").
 const SLATE_CODE_MAX = 24;   // 다이아몬드 활성 칸 수와 같다 — 그보다 많은 피스는 있을 수 없다
-function slateShareCode(bd) {
-  const ps = (bd || []).filter(s => s && SLATES[s.u]).map(s => {
-    const f = +s.f || 0;
-    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (f ? '.' + f : '');
-  });
-  return ps.sort().join('-');
+const slateIsMothLike = info => ((info || {}).copy || {}).a === 'dir';
+function slateShareVar(sl) {   // 피스 → 보조값 (0 = 없음)
+  const info = SLATES[sl.u] || {};
+  if (slateIsMothLike(info)) return +sl.f || 0;
+  if (info.pc) return slateUseN(info, sl);
+  return 0;
 }
-function slateShareParse(code) { // 코드 → 보드(소켓은 빈 채). 하나라도 어긋나면 null
+function slateShareVarOk(u, v) {
+  const info = SLATES[u] || {};
+  if (slateIsMothLike(info)) return v >= 1001 && v <= 1004;
+  if (info.pc) return v >= 1 && v <= (info.c || []).length;
+  return false;
+}
+function slateShareCode(bd) {
+  return (bd || []).filter(s => s && SLATES[s.u]).map(s => {
+    const v = slateShareVar(s);
+    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (v ? '.' + v : '');
+  }).sort().join('-');
+}
+// 코드 → 보드. 하나라도 어긋나면 null.
+//   명왕의 칸 수는 `pcN` 으로 들고 온다 — 소켓(t)을 가짜로 채우면 편집 화면에 없는 옵션이 꽂힌
+//   것처럼 보이기 때문이다. 그림 그릴 때만 쓰고(slateUseN 이 먼저 본다) 저장에는 안 넣는다.
+function slateShareParse(code) {
   const s = String(code || '').trim();
   if (!s || s.length > 400) return null;
   const ps = s.split('-');
@@ -753,18 +776,41 @@ function slateShareParse(code) { // 코드 → 보드(소켓은 빈 채). 하나
     const col = (i / 10) | 0, row = i % 10;
     if (col < 1 || col > 6 || row < 1 || row > 6) return null;
     const sl = {u, i, d: +m[3], t: []};
-    if (m[4]) sl.f = +m[4];
+    if (m[4]) {
+      const v = +m[4];
+      if (!slateShareVarOk(u, v)) return null;
+      if (slateIsMothLike(SLATES[u])) sl.f = v; else sl.pcN = v;
+    }
     bd.push(sl);
   }
-  return slateShareCode(bd) === s ? bd : null;   // 정렬·표기가 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
+  return slateShareCode(bd) === s ? bd : null;   // 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
 }
-// 칩 거르기용 셈 — 신격 6종은 「제작 석판」 하나로 묶는다(2026-11-08 사용자)
+// 칩 거르기 — 신격 6종은 「제작 석판」 하나로 묶는다(2026-11-08 사용자).
+//   명왕은 판에 하나뿐(sbLimitErr)이라 「N장 이상」이 뜻이 없다. 대신 **칸 수로 나눈다**:
+//   심판·인펙션·추방 칩은 **3칸으로 쓴 것만**, 1칸으로 쓴 것은 종류 구분 없이 「명왕 1칸」 하나로
+//   (2026-11-08 사용자). 2칸은 어느 칩에도 안 걸리지만 카드에 칸 수가 적혀 눈에는 보인다.
 const SLATE_CHIP_GOD = 'god';
-function slateChipOf(u) { const info = SLATES[u] || {}; return info.god && !info.lg ? SLATE_CHIP_GOD : String(u); }
+const SLATE_CHIP_PC1 = 'pc1';
+const SLATE_PC_FULL = 3;
+function slateChipOf(sl) {
+  const u = typeof sl === 'object' ? sl.u : sl, info = SLATES[u] || {};
+  if (info.god && !info.lg) return SLATE_CHIP_GOD;
+  if (info.pc) {
+    const n = typeof sl === 'object' ? (sl.pcN || slateUseN(info, sl)) : SLATE_PC_FULL;
+    if (n === 1) return SLATE_CHIP_PC1;
+    return n >= SLATE_PC_FULL ? String(u) : null;   // 2칸은 어느 칩에도 안 건다
+  }
+  return String(u);
+}
 function slateChipCount(bd) {
   const m = {};
-  (bd || []).forEach(s => { const k = slateChipOf(s.u); m[k] = (m[k] || 0) + 1; });
+  (bd || []).forEach(s => { const k = slateChipOf(s); if (k) m[k] = (m[k] || 0) + 1; });
   return m;
+}
+// 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
+function slatePcCells(sl) {
+  const info = SLATES[sl.u] || {};
+  return info.pc ? (sl.pcN || slateUseN(info, sl)) : 0;
 }
 
 // 공통 대화창(nav.js 의 wtOk·wtAsk·wtAskText·wtCopyBox) — nav.js 가 없는 곳(시험 jsdom)에서는 시스템 창으로 (2026-10-22)
@@ -1387,182 +1433,6 @@ document.addEventListener('contextmenu', e => {
   if (t.closest('.gbm, .wsb-board, #wzApp, #slateApp')) e.preventDefault();
 });
 
-// ── 석판 배치 공유 (2026-11-08 사용자 요청) ────────────────────────────────
-// 「작성자 정보도 딱히 필요없고 옵션도 볼 필요 없으니까 중복으로 등록하는것만 막는정도」
-//   → 글이 아니라 **배치 목록**이다. 제목·작성자·비밀번호·추천이 없고, 같은 배치는 한 줄로 합쳐진다.
-//   한 줄 = {id, code, n}. n = 같은 배치를 올린 사람 수(IP 기준) — 많이 쓰는 배치가 위로 간다.
-//
-// 칩 거르기 — 상단 칩을 **여러 번 누르면 그 개수 이상** 들어간 배치만 남는다(사용자 확인).
-//   신격 6종은 모양만 다른 같은 물건이라 「제작 석판」 하나로 묶는다(사용자 확인).
-//   목록을 통째로 받아 브라우저에서 거른다 — 한 줄이 100바이트 안쪽이라 600줄이어도 60KB 다.
-//
-// 기대하는 바깥 것: SLATES · slateShareCode/slateShareParse/slateChipOf (00_slate.js) ·
-//   wsbBd·wsbApply·wsbColorOf·wsbShort (wz_slate.js) · escapeHtml·hpToast·wtOk (page_common.js)
-
-let sshMode = 'edit';     // 'edit' = 석판 짜기 · 'share' = 올라온 배치
-let sshList = null;       // 서버에서 받은 전체 목록 (null = 아직 안 받음)
-let sshAdmin = false;     // 관리 쿠키로 들어왔나 — 삭제 단추는 이때만 (2026-11-08 사용자)
-let sshErr = '';
-let sshBusy = false;
-let sshNeed = {};         // 칩 → 필요 개수 (0·없음 = 안 고름)
-let sshPage = 0;
-const SSH_PAGE = 24;
-
-// 칩 줄 — 레전드 7 · 명왕 3 · 제작 석판(신격 묶음) 1
-const SSH_CHIPS = [
-  {k: '1010', n: '계보'}, {k: '1003', n: '추별'}, {k: '1005', n: '일각'}, {k: '1001', n: '나방'},
-  {k: '1012', n: '들불'}, {k: '1009', n: '균열'}, {k: '1011', n: '고향'},
-  {k: '394004', n: '명왕 심판'}, {k: '394005', n: '인펙션'}, {k: '394006', n: '추방'},
-  {k: SLATE_CHIP_GOD, n: '제작 석판'},
-];
-// 칩을 눌러 올릴 수 있는 최대치 — 석판 자체 한도(없으면 보드가 받는 만큼)
-function sshMaxOf(k) {
-  if (k === SLATE_CHIP_GOD) return 6;
-  const info = SLATES[+k] || {};
-  return info.limit || 1;
-}
-const sshColorOf = k => k === SLATE_CHIP_GOD ? '#c9a6ff' : wsbColorOf(+k, WSB_LEGEND.indexOf(+k) >= 0 ? WSB_LEGEND.indexOf(+k) : 4);
-const sshFullName = k => k === SLATE_CHIP_GOD ? '제작 석판 (신격 6종)' : (SLATES[+k] || {}).n || k;
-
-function sshChipClick(k) {   // 누를 때마다 1씩, 한도를 넘으면 해제
-  const max = sshMaxOf(k), cur = sshNeed[k] || 0;
-  if (cur >= max) delete sshNeed[k]; else sshNeed[k] = cur + 1;
-  sshPage = 0; pageRender();
-}
-function sshChipClear() { sshNeed = {}; sshPage = 0; pageRender(); }
-
-// 한 배치가 칩 조건을 모두 만족하나 — 「그 개수 이상」
-function sshHit(cnt) {
-  for (const k in sshNeed) if ((cnt[k] || 0) < sshNeed[k]) return false;
-  return true;
-}
-function sshRows() {
-  if (!sshList) return [];
-  return sshList.map(r => {
-    if (!r._bd) { r._bd = slateShareParse(r.code); r._cnt = r._bd ? slateChipCount(r._bd) : {}; }
-    return r;
-  }).filter(r => r._bd && sshHit(r._cnt));
-}
-
-// 작은 보드 그림 — 편집용 보드(wsbBoardHtml)와 달리 손댈 수 없는 그림 한 장
-function sshMiniBoard(bd) {
-  const cellOf = new Map();
-  bd.forEach((s, pi) => (slateCellsXY(s.u, s.i, s.d, s) || []).forEach(xy => {
-    if (!cellOf.has(xy[0] + ',' + xy[1])) cellOf.set(xy[0] + ',' + xy[1], pi);
-  }));
-  let h = '<div class="ssh-mini">';
-  for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) {
-    const act = SLATE_ACT.has(c * 10 + r), pi = cellOf.get(c + ',' + r);
-    if (!act && pi === undefined) { h += '<i class="v"></i>'; continue; }
-    if (pi === undefined) { h += '<i></i>'; continue; }
-    h += `<i class="on" style="background:${wsbColors(bd)[pi]}"></i>`;
-  }
-  return h + '</div>';
-}
-// 어떤 석판이 몇 장 들어갔나 — 칩과 같은 묶음으로
-function sshTags(cnt) {
-  return SSH_CHIPS.filter(c => cnt[c.k]).map(c =>
-    `<span class="ssh-tag" style="--c:${sshColorOf(c.k)}">${escapeHtml(c.n)}${cnt[c.k] > 1 ? ' ×' + cnt[c.k] : ''}</span>`).join('');
-}
-
-async function sshLoad(fresh) {
-  if (sshBusy) return;
-  sshBusy = true; sshErr = ''; pageRender();
-  try {
-    const r = await fetch('/api/slshares' + (fresh ? '?fresh=1' : ''), {headers: {accept: 'application/json'}});
-    const j = await r.json();
-    if (!j || !j.ok) throw new Error((j && j.error) || '목록을 받지 못했습니다.');
-    sshList = j.list || [];
-    sshAdmin = !!j.admin;   // 서버가 관리 쿠키를 확인해 준 것만 믿는다 — 단추는 편의일 뿐 빗장은 서버에 있다
-  } catch (e) {
-    sshErr = (e && e.message) || '목록을 받지 못했습니다.';
-  }
-  sshBusy = false; pageRender();
-}
-
-async function sshUpload() {
-  const bd = wsbBd();
-  if (!bd.length) { hpToast('먼저 석판을 놓아 주세요.'); return; }
-  if (sbConflicts(bd).length) { hpToast('겹치거나 보드 밖에 있는 석판이 있습니다. 고친 뒤 올려 주세요.'); return; }
-  const code = slateShareCode(bd);
-  if (sshBusy) return;
-  sshBusy = true; pageRender();
-  try {
-    const r = await fetch('/api/slshare', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({code})});
-    const j = await r.json();
-    if (!j || !j.ok) throw new Error((j && j.error) || '올리지 못했습니다.');
-    hpToast(j.dup ? '이미 올라와 있는 배치입니다 — 쓰는 사람 수에 더했습니다.' : '올렸습니다.');
-    sshBusy = false; sshList = null; await sshLoad(true);
-    return;
-  } catch (e) {
-    hpToast((e && e.message) || '올리지 못했습니다.');
-  }
-  sshBusy = false; pageRender();
-}
-
-function sshTake(id) {   // 이 배치를 편집판으로 — 지금 배치는 지워지므로 물어본다
-  const row = (sshList || []).find(x => x.id === id);
-  if (!row || !row._bd) return;
-  if (wsbBd().length && !wtOk('지금 놓인 석판을 모두 지우고 이 배치를 불러올까요?', () => sshTake(id))) return;
-  preset.slateBd = row._bd.map(s => Object.assign({u: s.u, i: s.i, d: s.d, t: []}, s.f ? {f: s.f} : null));
-  sshMode = 'edit'; wsbSel = null; wsbPal = null; wsbSock = null;
-  wsbApply();   // 파생 재능 행 재생성 + 저장 + 다시 그리기
-  hpToast('불러왔습니다 — 옵션 소켓은 비어 있으니 직접 골라 주세요.');
-}
-// 삭제 — 관리자만 보이고, 진짜 빗장은 서버(관리 쿠키 + 같은 출처)에 있다
-async function sshDelete(id) {
-  if (!sshAdmin || sshBusy) return;
-  if (!wtOk('이 배치를 목록에서 지울까요? 되돌릴 수 없습니다.', () => sshDelete(id))) return;
-  sshBusy = true; pageRender();
-  try {
-    const r = await fetch('/api/slshare/delete', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({id})});
-    const j = await r.json();
-    if (!j || !j.ok) throw new Error((j && j.error) || '지우지 못했습니다.');
-    sshList = (sshList || []).filter(x => x.id !== id);
-    hpToast('지웠습니다.');
-  } catch (e) {
-    hpToast((e && e.message) || '지우지 못했습니다.');
-  }
-  sshBusy = false; pageRender();
-}
-function sshSwitch(m) { sshMode = m; wsbPal = null; wsbSock = null; pageRender(); }
-
-function sshChipRow() {
-  const sel = Object.keys(sshNeed).length;
-  return '<div class="ssh-chips">' + SSH_CHIPS.map(c => {
-    const n = sshNeed[c.k] || 0;
-    return `<button type="button" class="ssh-chip${n ? ' on' : ''}" style="--c:${sshColorOf(c.k)}" onclick="sshChipClick('${c.k}')" ` +
-      `title="${escapeHtml(sshFullName(c.k))} — 누를 때마다 ${n + 1 > sshMaxOf(c.k) ? '해제' : (n + 1) + '장 이상'}">` +
-      `${escapeHtml(c.n)}${n ? `<b>${n}</b>` : ''}</button>`;
-  }).join('') + (sel ? '<button type="button" class="ssh-chip clr" onclick="sshChipClear()">✕ 조건 지우기</button>' : '') + '</div>';
-}
-
-function sshRender() {
-  if (sshList === null && !sshBusy && !sshErr) sshLoad();
-  const rows = sshRows(), sel = Object.keys(sshNeed);
-  const cond = sel.length ? sel.map(k => (SSH_CHIPS.find(c => c.k === k) || {n: k}).n + ' ' + sshNeed[k] + '장 이상').join(' · ') : '';
-  let body;
-  if (sshBusy && sshList === null) body = '<div class="ssh-empty">불러오는 중…</div>';
-  else if (sshErr) body = `<div class="ssh-empty">${escapeHtml(sshErr)}<br><button type="button" class="wz-btn" onclick="sshLoad(1)">다시 시도</button></div>`;
-  else if (!sshList.length) body = '<div class="ssh-empty">아직 올라온 배치가 없습니다.<br>편집 탭에서 배치를 짜고 <b>[이 배치 올리기]</b>를 눌러 주세요.</div>';
-  else if (!rows.length) body = `<div class="ssh-empty">조건(${escapeHtml(cond)})에 맞는 배치가 없습니다.<br><button type="button" class="wz-btn" onclick="sshChipClear()">조건 지우기</button></div>`;
-  else {
-    const page = rows.slice(0, (sshPage + 1) * SSH_PAGE);
-    body = '<div class="ssh-grid">' + page.map(r =>
-      `<div class="ssh-card" onclick="sshTake('${r.id}')" title="누르면 이 배치를 편집판으로 불러옵니다">` +
-      sshMiniBoard(r._bd) +
-      (sshAdmin ? `<button type="button" class="ssh-del" onclick="event.stopPropagation();sshDelete('${r.id}')" title="이 배치를 지웁니다 (관리자)">✕</button>` : '') +
-      `<div class="ssh-cbody"><div class="ssh-tags">${sshTags(r._cnt)}</div>` +
-      `<div class="ssh-meta"><span>석판 ${r._bd.length}장</span><em>${r.n > 1 ? '👥 ' + r.n : ''}</em></div></div></div>`).join('') + '</div>' +
-      (page.length < rows.length ? `<div class="ssh-more"><button type="button" class="wz-btn" onclick="sshPage++;pageRender()">더 보기 (${rows.length - page.length}개 남음)</button></div>` : '');
-  }
-  return '<div class="ssh-wrap">' + sshChipRow() +
-    `<div class="ssh-bar"><span>${sshList ? rows.length + ' / ' + sshList.length + '개' : ''}${cond ? ' · ' + escapeHtml(cond) : ''}</span>` +
-    `<button type="button" class="wz-btn pri" onclick="sshUpload()"${sshBusy ? ' disabled' : ''}>⬆ 지금 배치 올리기</button>` +
-    `<button type="button" class="wz-btn" onclick="sshLoad(1)"${sshBusy ? ' disabled' : ''}>새로고침</button></div>` +
-    body + '</div>';
-}
-
 // ── /tli/slate 단독 화면 — 석판 시뮬레이터 (2026-10-10, 사용자 요청: 빌더에서 석판 기능만) ──
 // 화면은 빌더 2 의 석판 칸(wz_slate.js wsbRender)을 그대로 쓰고, 오른쪽 아래에 '적용되는 효과'(보드 파생 재능 행 합계)를 붙인다.
 // 저장은 이 화면 전용 연습판(page_common.js PAGE_SOLO) — 내 빌드와 별개 (2026-10-13)
@@ -1574,24 +1444,16 @@ function spEffects() { // rebuildSlateTalents 가 만든 석판 파생 행 (t.sr
   return rows.map(t => `<div class="sp-fx"><span>${wsbOptHtml({effect: t.effect, tips: tipsOf(t)})}</span>` +
     `<em>${t.cnt > 1 ? '×' + t.cnt + ' ' : ''}${t.mul && t.mul !== 1 ? '(효과 ×' + t.mul + ') ' : ''}<small>${escapeHtml((t.src || []).join(' · '))}</small></em></div>`).join('');
 }
-// 탭 — 석판 짜기 / 올라온 배치 (2026-11-08 사용자: 석판 배치 공유)
-function spTabs() {
-  return '<div class="sp-tabs">' +
-    `<button type="button" class="sp-tab${sshMode === 'edit' ? ' on' : ''}" onclick="sshSwitch('edit')">석판 짜기</button>` +
-    `<button type="button" class="sp-tab${sshMode === 'share' ? ' on' : ''}" onclick="sshSwitch('share')">올라온 배치</button>` +
-    '</div>';
-}
 function pageRender() {
   wsbInit();
   rebuildSlateTalents(preset); // 저장소에서 읽은 빌드도 파생 행을 지금 데이터로 맞춘다
   const nfx = (preset.talents || []).filter(t => t.src).length;
-  const share = sshMode === 'share';
-  document.getElementById('slateApp').innerHTML = '<div class="gbm wsp"><div class="gbm-top"><b class="gbm-title">석판 시뮬레이터</b>' + spTabs() + gbmHelp('slate') + (share ? '' : hpBuildPicker()) +
-    (share ? '<span class="gbm-keys">칩을 <kbd>여러 번</kbd> 누르면 <b>그 개수 이상</b> 들어간 배치만 <span class="gbm-sep">·</span> 배치를 누르면 불러오기</span>'
-      : '<span class="gbm-keys"><kbd>클릭</kbd> 놓기 · 고르기 <span class="gbm-sep">·</span> <kbd>끌기</kbd> 옮기기 <span class="gbm-sep">·</span> 칸에 마우스를 올리면 옵션</span>') +
+  document.getElementById('slateApp').innerHTML = '<div class="gbm wsp"><div class="gbm-top"><b class="gbm-title">석판 시뮬레이터</b>' +
+    // 공유는 공유끼리 — 올라온 배치는 빌드 공유 아래 단독 화면으로 뺐다 (2026-11-08 사용자)
+    '<a class="ssh-go" href="/tli/slates/">📐 석판 배치 공유</a>' + gbmHelp('slate') + hpBuildPicker() +
+    '<span class="gbm-keys"><kbd>클릭</kbd> 놓기 · 고르기 <span class="gbm-sep">·</span> <kbd>끌기</kbd> 옮기기 <span class="gbm-sep">·</span> 칸에 마우스를 올리면 옵션</span>' +
     '</div>' +
-    (share ? sshRender()
-      : `<div class="sp-main">${wsbRender()}<div class="wg-addbox sp-fxbox"><div class="wg-addh"><b>적용되는 효과</b><span>${nfx}줄</span></div>${spEffects()}</div></div>`) + '</div>';
+    `<div class="sp-main">${wsbRender()}<div class="wg-addbox sp-fxbox"><div class="wg-addh"><b>적용되는 효과</b><span>${nfx}줄</span></div>${spEffects()}</div></div></div>`;
 }
 function pageOnSwitch() { wsbSel = null; wsbPal = null; wsbSock = null; wsbMsg = ''; }
 pageRender();

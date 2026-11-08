@@ -2046,6 +2046,8 @@ const banishFx = sl => (sl && +sl.b >= 1 && +sl.b <= BANISH_FX.length) ? BANISH_
 function slateUseN(info, sl) {
   const n = ((info && info.c) || []).length;
   if (!info || !info.pc) return n;
+  // 공유 배치에서 온 피스는 소켓이 비어 있고 칸 수만 pcN 으로 들고 온다 (slateShareParse, 2026-11-08)
+  if (sl && sl.pcN) return Math.max(1, Math.min(n, sl.pcN));
   let last = 0;
   ((sl && sl.t) || []).slice(0, n).forEach((x, i) => { if (x) last = i + 1; });
   return Math.max(1, last);
@@ -2485,18 +2487,39 @@ function slateSockOk(info, r, ranks) { // 이 소켓에 이 옵션 행이 들어
 }
 
 // ── 배치 공유 코드 (2026-11-08 사용자: 석판 배치 공유) ──────────────────────
-// **놓인 모양만** 담는다 — 소켓 옵션·추방 효과·명왕 고정 옵션은 뺀다(사용자: 작성자도 옵션도 볼 필요 없고
-// 중복 등록만 막으면 된다). 그래서 코드 하나가 곧 「같은 배치」이고, 서버는 UNIQUE 로 중복을 막는다.
-//   피스 = u.i.d[.f]  (f = 나방 복제 방향, 없으면 생략) · 피스끼리 '-' · 사전순 정렬로 **한 배치 = 한 글자열**
+// **놓인 모양만** 담는다 — 어떤 옵션을 꽂았는지는 빼고(사용자: 작성자도 옵션도 볼 필요 없다),
+// 모양을 바꾸는 것만 남긴다. 그래서 코드 하나가 곧 「같은 배치」이고 서버는 UNIQUE 로 중복을 막는다.
+//   피스 = u.i.d[.v]  ·  피스끼리 '-'  ·  사전순 정렬 → **한 배치 = 한 글자열**
+//   v = 그 석판만의 보조값(u 가 무엇인지로 뜻이 정해진다):
+//     · 나방 계열(copy.a === 'dir') → 복제 방향 1001~1004
+//     · 명왕(pc)                   → **쓰는 칸 수 1~3**
+//       명왕은 꽂은 옵션 수만큼 칸이 늘어난다(slateUseN). 옵션을 코드에서 뺐더니 칸 수까지
+//       같이 날아가, 1칸 인펙션과 3칸 인펙션이 한 배치로 합쳐졌다 — 칸 수는 모양이라 넣는다
+//       (2026-11-08 사용자: "명왕 한칸 짜리로 쓰는것도 분류를 해줘야할까").
 const SLATE_CODE_MAX = 24;   // 다이아몬드 활성 칸 수와 같다 — 그보다 많은 피스는 있을 수 없다
-function slateShareCode(bd) {
-  const ps = (bd || []).filter(s => s && SLATES[s.u]).map(s => {
-    const f = +s.f || 0;
-    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (f ? '.' + f : '');
-  });
-  return ps.sort().join('-');
+const slateIsMothLike = info => ((info || {}).copy || {}).a === 'dir';
+function slateShareVar(sl) {   // 피스 → 보조값 (0 = 없음)
+  const info = SLATES[sl.u] || {};
+  if (slateIsMothLike(info)) return +sl.f || 0;
+  if (info.pc) return slateUseN(info, sl);
+  return 0;
 }
-function slateShareParse(code) { // 코드 → 보드(소켓은 빈 채). 하나라도 어긋나면 null
+function slateShareVarOk(u, v) {
+  const info = SLATES[u] || {};
+  if (slateIsMothLike(info)) return v >= 1001 && v <= 1004;
+  if (info.pc) return v >= 1 && v <= (info.c || []).length;
+  return false;
+}
+function slateShareCode(bd) {
+  return (bd || []).filter(s => s && SLATES[s.u]).map(s => {
+    const v = slateShareVar(s);
+    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (v ? '.' + v : '');
+  }).sort().join('-');
+}
+// 코드 → 보드. 하나라도 어긋나면 null.
+//   명왕의 칸 수는 `pcN` 으로 들고 온다 — 소켓(t)을 가짜로 채우면 편집 화면에 없는 옵션이 꽂힌
+//   것처럼 보이기 때문이다. 그림 그릴 때만 쓰고(slateUseN 이 먼저 본다) 저장에는 안 넣는다.
+function slateShareParse(code) {
   const s = String(code || '').trim();
   if (!s || s.length > 400) return null;
   const ps = s.split('-');
@@ -2512,18 +2535,41 @@ function slateShareParse(code) { // 코드 → 보드(소켓은 빈 채). 하나
     const col = (i / 10) | 0, row = i % 10;
     if (col < 1 || col > 6 || row < 1 || row > 6) return null;
     const sl = {u, i, d: +m[3], t: []};
-    if (m[4]) sl.f = +m[4];
+    if (m[4]) {
+      const v = +m[4];
+      if (!slateShareVarOk(u, v)) return null;
+      if (slateIsMothLike(SLATES[u])) sl.f = v; else sl.pcN = v;
+    }
     bd.push(sl);
   }
-  return slateShareCode(bd) === s ? bd : null;   // 정렬·표기가 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
+  return slateShareCode(bd) === s ? bd : null;   // 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
 }
-// 칩 거르기용 셈 — 신격 6종은 「제작 석판」 하나로 묶는다(2026-11-08 사용자)
+// 칩 거르기 — 신격 6종은 「제작 석판」 하나로 묶는다(2026-11-08 사용자).
+//   명왕은 판에 하나뿐(sbLimitErr)이라 「N장 이상」이 뜻이 없다. 대신 **칸 수로 나눈다**:
+//   심판·인펙션·추방 칩은 **3칸으로 쓴 것만**, 1칸으로 쓴 것은 종류 구분 없이 「명왕 1칸」 하나로
+//   (2026-11-08 사용자). 2칸은 어느 칩에도 안 걸리지만 카드에 칸 수가 적혀 눈에는 보인다.
 const SLATE_CHIP_GOD = 'god';
-function slateChipOf(u) { const info = SLATES[u] || {}; return info.god && !info.lg ? SLATE_CHIP_GOD : String(u); }
+const SLATE_CHIP_PC1 = 'pc1';
+const SLATE_PC_FULL = 3;
+function slateChipOf(sl) {
+  const u = typeof sl === 'object' ? sl.u : sl, info = SLATES[u] || {};
+  if (info.god && !info.lg) return SLATE_CHIP_GOD;
+  if (info.pc) {
+    const n = typeof sl === 'object' ? (sl.pcN || slateUseN(info, sl)) : SLATE_PC_FULL;
+    if (n === 1) return SLATE_CHIP_PC1;
+    return n >= SLATE_PC_FULL ? String(u) : null;   // 2칸은 어느 칩에도 안 건다
+  }
+  return String(u);
+}
 function slateChipCount(bd) {
   const m = {};
-  (bd || []).forEach(s => { const k = slateChipOf(s.u); m[k] = (m[k] || 0) + 1; });
+  (bd || []).forEach(s => { const k = slateChipOf(s); if (k) m[k] = (m[k] || 0) + 1; });
   return m;
+}
+// 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
+function slatePcCells(sl) {
+  const info = SLATES[sl.u] || {};
+  return info.pc ? (sl.pcN || slateUseN(info, sl)) : 0;
 }
 
 // ── 전투 정령 · 운명 공용 조각 (2026-10-08) ──

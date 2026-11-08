@@ -875,52 +875,8 @@
     .sp-body .ft-hl { color: #ffd166; font-weight: 600; }
     .sp-body #floatTip2 .ft-body > div { padding: 1px 0; }
 
-    /* ── 석판 배치 공유 (2026-11-08) ─────────────────────────────────────── */
-    .sp-tabs { display: flex; gap: 4px; margin-left: 10px; }
-    .sp-tab { background: #141a24; border: 1px solid #2a3344; color: #8b9bb4; border-radius: 8px 8px 0 0; padding: 6px 14px; font-size: 13px; cursor: pointer; }
-    .sp-tab:hover { color: #c9d1d9; border-color: #44536c; }
-    .sp-tab.on { background: #1b2230; border-color: #e3b860; color: #e3b860; font-weight: bold; }
 
-    .ssh-wrap { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
-    /* 칩 — 누를 때마다 필요 개수가 1씩 는다. 개수는 칩 오른쪽 작은 동그라미 */
-    .ssh-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .ssh-chip { display: inline-flex; align-items: center; gap: 5px; background: #141a24; border: 1px solid #2a3344; color: #9fb0c8;
-      border-radius: 999px; padding: 5px 13px; font-size: 13px; cursor: pointer; }
-    .ssh-chip:hover { border-color: var(--c, #5a6b88); color: #e6edf3; }
-    .ssh-chip.on { border-color: var(--c, #e3b860); color: #fff; background: color-mix(in srgb, var(--c, #e3b860) 18%, #141a24); }
-    .ssh-chip b { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; border-radius: 999px;
-      background: var(--c, #e3b860); color: #0b0f17; font-size: 11px; }
-    .ssh-chip.clr { border-style: dashed; color: #8b9bb4; }
-
-    .ssh-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .ssh-bar > span { flex: 1; min-width: 120px; color: #8b9bb4; font-size: 12px; }
-
-    .ssh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-    .ssh-card { position: relative; background: #10151e; border: 1px solid #222b3a; border-radius: 10px; padding: 10px; cursor: pointer;
-      display: flex; flex-direction: column; gap: 8px; align-items: center; }
-    /* 삭제(관리자만) — 카드를 누르면 불러오기라, 단추는 클릭을 가로챈다(event.stopPropagation) */
-    .ssh-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; line-height: 1; padding: 0;
-      background: #1b2230; border: 1px solid #3a2730; color: #8b9bb4; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .55; }
-    .ssh-card:hover .ssh-del { opacity: 1; }
-    .ssh-del:hover { background: #4a1f28; border-color: #8b3a48; color: #ffd7dd; }
-    .ssh-card:hover { border-color: #e3b860; background: #141b26; }
-    /* 보기 전용 작은 보드 — 편집용 .wsb-board 와 달리 손댈 수 없는 그림 한 장 */
-    .ssh-mini { display: grid; grid-template-columns: repeat(6, 15px); grid-auto-rows: 15px; gap: 2px; }
-    .ssh-mini i { border-radius: 3px; background: #19202c; border: 1px solid #242e3e; }
-    .ssh-mini i.v { background: none; border: none; }
-    .ssh-mini i.on { border-color: rgba(255,255,255,.28); }
-    .ssh-cbody { width: 100%; display: flex; flex-direction: column; gap: 5px; }
-    .ssh-tags { display: flex; flex-wrap: wrap; gap: 3px; min-height: 18px; }
-    .ssh-tag { font-size: 11px; border-radius: 4px; padding: 1px 6px; color: #e6edf3;
-      background: color-mix(in srgb, var(--c, #8b9bb4) 24%, #10151e); border: 1px solid color-mix(in srgb, var(--c, #8b9bb4) 45%, transparent); }
-    .ssh-meta { display: flex; justify-content: space-between; color: #8b9bb4; font-size: 11px; }
-    .ssh-meta em { font-style: normal; color: #e3b860; }
-    .ssh-more { display: flex; justify-content: center; }
-    .ssh-empty { padding: 40px 10px; text-align: center; color: #8b9bb4; font-size: 13px; line-height: 1.9; }
-
-    @media (max-width: 760px) {
-      .ssh-wrap { padding: 12px; }
-      .ssh-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-      .ssh-mini { grid-template-columns: repeat(6, 13px); grid-auto-rows: 13px; }
-      .sp-tabs { margin-left: 0; }
-    }
+    /* 다른 화면으로 가는 링크 — 석판 시뮬레이터 ↔ 석판 배치 공유 (2026-11-08) */
+    .ssh-go { margin-left: 10px; text-decoration: none; background: #141a24; border: 1px solid #2a3344; color: #9fb0c8;
+      border-radius: 8px; padding: 6px 13px; font-size: 13px; white-space: nowrap; }
+    .ssh-go:hover { border-color: #e3b860; color: #e3b860; }
