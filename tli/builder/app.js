@@ -299,6 +299,8 @@ async function codeToPreset(code) {
     p.slateBd = pl.sb.slice(0, 12).filter(e => Array.isArray(e) && +e[0] && +e[1]).map(e => ({
       u: slateId(e[0]), i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
       b: parseInt(e[5], 10) || 0, // 추방 효과 번호 (1~10, 2026-11-04)
+      x: +e[6] ? 1 : 0,           // 거울 (명왕 좌우 반전, 2026-11-08) — 옛 코드엔 없어 0
+
       t: (Array.isArray(e[3]) ? e[3] : []).slice(0, 8).map(x => x ? String(x) : '')
     }));
     // 모르는 번호로 담겨 가져오기 때 방향 보정을 못 받은 피스가 옛 코드에 남아 있다 (2026-11-03 신의 계보 261010) —
@@ -442,7 +444,7 @@ function buildCodePayload(p) {
   }
   const iv = p.inverse ? [p.inverse.pos, p.inverse.opts.low ? 1 : 0, p.inverse.opts.mid ? 1 : 0, p.inverse.opts.abs ? 1 : 0] : undefined;
   const sb = p.slateBd && p.slateBd.length
-    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0, s.b || 0]) : undefined; // 석판 보드 배치 (+나방 방향·추방 효과)
+    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0, s.b || 0, s.x || 0]) : undefined; // 석판 보드 배치 (+나방 방향·추방 효과·거울)
   // 재능 보드: 찍은 노드는 "노드ID:포인트" 문자열로(짧게), 프리즘 영향 범위는 [계열, 칸들, 장착노드]
   const gb = p.gboard && p.gboard.length ? p.gboard.map(x => x.slice(0, 5).join(':')) : undefined;
   const gpOf = g => g ? [g.b, g.c.map(c => c[0] + ',' + c[1]).join(' '), g.nd || '', g.k || 'p',
@@ -2029,6 +2031,7 @@ function slateCellsXY(u, idx, dir, sl) { // 렌더용 (열, 행) 좌표 — 보�
   const info = SLATES[u];
   if (!info) return null;
   let cells = info.c.slice(0, slateUseN(info, sl)).map(pt => pt.slice());
+  if (sl && sl.x) cells = cells.map(pt => [pt[0], -pt[1]]);   // 거울 (명왕 좌우 반전 — 번호가 하나뿐이라 쪽지로 든다)
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(pt => [pt[1], -pt[0]]);
   const row0 = idx % 10, col0 = (idx / 10) | 0;
   return cells.map(pt => [col0 + pt[1], row0 + pt[0]]);
@@ -2037,6 +2040,7 @@ function slateCells(u, idx, dir, sl) {
   const info = SLATES[u];
   if (!info) return null;
   let cells = info.c.slice(0, slateUseN(info, sl)).map(p => p.slice());
+  if (sl && sl.x) cells = cells.map(c => [c[0], -c[1]]);      // 거울 — slateCellsXY 와 같은 순서(거울 → 회전)
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(c => [c[1], -c[0]]);
   const x0 = idx % 10, y0 = (idx / 10) | 0;
   return cells.map(c => (y0 + c[1]) * 10 + (x0 + c[0]));
@@ -2089,6 +2093,42 @@ function sbFitDir(bd, u, i, d0, skip, sl) { // d0부터 시작해 들어가는 �
     if (sbCellsFree(bd, slateCells(u, i, d, sl), skip)) return d;
   }
   return -1;
+}
+// ── 「알아서 맞춰 넣기」 (2026-11-08 사용자: 「이런 자리에 배치할때 알아서 맞춰서 바로 들어가면」) ──
+//   회전만 보던 sbFitDir 로는 모자랐다. 원점이 **누른 칸에 고정**이라, 같은 모양이라도
+//   피스의 어느 칸을 그 자리에 두느냐에 따라 들어가고 안 들어간다.
+//   그래서 ① 회전 4가지 × ② 피스의 칸마다 그 칸을 누른 자리에 맞춘 평행이동을 다 본다.
+const sbIdxOk = n => { const r = n % 10, c = (n / 10) | 0; return r >= 1 && r <= 6 && c >= 1 && c <= 6; };
+function sbFitAt(bd, u, i, d0, skip, sl) {
+  for (let k = 0; k < 4; k++) {
+    const d = (d0 + k) % 4, base = slateCells(u, i, d, sl);
+    if (!base) continue;
+    for (let n = 0; n < base.length; n++) {
+      const at = 2 * i - base[n];                 // base[n] 칸이 누른 자리(i)에 오도록 원점을 민다
+      if (!sbIdxOk(at)) continue;                 // 원점이 판 밖이면 공유 코드에 못 담는다
+      const cells = slateCells(u, at, d, sl);
+      if (cells && sbCellsFree(bd, cells, skip)) return {i: at, d};
+    }
+  }
+  return null;
+}
+// 신격은 모양도 바꿔 본다 — 고른 모양 → 그 좌우 반전 → 팔레트의 다른 모양들(과 그 반전)
+function sbFitVariants(u) {
+  const info = SLATES[u] || {};
+  if (!info.god || info.lg) return [u];
+  const b = Math.floor((u - 1) / 100) * 100, out = [u];
+  const add = v => { if (v && SLATES[v] && out.indexOf(v) < 0) out.push(v); };
+  add(GOD_MIRROR[u]);
+  GOD_PAL.forEach(g => { add(b + g[0]); add(GOD_MIRROR[b + g[0]]); });
+  return out;
+}
+function sbFitPlace(bd, u, i, skip, sl) { // → {u, i, d} | null
+  const vs = sbFitVariants(u);
+  for (let k = 0; k < vs.length; k++) {
+    const r = sbFitAt(bd, vs[k], i, (sl && sl.d) || 0, skip, sl);
+    if (r) return {u: vs[k], i: r.i, d: r.d};
+  }
+  return null;
 }
 // 겹침·보드 밖 상태의 피스 인덱스 목록 (포커스 유지·공유 차단 판단용)
 function sbConflicts(bd) {
@@ -2446,7 +2486,9 @@ function slateShareVarOk(u, v) {
 function slateShareCode(bd) {
   return (bd || []).filter(s => s && SLATES[s.u]).map(s => {
     const v = slateShareVar(s);
-    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (v ? '.' + v : '');
+    // 회전값 0~3, 거울이면 +4 (4~7) — 뒤집어도 똑같은 모양이면 안 적는다(같은 배치가 두 줄이 되지 않게)
+    const d = ((+s.d || 0) % 4) + (s.x && slateFlipDiffers(s) ? 4 : 0);
+    return [s.u, s.i, d].join('.') + (v ? '.' + v : '');
   }).sort().join('-');
 }
 // 코드 → 보드. 하나라도 어긋나면 null.
@@ -2459,7 +2501,7 @@ function slateShareParse(code) {
   if (!ps.length || ps.length > SLATE_CODE_MAX) return null;
   const bd = [], seen = new Set();
   for (const p of ps) {
-    const m = /^(\d{3,7})\.(\d{1,2})\.([0-3])(?:\.(\d{1,4}))?$/.exec(p);
+    const m = /^(\d{3,7})\.(\d{1,2})\.([0-7])(?:\.(\d{1,4}))?$/.exec(p);
     if (!m) return null;
     if (seen.has(p)) return null;   // 똑같은 피스가 두 번 — 완전히 겹친 배치라 있을 수 없다
     seen.add(p);
@@ -2467,12 +2509,14 @@ function slateShareParse(code) {
     if (!SLATES[u]) return null;
     const col = (i / 10) | 0, row = i % 10;
     if (col < 1 || col > 6 || row < 1 || row > 6) return null;
-    const sl = {u, i, d: +m[3], t: []};
+    const sl = {u, i, d: +m[3] % 4, t: []};
+    if (+m[3] >= 4) sl.x = 1;
     if (m[4]) {
       const v = +m[4];
       if (!slateShareVarOk(u, v)) return null;
       if (slateIsMothLike(SLATES[u])) sl.f = v; else sl.pcN = v;
     }
+    if (sl.x && !slateFlipDiffers(sl)) return null;   // 뒤집어도 같은 모양 — 코드에 적힐 수 없는 값
     bd.push(sl);
   }
   return slateShareCode(bd) === s ? bd : null;   // 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
@@ -2502,6 +2546,24 @@ function slateChipCount(bd) {
   return m;
 }
 // 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
+// 보드에 남은 빈 칸 수 — 공유에 올릴 때 거른다.
+//   「한 칸 비우는 셋팅은 있지만 두 칸부터는 없다」(2026-11-08 사용자) → 덜 짠 배치가 목록을 채우는 걸 막는다.
+const SLATE_FREE_MAX = 1;
+function slateFreeCells(bd) {
+  const used = new Set();
+  (bd || []).forEach(s => (slateCells(s.u, s.i, s.d, s) || [s.i]).forEach(c => used.add(c)));
+  let n = 0;
+  SLATE_ACT.forEach(c => { if (!used.has(c)) n++; });
+  return n;
+}
+// 뒤집으면 실제로 달라지나 — 인펙션(한 줄)·1칸 명왕처럼 대칭인 것은 뒤집어도 그대로다.
+//   칸 순서까지 본다: 명왕은 1·2·3번 칸에 꽂는 옵션이 달라서, 칸 집합이 같아도 순서가 다르면 다른 배치다.
+function slateFlipDiffers(sl) {
+  if (!sl || !SLATES[sl.u]) return false;
+  const a = slateCells(sl.u, 33, sl.d || 0, sl);
+  const b = slateCells(sl.u, 33, sl.d || 0, Object.assign({}, sl, {x: sl.x ? 0 : 1}));
+  return !!a && !!b && a.join(',') !== b.join(',');
+}
 function slatePcCells(sl) {
   const info = SLATES[sl.u] || {};
   return info.pc ? (sl.pcN || slateUseN(info, sl)) : 0;
@@ -6866,8 +6928,9 @@ function sbCellClick(id) {
   if (sbEdit.pal != null && hit < 0) { // 배치 — 들어가는 회전 자동 탐색, 안 맞으면 겹친 채 배치(⚠ 표시 후 옮기면 됨)
     const err = sbLimitErr(sbEdit.pal);
     if (err) { alert(err); return; }
-    const d = sbFitDir(bd, sbEdit.pal, id, 0, -1);
-    bd.push({u: sbEdit.pal, i: id, d: d < 0 ? 0 : d, t: []});
+    // 회전·쥔 칸·(신격이면) 모양까지 맞춰 본다 — /tli/slate 와 같은 규칙 (2026-11-08 사용자)
+    const fit = sbFitPlace(bd, sbEdit.pal, id, -1);
+    bd.push({u: fit ? fit.u : sbEdit.pal, i: fit ? fit.i : id, d: fit ? fit.d : 0, t: []});
     sbEdit.sel = bd.length - 1;
     sbEdit.pal = null;
     sbApply();
@@ -6876,9 +6939,8 @@ function sbCellClick(id) {
   if (hit >= 0) { sbEdit.sel = hit === sbEdit.sel ? null : hit; sbEdit.pal = null; renderSlateBoard(); return; }
   if (sbEdit.sel != null) { // 선택 피스를 빈 칸으로 이동 — 맞는 회전 우선, 없으면 겹친 채로 이동(⚠ 표시)
     const sl = bd[sbEdit.sel];
-    const d = sbFitDir(bd, sl.u, id, sl.d, sbEdit.sel, sl);
-    sl.i = id;
-    if (d >= 0) sl.d = d;
+    const fit = sbFitAt(bd, sl.u, id, sl.d, sbEdit.sel, sl);
+    if (fit) { sl.i = fit.i; sl.d = fit.d; } else sl.i = id;
     sbApply();
   }
 }

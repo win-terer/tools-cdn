@@ -2132,6 +2132,7 @@ function slateCellsXY(u, idx, dir, sl) { // 렌더용 (열, 행) 좌표 — 보�
   const info = SLATES[u];
   if (!info) return null;
   let cells = info.c.slice(0, slateUseN(info, sl)).map(pt => pt.slice());
+  if (sl && sl.x) cells = cells.map(pt => [pt[0], -pt[1]]);   // 거울 (명왕 좌우 반전 — 번호가 하나뿐이라 쪽지로 든다)
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(pt => [pt[1], -pt[0]]);
   const row0 = idx % 10, col0 = (idx / 10) | 0;
   return cells.map(pt => [col0 + pt[1], row0 + pt[0]]);
@@ -2140,6 +2141,7 @@ function slateCells(u, idx, dir, sl) {
   const info = SLATES[u];
   if (!info) return null;
   let cells = info.c.slice(0, slateUseN(info, sl)).map(p => p.slice());
+  if (sl && sl.x) cells = cells.map(c => [c[0], -c[1]]);      // 거울 — slateCellsXY 와 같은 순서(거울 → 회전)
   for (let k = 0; k < (dir % 4); k++) cells = cells.map(c => [c[1], -c[0]]);
   const x0 = idx % 10, y0 = (idx / 10) | 0;
   return cells.map(c => (y0 + c[1]) * 10 + (x0 + c[0]));
@@ -2192,6 +2194,42 @@ function sbFitDir(bd, u, i, d0, skip, sl) { // d0부터 시작해 들어가는 �
     if (sbCellsFree(bd, slateCells(u, i, d, sl), skip)) return d;
   }
   return -1;
+}
+// ── 「알아서 맞춰 넣기」 (2026-11-08 사용자: 「이런 자리에 배치할때 알아서 맞춰서 바로 들어가면」) ──
+//   회전만 보던 sbFitDir 로는 모자랐다. 원점이 **누른 칸에 고정**이라, 같은 모양이라도
+//   피스의 어느 칸을 그 자리에 두느냐에 따라 들어가고 안 들어간다.
+//   그래서 ① 회전 4가지 × ② 피스의 칸마다 그 칸을 누른 자리에 맞춘 평행이동을 다 본다.
+const sbIdxOk = n => { const r = n % 10, c = (n / 10) | 0; return r >= 1 && r <= 6 && c >= 1 && c <= 6; };
+function sbFitAt(bd, u, i, d0, skip, sl) {
+  for (let k = 0; k < 4; k++) {
+    const d = (d0 + k) % 4, base = slateCells(u, i, d, sl);
+    if (!base) continue;
+    for (let n = 0; n < base.length; n++) {
+      const at = 2 * i - base[n];                 // base[n] 칸이 누른 자리(i)에 오도록 원점을 민다
+      if (!sbIdxOk(at)) continue;                 // 원점이 판 밖이면 공유 코드에 못 담는다
+      const cells = slateCells(u, at, d, sl);
+      if (cells && sbCellsFree(bd, cells, skip)) return {i: at, d};
+    }
+  }
+  return null;
+}
+// 신격은 모양도 바꿔 본다 — 고른 모양 → 그 좌우 반전 → 팔레트의 다른 모양들(과 그 반전)
+function sbFitVariants(u) {
+  const info = SLATES[u] || {};
+  if (!info.god || info.lg) return [u];
+  const b = Math.floor((u - 1) / 100) * 100, out = [u];
+  const add = v => { if (v && SLATES[v] && out.indexOf(v) < 0) out.push(v); };
+  add(GOD_MIRROR[u]);
+  GOD_PAL.forEach(g => { add(b + g[0]); add(GOD_MIRROR[b + g[0]]); });
+  return out;
+}
+function sbFitPlace(bd, u, i, skip, sl) { // → {u, i, d} | null
+  const vs = sbFitVariants(u);
+  for (let k = 0; k < vs.length; k++) {
+    const r = sbFitAt(bd, vs[k], i, (sl && sl.d) || 0, skip, sl);
+    if (r) return {u: vs[k], i: r.i, d: r.d};
+  }
+  return null;
 }
 // 겹침·보드 밖 상태의 피스 인덱스 목록 (포커스 유지·공유 차단 판단용)
 function sbConflicts(bd) {
@@ -2549,7 +2587,9 @@ function slateShareVarOk(u, v) {
 function slateShareCode(bd) {
   return (bd || []).filter(s => s && SLATES[s.u]).map(s => {
     const v = slateShareVar(s);
-    return [s.u, s.i, (+s.d || 0) % 4].join('.') + (v ? '.' + v : '');
+    // 회전값 0~3, 거울이면 +4 (4~7) — 뒤집어도 똑같은 모양이면 안 적는다(같은 배치가 두 줄이 되지 않게)
+    const d = ((+s.d || 0) % 4) + (s.x && slateFlipDiffers(s) ? 4 : 0);
+    return [s.u, s.i, d].join('.') + (v ? '.' + v : '');
   }).sort().join('-');
 }
 // 코드 → 보드. 하나라도 어긋나면 null.
@@ -2562,7 +2602,7 @@ function slateShareParse(code) {
   if (!ps.length || ps.length > SLATE_CODE_MAX) return null;
   const bd = [], seen = new Set();
   for (const p of ps) {
-    const m = /^(\d{3,7})\.(\d{1,2})\.([0-3])(?:\.(\d{1,4}))?$/.exec(p);
+    const m = /^(\d{3,7})\.(\d{1,2})\.([0-7])(?:\.(\d{1,4}))?$/.exec(p);
     if (!m) return null;
     if (seen.has(p)) return null;   // 똑같은 피스가 두 번 — 완전히 겹친 배치라 있을 수 없다
     seen.add(p);
@@ -2570,12 +2610,14 @@ function slateShareParse(code) {
     if (!SLATES[u]) return null;
     const col = (i / 10) | 0, row = i % 10;
     if (col < 1 || col > 6 || row < 1 || row > 6) return null;
-    const sl = {u, i, d: +m[3], t: []};
+    const sl = {u, i, d: +m[3] % 4, t: []};
+    if (+m[3] >= 4) sl.x = 1;
     if (m[4]) {
       const v = +m[4];
       if (!slateShareVarOk(u, v)) return null;
       if (slateIsMothLike(SLATES[u])) sl.f = v; else sl.pcN = v;
     }
+    if (sl.x && !slateFlipDiffers(sl)) return null;   // 뒤집어도 같은 모양 — 코드에 적힐 수 없는 값
     bd.push(sl);
   }
   return slateShareCode(bd) === s ? bd : null;   // 정규형이 아니면 거절 — 같은 배치가 두 코드로 올라오지 않게
@@ -2605,6 +2647,24 @@ function slateChipCount(bd) {
   return m;
 }
 // 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
+// 보드에 남은 빈 칸 수 — 공유에 올릴 때 거른다.
+//   「한 칸 비우는 셋팅은 있지만 두 칸부터는 없다」(2026-11-08 사용자) → 덜 짠 배치가 목록을 채우는 걸 막는다.
+const SLATE_FREE_MAX = 1;
+function slateFreeCells(bd) {
+  const used = new Set();
+  (bd || []).forEach(s => (slateCells(s.u, s.i, s.d, s) || [s.i]).forEach(c => used.add(c)));
+  let n = 0;
+  SLATE_ACT.forEach(c => { if (!used.has(c)) n++; });
+  return n;
+}
+// 뒤집으면 실제로 달라지나 — 인펙션(한 줄)·1칸 명왕처럼 대칭인 것은 뒤집어도 그대로다.
+//   칸 순서까지 본다: 명왕은 1·2·3번 칸에 꽂는 옵션이 달라서, 칸 집합이 같아도 순서가 다르면 다른 배치다.
+function slateFlipDiffers(sl) {
+  if (!sl || !SLATES[sl.u]) return false;
+  const a = slateCells(sl.u, 33, sl.d || 0, sl);
+  const b = slateCells(sl.u, 33, sl.d || 0, Object.assign({}, sl, {x: sl.x ? 0 : 1}));
+  return !!a && !!b && a.join(',') !== b.join(',');
+}
 function slatePcCells(sl) {
   const info = SLATES[sl.u] || {};
   return info.pc ? (sl.pcN || slateUseN(info, sl)) : 0;
@@ -4661,7 +4721,7 @@ function wmFrame(side, main) {
 
 // ── 빌더 2 「추억·석판·정령」 화면의 석판 배치 — 기존 빌더 석판 보드 디자인을 바탕으로 크게 (사용자 2026-10-08) ──
 // 규칙은 공용 조각(00_slate.js): 모양·회전·겹침/개수 한도·파생 효과·재능 목록 재생성. 저장은 빌더와 같은 preset.slateBd
-// [{u: 석판 id, i: 원점 칸(열×10+행), d: 회전 0~3, t: [소켓 노드 id…]}] — 바꿀 때마다 보드 파생 재능 행을 다시 만든다.
+// [{u: 석판 id, i: 원점 칸(열×10+행), d: 회전 0~3, x: 거울(명왕 반전), t: [소켓 노드 id…]}] — 바꿀 때마다 보드 파생 재능 행을 다시 만든다.
 // 위: 석판 고르기(모양 미리보기) · 가운데: 보드(칸 클릭 = 놓기·고르기, 끌어서 옮기기) · 오른쪽: 고른 석판(회전·모양·삭제·소켓)
 let ALL_DATA = null, SLATEIDX = null; // 석판 옵션 행 — mem_data.js 의 SLATE_DB 로 채운다 (빌더는 장비·옵션 전체 행)
 function wsbInit() {
@@ -4704,15 +4764,18 @@ function wsbCellClick(id) {
   if (wsbPal != null && hit < 0) { // 놓기 — 들어가는 회전을 찾고, 안 맞으면 겹친 채로(⚠ 표시 후 옮기면 됨)
     const err = sbLimitErr(wsbPal);
     if (err) { wsbMsg = err; pageRender(); return; }
-    const d = sbFitDir(bd, wsbPal, id, 0, -1);
-    bd.push(Object.assign({u: wsbPal, i: id, d: d < 0 ? 0 : d, t: []}, ((SLATES[wsbPal] || {}).copy || {}).a === 'dir' ? {f: 1001} : {})); // 나방은 복제 방향 '위'로 시작 (회전 단추로 바꾼다)
+    // 회전·쥔 칸·(신격이면) 모양까지 바꿔 가며 들어가는 자리를 찾는다 (2026-11-08 사용자)
+    const fit = sbFitPlace(bd, wsbPal, id, -1);
+    const u = fit ? fit.u : wsbPal;
+    if (fit && fit.u !== wsbPal) wsbMsg = '모양을 ' + ((SLATES[u] || {}).shp || '') + ' 로 바꿔 넣었습니다.';
+    bd.push(Object.assign({u, i: fit ? fit.i : id, d: fit ? fit.d : 0, t: []}, ((SLATES[u] || {}).copy || {}).a === 'dir' ? {f: 1001} : {})); // 나방은 복제 방향 '위'로 시작 (회전 단추로 바꾼다)
     wsbSel = bd.length - 1; wsbPal = null; wsbSock = null;
     wsbApply(); return;
   }
   if (hit >= 0) { wsbSel = hit === wsbSel ? null : hit; wsbPal = null; wsbSock = null; pageRender(); return; }
-  if (wsbSel != null && bd[wsbSel]) { // 고른 석판을 빈 칸으로 — 맞는 회전 우선
-    const sl = bd[wsbSel], d = sbFitDir(bd, sl.u, id, sl.d, wsbSel, sl);
-    sl.i = id; if (d >= 0) sl.d = d;
+  if (wsbSel != null && bd[wsbSel]) { // 고른 석판을 빈 칸으로 — 회전·쥔 칸까지 맞춰 본다 (모양은 그대로)
+    const sl = bd[wsbSel], fit = sbFitAt(bd, sl.u, id, sl.d, wsbSel, sl);
+    if (fit) { sl.i = fit.i; sl.d = fit.d; } else sl.i = id;
     wsbApply();
   }
 }
@@ -4735,6 +4798,18 @@ function wsbShape() { // 신격 모양 변형 순환 (소켓·위치·회전 유
 function wsbFlip(axis) { // axis 'h' = 좌우 · 'v' = 상하
   const sl = wsbBd()[wsbSel]; if (!sl) return;
   const cur = slateCellsXY(sl.u, sl.i, sl.d, sl); if (!cur) return;
+  // 명왕은 모양 변형 번호가 없다(판에 하나뿐인 고정 아이템) — 거울 쪽지(x)를 켜서 뒤집는다 (2026-11-08 사용자)
+  //   상하 = 좌우 거울 + 반 바퀴. 보이던 자리(외곽 상자)는 그대로 두도록 원점을 다시 맞춘다.
+  if ((SLATES[sl.u] || {}).pc) {
+    const bb = cs => [Math.min(...cs.map(p => p[0])), Math.min(...cs.map(p => p[1]))];
+    const o = bb(cur);
+    sl.x = sl.x ? 0 : 1;
+    if (axis === 'v') sl.d = ((+sl.d || 0) + 2) % 4;
+    const n = bb(slateCellsXY(sl.u, sl.i, sl.d, sl) || cur);
+    const at = sl.i + (o[0] - n[0]) * 10 + (o[1] - n[1]);
+    if (sbIdxOk(at)) sl.i = at;
+    wsbApply(); return;
+  }
   const k = axis === 'h' ? 0 : 1, lo = Math.min(...cur.map(p => p[k])), hi = Math.max(...cur.map(p => p[k]));
   const want = cur.map(p => { const q = p.slice(); q[k] = lo + hi - p[k]; return q; });
   const norm = cs => { const c0 = Math.min(...cs.map(p => p[0])), r0 = Math.min(...cs.map(p => p[1])); return {c0, r0, key: cs.map(p => (p[0] - c0) + ',' + (p[1] - r0)).sort().join(';')}; };
@@ -4888,7 +4963,7 @@ function wsbRender() {
     const info = SLATES[sl.u] || {}, isGod = (Math.floor((sl.u - 1) / 100) * 100) in GOD_BASES;
     side = `<div class="wg-addbox"><div class="wg-addh"><b>${escapeHtml(info.n || '#' + sl.u)}</b><span>${slateUseN(info, sl)}칸${info.pc ? ' / ' + (info.c || []).length : ''}</span></div>` +
       '<div class="wsb-acts"><button class="wz-btn" onclick="wsbRotate()">' + (wsbIsMoth(sl) ? '↻ 복제 방향: ' + ({1001: '위', 1002: '왼쪽', 1003: '아래', 1004: '오른쪽'}[sl.f] || '없음') : '↻ 회전') + '</button>' + (isGod ? `<button class="wz-btn" onclick="wsbShape()">모양: ${escapeHtml((info.shp || '?').replace(/1$/, ''))}</button>` : '') +
-      (isGod && GOD_MIRROR[sl.u] ? '<button class="wz-btn" onclick="wsbFlip(\'h\')" title="보이는 그대로 좌우로 뒤집습니다">⇋ 좌우 반전</button><button class="wz-btn" onclick="wsbFlip(\'v\')" title="보이는 그대로 위아래로 뒤집습니다">⇅ 상하 반전</button>' : '') +
+      ((isGod && GOD_MIRROR[sl.u]) || slateFlipDiffers(sl) ? '<button class="wz-btn" onclick="wsbFlip(\'h\')" title="보이는 그대로 좌우로 뒤집습니다">⇋ 좌우 반전</button><button class="wz-btn" onclick="wsbFlip(\'v\')" title="보이는 그대로 위아래로 뒤집습니다">⇅ 상하 반전</button>' : '') +
       '<button class="wz-btn" onclick="wsbDelete()">삭제</button></div>' +
       (cf.has(wsbSel) ? '<div class="wsb-warn">⚠ 겹치거나 보드 밖입니다 — 빈 칸을 누르거나 끌어서 옮기세요</div>' : '<div class="wg-addd">빈 칸을 누르면 그 자리로 옮깁니다 (끌어도 됩니다)</div>') + '</div>';
     if (info.banish) { // 추방 — 10가지 효과 중 하나 (인접·비인접 신격의 석판 각 3개 이상일 때 발동)
@@ -5707,6 +5782,8 @@ async function codeToPreset(code) {
     p.slateBd = pl.sb.slice(0, 12).filter(e => Array.isArray(e) && +e[0] && +e[1]).map(e => ({
       u: slateId(e[0]), i: +e[1], d: Math.min(3, Math.max(0, parseInt(e[2], 10) || 0)), f: parseInt(e[4], 10) || 0,
       b: parseInt(e[5], 10) || 0, // 추방 효과 번호 (1~10, 2026-11-04)
+      x: +e[6] ? 1 : 0,           // 거울 (명왕 좌우 반전, 2026-11-08) — 옛 코드엔 없어 0
+
       t: (Array.isArray(e[3]) ? e[3] : []).slice(0, 8).map(x => x ? String(x) : '')
     }));
     // 모르는 번호로 담겨 가져오기 때 방향 보정을 못 받은 피스가 옛 코드에 남아 있다 (2026-11-03 신의 계보 261010) —
@@ -5850,7 +5927,7 @@ function buildCodePayload(p) {
   }
   const iv = p.inverse ? [p.inverse.pos, p.inverse.opts.low ? 1 : 0, p.inverse.opts.mid ? 1 : 0, p.inverse.opts.abs ? 1 : 0] : undefined;
   const sb = p.slateBd && p.slateBd.length
-    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0, s.b || 0]) : undefined; // 석판 보드 배치 (+나방 방향·추방 효과)
+    ? p.slateBd.map(s => [s.u, s.i, s.d, (s.t || []).map(x => x || 0), s.f || 0, s.b || 0, s.x || 0]) : undefined; // 석판 보드 배치 (+나방 방향·추방 효과·거울)
   // 재능 보드: 찍은 노드는 "노드ID:포인트" 문자열로(짧게), 프리즘 영향 범위는 [계열, 칸들, 장착노드]
   const gb = p.gboard && p.gboard.length ? p.gboard.map(x => x.slice(0, 5).join(':')) : undefined;
   const gpOf = g => g ? [g.b, g.c.map(c => c[0] + ',' + c[1]).join(' '), g.nd || '', g.k || 'p',
