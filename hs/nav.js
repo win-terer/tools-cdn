@@ -203,7 +203,8 @@
       { href: '/tli/db/?tab=tartarus', label: '타르타로스 스킬', match: /^\/tli\/db/, tab: 'tartarus' },
       { href: '/tli/db/?tab=tips',     label: '팁',          match: /^\/tli\/db/, tab: 'tips' },
     ] },
-    { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate|void|blood)/, kids: [
+    // slate 뒤의 (\/|$) 가 없으면 /tli/slates(석판 배치 공유)까지 물어 메뉴 두 개가 켜진다 (2026-11-08 사용자)
+    { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate(\/|$)|void|blood)/, kids: [
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
       { href: '/tli/hero/',    label: '히어로',    match: /^\/tli\/hero/ },
       { href: '/tli/talent/',  label: '재능 보드', match: /^\/tli\/talent/ },
