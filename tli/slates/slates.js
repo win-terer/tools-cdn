@@ -1458,6 +1458,7 @@ let sshErr = '';
 let sshBusy = false;
 let sshNeed = {};         // 칩 → 필요 개수 (0·없음 = 안 고름)
 let sshPage = 0;
+let sshOpenId = null;     // 상세 창에 띄운 배치 — 누른다고 바로 불러오지 않는다 (2026-11-08 사용자)
 const SSH_PAGE = 24;
 
 // 칩 줄 — 레전드 7 · 명왕 3(3칸으로 쓴 것만) · 명왕 1칸 · 제작 석판(신격 묶음)
@@ -1513,12 +1514,12 @@ function sshRows() {
 }
 
 // 작은 보드 그림 — 편집용 보드(wsbBoardHtml)와 달리 손댈 수 없는 그림 한 장
-function sshMiniBoard(bd) {
+function sshMiniBoard(bd, cls) {
   const cellOf = new Map(), col = wsbColors(bd);
   bd.forEach((s, pi) => (slateCellsXY(s.u, s.i, s.d, s) || []).forEach(xy => {
     if (!cellOf.has(xy[0] + ',' + xy[1])) cellOf.set(xy[0] + ',' + xy[1], pi);
   }));
-  let h = '<div class="ssh-mini">';
+  let h = '<div class="' + (cls || 'ssh-mini') + '">';
   for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) {
     const act = SLATE_ACT.has(c * 10 + r), pi = cellOf.get(c + ',' + r);
     if (!act && pi === undefined) { h += '<i class="v"></i>'; continue; }
@@ -1541,6 +1542,43 @@ function sshTags(bd) {
   });
   return [...seen.values()].map(t =>
     `<span class="ssh-tag" style="--c:${t.c}">${escapeHtml(t.label)}${t.n > 1 ? ' ×' + t.n : ''}</span>`).join('');
+}
+
+// ── 상세 보기 ───────────────────────────────────────────────────────────
+// 카드를 누르면 바로 불러오던 것을, 「내 빌더 안 지우고 그냥 보기만」(2026-11-08 사용자)
+// 하도록 큰 그림 한 장 띄우는 창으로 바꿨다. 불러오기는 이 창 안에서만 한다.
+function sshOpen(id) { sshOpenId = id; pageRender(); }
+function sshClose() { if (sshOpenId === null) return; sshOpenId = null; pageRender(); }
+if (typeof document !== 'undefined') document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') sshClose();
+});
+
+// 조각마다 한 줄 — 보드 색과 같은 색 점을 달아 어느 칸이 무엇인지 눈으로 잇는다
+//   (ssh-tag 는 같은 석판을 ×N 으로 합치므로 밝기로 갈라 둔 색과 1:1 이 아니다)
+function sshPieceList(bd) {
+  const col = wsbColors(bd);
+  return '<ul class="ssh-plist">' + bd.map((s, pi) => {
+    const info = SLATES[s.u] || {}, pc = slatePcCells(s);
+    return `<li><i style="background:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
+      (pc ? `<em>${pc}칸</em>` : '') + '</li>';
+  }).join('') + '</ul>';
+}
+
+function sshDetail() {
+  const row = (sshList || []).find(x => x.id === sshOpenId);
+  if (!row || !row._bd) return '';
+  const grew = row._bd.some(s => s.pcN > 1);
+  return '<div class="ssh-dim" onclick="sshClose()"></div>' +
+    '<div class="ssh-modal" role="dialog" aria-label="석판 배치 상세">' +
+    '<div class="ssh-mtop"><b>석판 배치</b>' +
+    `<span>석판 ${row._bd.length}장${row.n > 1 ? ' · 👥 ' + row.n + '명' : ''}</span>` +
+    (sshAdmin ? `<button type="button" class="wz-btn" onclick="sshDelete('${row.id}')">✕ 삭제</button>` : '') +
+    '<button type="button" class="ssh-x" onclick="sshClose()" title="닫기 (Esc)">✕</button></div>' +
+    '<div class="ssh-mbody">' + sshMiniBoard(row._bd, 'ssh-big') +
+    `<div class="ssh-mside"><div class="ssh-tags">${sshTags(row._bd)}</div>${sshPieceList(row._bd)}</div></div>` +
+    '<div class="ssh-mfoot">' +
+    (grew ? '<small>명왕은 옵션을 꽂아야 칸이 다시 늘어납니다.</small>' : '<small>보기만 하는 화면입니다 — 불러오기 전까지 시뮬레이터는 그대로입니다.</small>') +
+    `<button type="button" class="wz-btn pri" onclick="sshTake('${row.id}')">🧩 시뮬레이터로 불러오기</button></div></div>`;
 }
 
 async function sshLoad(fresh) {
@@ -1588,6 +1626,7 @@ async function sshDelete(id) {
     const j = await r.json();
     if (!j || !j.ok) throw new Error((j && j.error) || '지우지 못했습니다.');
     sshList = (sshList || []).filter(x => x.id !== id);
+    if (sshOpenId === id) sshOpenId = null;
     hpToast('지웠습니다.');
   } catch (e) {
     hpToast((e && e.message) || '지우지 못했습니다.');
@@ -1636,7 +1675,7 @@ function sshRender(myBd) {
   else {
     const page = rows.slice(0, (sshPage + 1) * SSH_PAGE);
     body = '<div class="ssh-grid">' + page.map(r =>
-      `<div class="ssh-card" onclick="sshTake('${r.id}')" title="누르면 석판 시뮬레이터로 불러옵니다">` +
+      `<div class="ssh-card" onclick="sshOpen('${r.id}')" title="누르면 크게 봅니다">` +
       sshMiniBoard(r._bd) +
       (sshAdmin ? `<button type="button" class="ssh-del" onclick="event.stopPropagation();sshDelete('${r.id}')" title="이 배치를 지웁니다 (관리자)">✕</button>` : '') +
       `<div class="ssh-cbody"><div class="ssh-tags">${sshTags(r._bd)}</div>` +
@@ -1648,7 +1687,7 @@ function sshRender(myBd) {
     `<button type="button" class="wz-btn pri" onclick="sshUpload()"${sshBusy || !mine ? ' disabled' : ''} ` +
     `title="${mine ? '석판 시뮬레이터에 짜 둔 배치를 올립니다' : '석판 시뮬레이터에 짜 둔 배치가 없습니다'}">⬆ 지금 배치 올리기${mine ? ' (' + mine + '장)' : ''}</button>` +
     `<button type="button" class="wz-btn" onclick="sshLoad(1)"${sshBusy ? ' disabled' : ''}>새로고침</button></div>` +
-    body + '</div>';
+    body + (sshOpenId !== null ? sshDetail() : '') + '</div>';
 }
 
 // ── /tli/slates 단독 화면 — 석판 배치 공유 (2026-11-08 사용자: 「빌드 공유에 석판 배치 메뉴 하나 추가」) ──
@@ -1662,7 +1701,7 @@ function pageRender() {
   document.getElementById('slateApp').innerHTML = '<div class="gbm wsp"><div class="gbm-top">' +
     '<b class="gbm-title">석판 배치 공유</b>' +
     '<a class="ssh-go" href="/tli/slate/">🧩 석판 시뮬레이터</a>' +
-    `<span class="gbm-keys">칩을 <kbd>왼쪽</kbd> 눌러 늘리고 <kbd>오른쪽</kbd> 눌러 줄입니다 <span class="gbm-sep">·</span> 배치를 누르면 시뮬레이터로 불러오기</span>` +
+    `<span class="gbm-keys">칩을 <kbd>왼쪽</kbd> 눌러 늘리고 <kbd>오른쪽</kbd> 눌러 줄입니다 <span class="gbm-sep">·</span> 배치를 누르면 크게 보기</span>` +
     '</div>' + sshRender(bd) + '</div>';
 }
 function pageOnSwitch() {}

@@ -903,3 +903,34 @@
       .ssh-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
       .ssh-mini { grid-template-columns: repeat(6, 13px); grid-auto-rows: 13px; }
       }
+
+    /* ── 상세 보기 — 카드를 누르면 큰 그림 한 장 (2026-11-08 사용자: 「빌더 안 지우고 그냥 보기만」) ── */
+    .ssh-dim { position: fixed; inset: 0; background: rgba(4,7,12,.72); z-index: 60; }
+    .ssh-modal { position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: min(620px, calc(100vw - 28px)); max-height: calc(100vh - 40px); overflow: auto;
+      background: #0e131c; border: 1px solid #2d3850; border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,.6); }
+    .ssh-mtop { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #1e2634; }
+    .ssh-mtop b { color: #e6edf3; font-size: 14px; }
+    .ssh-mtop span { flex: 1; color: #8b9bb4; font-size: 12px; }
+    .ssh-x { width: 26px; height: 26px; padding: 0; line-height: 1; background: #141a24; border: 1px solid #2a3344;
+      color: #9fb0c8; border-radius: 7px; cursor: pointer; }
+    .ssh-x:hover { border-color: #e3b860; color: #e3b860; }
+    .ssh-mbody { display: flex; gap: 16px; padding: 16px 14px; align-items: flex-start; }
+    /* 큰 보드 — 작은 그림과 같은 규칙, 칸만 키웠다 */
+    .ssh-big { display: grid; grid-template-columns: repeat(6, 38px); grid-auto-rows: 38px; gap: 4px; flex: none; }
+    .ssh-big i { border-radius: 6px; background: #19202c; border: 1px solid #242e3e; }
+    .ssh-big i.v { background: none; border: none; }
+    .ssh-big i.on { border-color: rgba(255,255,255,.28); }
+    .ssh-mside { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+    .ssh-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    .ssh-plist li { display: flex; align-items: center; gap: 7px; color: #c3cedd; font-size: 12px; }
+    .ssh-plist i { width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); flex: none; }
+    .ssh-plist em { font-style: normal; color: #e3b860; font-size: 11px; }
+    .ssh-mfoot { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #1e2634; }
+    .ssh-mfoot small { flex: 1; color: #7d8794; font-size: 11px; line-height: 1.6; }
+
+    @media (max-width: 560px) {
+      .ssh-mbody { flex-direction: column; align-items: center; }
+      .ssh-mside { width: 100%; }
+      .ssh-mfoot { flex-wrap: wrap; }
+    }
