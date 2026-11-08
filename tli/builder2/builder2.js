@@ -2587,19 +2587,21 @@ function slateShareParse(code) {
 const SLATE_CHIP_GOD = 'god';
 const SLATE_CHIP_PC1 = 'pc1';
 const SLATE_PC_FULL = 3;
-function slateChipOf(sl) {
+// 석판 하나가 걸리는 칩들 — 한 석판이 둘에 걸릴 수 있다.
+//   명왕은 **종류 칩에 칸 수와 상관없이 늘** 걸린다 (심판·인펙션·추방은 두는 자리가 아주 다르다 — 2026-11-08 사용자),
+//   그중 1칸으로 쓴 것은 「명왕 1칸」에도 함께 걸린다. 전엔 3칸만 종류 칩에 걸려 2칸이 아예 안 잡혔다.
+function slateChipsOf(sl) {
   const u = typeof sl === 'object' ? sl.u : sl, info = SLATES[u] || {};
-  if (info.god && !info.lg) return SLATE_CHIP_GOD;
+  if (info.god && !info.lg) return [SLATE_CHIP_GOD];
   if (info.pc) {
     const n = typeof sl === 'object' ? (sl.pcN || slateUseN(info, sl)) : SLATE_PC_FULL;
-    if (n === 1) return SLATE_CHIP_PC1;
-    return n >= SLATE_PC_FULL ? String(u) : null;   // 2칸은 어느 칩에도 안 건다
+    return n === 1 ? [String(u), SLATE_CHIP_PC1] : [String(u)];
   }
-  return String(u);
+  return [String(u)];
 }
 function slateChipCount(bd) {
   const m = {};
-  (bd || []).forEach(s => { const k = slateChipOf(s); if (k) m[k] = (m[k] || 0) + 1; });
+  (bd || []).forEach(s => slateChipsOf(s).forEach(k => { m[k] = (m[k] || 0) + 1; }));
   return m;
 }
 // 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0

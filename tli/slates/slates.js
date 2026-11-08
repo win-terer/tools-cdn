@@ -828,19 +828,21 @@ function slateShareParse(code) {
 const SLATE_CHIP_GOD = 'god';
 const SLATE_CHIP_PC1 = 'pc1';
 const SLATE_PC_FULL = 3;
-function slateChipOf(sl) {
+// 석판 하나가 걸리는 칩들 — 한 석판이 둘에 걸릴 수 있다.
+//   명왕은 **종류 칩에 칸 수와 상관없이 늘** 걸린다 (심판·인펙션·추방은 두는 자리가 아주 다르다 — 2026-11-08 사용자),
+//   그중 1칸으로 쓴 것은 「명왕 1칸」에도 함께 걸린다. 전엔 3칸만 종류 칩에 걸려 2칸이 아예 안 잡혔다.
+function slateChipsOf(sl) {
   const u = typeof sl === 'object' ? sl.u : sl, info = SLATES[u] || {};
-  if (info.god && !info.lg) return SLATE_CHIP_GOD;
+  if (info.god && !info.lg) return [SLATE_CHIP_GOD];
   if (info.pc) {
     const n = typeof sl === 'object' ? (sl.pcN || slateUseN(info, sl)) : SLATE_PC_FULL;
-    if (n === 1) return SLATE_CHIP_PC1;
-    return n >= SLATE_PC_FULL ? String(u) : null;   // 2칸은 어느 칩에도 안 건다
+    return n === 1 ? [String(u), SLATE_CHIP_PC1] : [String(u)];
   }
-  return String(u);
+  return [String(u)];
 }
 function slateChipCount(bd) {
   const m = {};
-  (bd || []).forEach(s => { const k = slateChipOf(s); if (k) m[k] = (m[k] || 0) + 1; });
+  (bd || []).forEach(s => slateChipsOf(s).forEach(k => { m[k] = (m[k] || 0) + 1; }));
   return m;
 }
 // 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
@@ -1468,9 +1470,10 @@ document.addEventListener('contextmenu', e => {
 //   · 왼쪽 클릭 = 필요 개수 +1, **오른쪽 클릭 = −1** (2026-11-08 사용자). 0 이 되면 해제.
 //   · 「N장 이상」이다 — 두 번 누르면 2장 이상 든 배치.
 //   · 신격 6종은 모양만 다른 같은 물건이라 「제작 석판」 하나로 묶는다.
-//   · 명왕은 판에 하나뿐(sbLimitErr)이라 장수로 나눌 게 없다. 그래서 **칸 수로 나눈다**:
-//     심판·인펙션·추방 칩은 3칸으로 쓴 것만, 1칸으로 쓴 것은 종류 구분 없이 「명왕 1칸」 하나로.
-//     (규칙 자체는 00_slate.js slateChipOf 에 있다 — 시험도 같은 것을 본다.)
+//   · 명왕은 판에 하나뿐(sbLimitErr)이라 장수로 나눌 게 없다. 대신 **종류와 칸 수 둘 다**로 찾는다:
+//     심판·인펙션·추방 칩은 칸 수와 상관없이 걸리고(세 종류는 두는 자리가 아주 다르다 — 2026-11-08 사용자),
+//     1칸으로 쓴 것은 「명왕 1칸」 칩에도 함께 걸린다. 이름도 「명왕:심판」 식으로 맞춰 묶음이 보이게 했다.
+//     (규칙 자체는 00_slate.js slateChipsOf 에 있다 — 시험도 같은 것을 본다.)
 //
 // 목록은 통째로 받아 브라우저에서 거른다 — 한 줄이 100바이트 안쪽이라 600줄이어도 60KB 다.
 //
@@ -1491,7 +1494,7 @@ const SSH_PAGE = 24;
 const SSH_CHIPS = [
   {k: '1010', n: '계보'}, {k: '1003', n: '추별'}, {k: '1005', n: '일각'}, {k: '1001', n: '나방'},
   {k: '1012', n: '들불'}, {k: '1009', n: '균열'}, {k: '1011', n: '고향'},
-  {k: '394004', n: '명왕 심판'}, {k: '394005', n: '인펙션'}, {k: '394006', n: '추방'},
+  {k: '394004', n: '명왕:심판'}, {k: '394005', n: '명왕:인펙션'}, {k: '394006', n: '명왕:추방'},
   {k: SLATE_CHIP_PC1, n: '명왕 1칸'},
   {k: SLATE_CHIP_GOD, n: '제작 석판'},
 ];
@@ -1511,7 +1514,7 @@ function sshFullName(k) {
   if (k === SLATE_CHIP_GOD) return '제작 석판 (신격 6종 — 모양만 다른 같은 물건이라 묶었습니다)';
   if (k === SLATE_CHIP_PC1) return '명왕의 신격을 1칸으로 쓴 배치 (종류 구분 없이)';
   const info = SLATES[+k] || {};
-  return (info.n || k) + (info.pc ? ' — 3칸으로 쓴 배치만' : '');
+  return (info.n || k) + (info.pc ? ' — 몇 칸으로 썼든' : '');
 }
 
 // 칩 — 왼쪽은 늘리고 오른쪽은 줄인다 (2026-11-08 사용자)

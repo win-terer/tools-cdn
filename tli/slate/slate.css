@@ -880,3 +880,6 @@
     .ssh-go { margin-left: 10px; text-decoration: none; background: #141a24; border: 1px solid #2a3344; color: #9fb0c8;
       border-radius: 8px; padding: 6px 13px; font-size: 13px; white-space: nowrap; }
     .ssh-go:hover { border-color: #e3b860; color: #e3b860; }
+    /* 올리기 단추 — 보러 가기(링크)와 나란히, 같은 모양으로 (2026-11-08 사용자: 「두 개로 나뉘는 게 좋지 않을까」) */
+    button.ssh-go { cursor: pointer; font-family: inherit; }
+    button.ssh-go:disabled { opacity: .45; cursor: default; border-color: #2a3344; color: #9fb0c8; }

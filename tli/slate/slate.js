@@ -828,19 +828,21 @@ function slateShareParse(code) {
 const SLATE_CHIP_GOD = 'god';
 const SLATE_CHIP_PC1 = 'pc1';
 const SLATE_PC_FULL = 3;
-function slateChipOf(sl) {
+// 석판 하나가 걸리는 칩들 — 한 석판이 둘에 걸릴 수 있다.
+//   명왕은 **종류 칩에 칸 수와 상관없이 늘** 걸린다 (심판·인펙션·추방은 두는 자리가 아주 다르다 — 2026-11-08 사용자),
+//   그중 1칸으로 쓴 것은 「명왕 1칸」에도 함께 걸린다. 전엔 3칸만 종류 칩에 걸려 2칸이 아예 안 잡혔다.
+function slateChipsOf(sl) {
   const u = typeof sl === 'object' ? sl.u : sl, info = SLATES[u] || {};
-  if (info.god && !info.lg) return SLATE_CHIP_GOD;
+  if (info.god && !info.lg) return [SLATE_CHIP_GOD];
   if (info.pc) {
     const n = typeof sl === 'object' ? (sl.pcN || slateUseN(info, sl)) : SLATE_PC_FULL;
-    if (n === 1) return SLATE_CHIP_PC1;
-    return n >= SLATE_PC_FULL ? String(u) : null;   // 2칸은 어느 칩에도 안 건다
+    return n === 1 ? [String(u), SLATE_CHIP_PC1] : [String(u)];
   }
-  return String(u);
+  return [String(u)];
 }
 function slateChipCount(bd) {
   const m = {};
-  (bd || []).forEach(s => { const k = slateChipOf(s); if (k) m[k] = (m[k] || 0) + 1; });
+  (bd || []).forEach(s => slateChipsOf(s).forEach(k => { m[k] = (m[k] || 0) + 1; }));
   return m;
 }
 // 명왕이 몇 칸으로 쓰였나 (카드 꼬리표용) — 명왕이 아니면 0
@@ -1470,13 +1472,37 @@ function spEffects() { // rebuildSlateTalents 가 만든 석판 파생 행 (t.sr
   return rows.map(t => `<div class="sp-fx"><span>${wsbOptHtml({effect: t.effect, tips: tipsOf(t)})}</span>` +
     `<em>${t.cnt > 1 ? '×' + t.cnt + ' ' : ''}${t.mul && t.mul !== 1 ? '(효과 ×' + t.mul + ') ' : ''}<small>${escapeHtml((t.src || []).join(' · '))}</small></em></div>`).join('');
 }
+// 공유는 두 갈래 — **지금 배치를 바로 올리기** / 올라온 배치 보러 가기 (2026-11-08 사용자)
+//   올리는 쪽은 /tli/slates 의 sshUpload 와 같은 일을 한다. 그 화면(wz_slshare.js)은 여기 안 실리므로
+//   같은 요청을 짧게 다시 적었다 — 규칙(코드 만들기·겹침 검사)은 00_slate.js 공용이라 갈리지 않는다.
+let spUpBusy = false;
+async function spShareUp() {
+  const bd = preset.slateBd || [];
+  if (!bd.length) { hpToast('먼저 석판을 놓아 주세요.'); return; }
+  if (sbConflicts(bd).length) { hpToast('겹치거나 보드 밖에 있는 석판이 있습니다. 고친 뒤 올려 주세요.'); return; }
+  if (spUpBusy) return;
+  spUpBusy = true; pageRender();
+  try {
+    const r = await fetch('/api/slshare', {method: 'POST', headers: {'content-type': 'application/json'},
+      body: JSON.stringify({code: slateShareCode(bd)})});
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.error) || '올리지 못했습니다.');
+    hpToast(j.dup ? '이미 올라와 있는 배치입니다 — 쓰는 사람 수에 더했습니다.' : '올렸습니다. 「공유된 배치」에서 볼 수 있습니다.');
+  } catch (e) {
+    hpToast((e && e.message) || '올리지 못했습니다.');
+  }
+  spUpBusy = false; pageRender();
+}
 function pageRender() {
   wsbInit();
   rebuildSlateTalents(preset); // 저장소에서 읽은 빌드도 파생 행을 지금 데이터로 맞춘다
-  const nfx = (preset.talents || []).filter(t => t.src).length;
+  const nfx = (preset.talents || []).filter(t => t.src).length, nsl = (preset.slateBd || []).length;
   document.getElementById('slateApp').innerHTML = '<div class="gbm wsp"><div class="gbm-top"><b class="gbm-title">석판 시뮬레이터</b>' +
     // 공유는 공유끼리 — 올라온 배치는 빌드 공유 아래 단독 화면으로 뺐다 (2026-11-08 사용자)
-    '<a class="ssh-go" href="/tli/slates/">📐 석판 배치 공유</a>' + gbmHelp('slate') + hpBuildPicker() +
+    `<button type="button" class="ssh-go up" onclick="spShareUp()"${spUpBusy || !nsl ? ' disabled' : ''} ` +
+    `title="${nsl ? '지금 짜 둔 배치를 공유 목록에 올립니다 (같은 배치가 이미 있으면 합쳐집니다)' : '먼저 석판을 놓아 주세요'}">` +
+    `⬆ 배치 올리기${nsl ? ' (' + nsl + '장)' : ''}</button>` +
+    '<a class="ssh-go" href="/tli/slates/">📐 공유된 배치 보기</a>' + gbmHelp('slate') + hpBuildPicker() +
     '<span class="gbm-keys"><kbd>클릭</kbd> 놓기 · 고르기 <span class="gbm-sep">·</span> <kbd>끌기</kbd> 옮기기 <span class="gbm-sep">·</span> 칸에 마우스를 올리면 옵션</span>' +
     '</div>' +
     `<div class="sp-main">${wsbRender()}<div class="wg-addbox sp-fxbox"><div class="wg-addh"><b>적용되는 효과</b><span>${nfx}줄</span></div>${spEffects()}</div></div></div>`;
