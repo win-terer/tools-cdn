@@ -937,6 +937,7 @@
     .ssh-plist li.hl { background: #1c2535; color: #fff; }
     .ssh-plist li.hl2 { color: #e6edf3; }
     .ssh-plist li.dim { opacity: .35; }
+    .ssh-plist em.g { color: #7d8794; border: 1px dashed #39445a; border-radius: 4px; padding: 0 4px; }
     .ssh-plist b { margin-left: auto; font-weight: 400; font-size: 10px; color: #ffd166; }
     .ssh-lg-r { color: #ffd166; font-weight: 400; }
     .ssh-lg-h { color: #e6edf3; font-weight: 400; }

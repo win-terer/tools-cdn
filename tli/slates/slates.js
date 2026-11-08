@@ -1562,7 +1562,9 @@ function sshPieceList(bd) {
   return '<ul class="ssh-plist">' + bd.map((s, pi) => {
     const info = SLATES[s.u] || {}, pc = slatePcCells(s), n = (sshFx[pi] || {size: 0}).size;
     return `<li data-pi="${pi}"><i style="background:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
-      (pc ? `<em>${pc}칸</em>` : '') + (n ? `<b title="효과가 닿는 석판 ${n}장">↗${n}</b>` : '') + '</li>';
+      (pc ? `<em>${pc}칸</em>` : '') +
+      (sshAim.has(pi) ? '<em class="g" title="올린 사람이 정한 방향이 빈 칸을 가리켜, 이웃 석판 쪽으로 돌려 보여 줍니다 (불러올 땐 원래대로)">방향 추정</em>' : '') +
+      (n ? `<b title="효과가 닿는 석판 ${n}장">↗${n}</b>` : '') + '</li>';
   }).join('') + '</ul>';
 }
 
@@ -1571,7 +1573,33 @@ function sshPieceList(bd) {
 //   균열은 좌우, 인펙션은 변을 맞댄 칸, 심판은 돌 사이 영역. 공유 배치엔 옵션이 없지만 범위는 그대로다.
 let sshRng = [];   // 피스 → 효과가 닿는 칸 id
 let sshFx = [];    // 피스 → 그 범위에 걸친 다른 피스
-function sshCalcFx(bd) {
+let sshAim = new Set();  // 방향을 우리가 짐작한 나방 피스
+// 나방 방향 겨누기 (2026-11-08 사용자: 「인접한 석판이 있는 방향으로 대충 잡아줄래?」)
+//   올린 사람이 정한 방향이 빈 칸을 가리키면(또는 옛 코드라 방향이 없으면) 이웃 석판 쪽으로 돌려 본다.
+//   **보여 줄 때만** 돌린다 — 공유 코드·불러오기는 올린 그대로다.
+//   복제 석판끼리는 복제할 옵션이 없으니(slateDerived) 복제 아닌 이웃을 먼저 고른다.
+const SSH_MOTH_D = [-1, -10, 1, 10];   // 1001 위 · 1002 왼쪽 · 1003 아래 · 1004 오른쪽
+function sshAimMoths(bd) {
+  const occ = new Map();
+  bd.forEach((s, pi) => (slateCellsXY(s.u, s.i, s.d, s) || []).forEach(xy => occ.set(xy[0] * 10 + xy[1], pi)));
+  const other = (c, pi) => { const n = occ.get(c); return n === undefined || n === pi ? -1 : n; };
+  sshAim = new Set();
+  return bd.map((s, pi) => {
+    if (!slateIsMothLike(SLATES[s.u] || {})) return s;
+    const di = (s.f || 0) - 1001;
+    if (di >= 0 && di <= 3 && other(s.i + SSH_MOTH_D[di], pi) >= 0) return s;   // 이미 이웃을 보고 있다
+    const pick = want => SSH_MOTH_D.findIndex(d => {
+      const n = other(s.i + d, pi);
+      return n >= 0 && (!want || !(SLATES[bd[n].u] || {}).copy);
+    });
+    let k = pick(1); if (k < 0) k = pick(0);
+    if (k < 0) return s;                                                        // 사방이 비었다 — 그냥 둔다
+    sshAim.add(pi);
+    return Object.assign({}, s, {f: 1001 + k});
+  });
+}
+function sshCalcFx(bd0) {
+  const bd = sshAimMoths(bd0);
   sshRng = slateRange(bd);
   const cellsOf = bd.map(s => (slateCellsXY(s.u, s.i, s.d, s) || []).map(xy => xy[0] * 10 + xy[1]));
   sshFx = bd.map((_, pi) => new Set(bd.map((_, ni) => ni)
