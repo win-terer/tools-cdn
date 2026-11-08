@@ -2042,6 +2042,27 @@ function slateCells(u, idx, dir, sl) {
   return cells.map(c => (y0 + c[1]) * 10 + (x0 + c[0]));
 }
 const SLATE_COLORS = ['#e5534b', '#3fb950', '#4493f8', '#d29922', '#a371f7', '#39c5cf', '#f778ba', '#ffa657', '#7ee787', '#79c0ff', '#ff7b72', '#8b949e'];
+// 석판 색 — **종류마다 고정** (2026-11-08 사용자: 계보 노랑 · 들불 붉은노랑 · 일각/추별 노랑 · 명왕 진파랑)
+//   전엔 놓은 순번(SLATE_COLORS[pi])이라 같은 석판이 판마다 다른 색이었다. 이제 색이 곧 석판 이름이다.
+//   같은 석판이 여러 장이면 부르는 쪽에서 명도 단계로 가른다(wsbColors·03_editor).
+const SLATE_GOD_COLORS = {260000: '#2dd4bf', 260100: '#d46ad4', 260200: '#5588ff', 260300: '#e5534b', 260400: '#38bdf8', 260500: '#f0883e'};
+const SLATE_HUE = {
+  1010: '#ffd54a',  // 신의 계보 — 밝은 금빛
+  1003: '#d9a327',  // 추락하는 별빛 — 짙은 호박
+  1005: '#e8d27a',  // 신성의 일각 — 연한 금빛
+  1012: '#f2742e',  // 들불 번지는 순간 — 붉은빛 주황
+  1001: '#8fd3f4',  // 빛이 된 나방 (미지정 — 노랑과 안 겹치게 흰 하늘빛)
+  1009: '#a371f7',  // 우주의 균열 (미지정)
+  1011: '#3fb950',  // 별들의 고향 (미지정)
+  394004: '#5b8def', 394005: '#3566d6', 394006: '#2448b8',   // 명왕 — 진한 파랑
+  394001: '#4a7ae0', 394002: '#2c57c4',                      // 불완전 명왕(옛 데이터)
+};
+function slateBaseColor(u, pi) {
+  if (SLATE_HUE[u]) return SLATE_HUE[u];
+  const info = SLATES[u] || {};
+  if (info.god) return SLATE_GOD_COLORS[Math.floor((u - 1) / 100) * 100] || '#c9a6ff';
+  return SLATE_COLORS[pi % SLATE_COLORS.length];
+}
 function sbCellsFree(bd, cells, skip) {
   const used = new Set();
   bd.forEach((s, i) => { if (i !== skip) (slateCells(s.u, s.i, s.d, s) || [s.i]).forEach(c => used.add(c)); });
@@ -6987,12 +7008,10 @@ function renderSlateBoard() {
   }
   const cellOf = new Map(); // 'x,y' → {pi, org, conflict, out}
   let bx0 = 1, bx1 = 6, by0 = 1, by1 = 6; // 그리드 범위 — 보드 밖으로 나간 칸이 있을 때만 그 방향으로 확장
-  // 피스 색: 신격 = 신별 고정색(게임 색감), 레전드 = 팔레트 순번 — 같은 색이 여러 장이면 명도 단계로 구분
-  const GOD_COLORS = {260000: '#2dd4bf', 260100: '#d46ad4', 260200: '#5588ff', 260300: '#e5534b', 260400: '#38bdf8', 260500: '#f0883e'};
+  // 피스 색: 석판 종류마다 고정(slateBaseColor) — 같은 석판이 여러 장이면 명도 단계로 구분
   const colOf = [], colCnt = new Map();
   bd.forEach((s, pi) => {
-    const info = SLATES[s.u] || {};
-    const base = info.god ? (GOD_COLORS[Math.floor((s.u - 1) / 100) * 100] || '#c9a6ff') : SLATE_COLORS[pi % SLATE_COLORS.length];
+    const base = slateBaseColor(s.u, pi);
     const n = colCnt.get(base) || 0;
     colCnt.set(base, n + 1);
     colOf[pi] = n === 0 ? base : `color-mix(in srgb, ${base} ${Math.max(35, 100 - n * 28)}%, #f0f6fc)`;
