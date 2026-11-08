@@ -1514,7 +1514,7 @@ function sshRows() {
 }
 
 // 작은 보드 그림 — 편집용 보드(wsbBoardHtml)와 달리 손댈 수 없는 그림 한 장
-function sshMiniBoard(bd, cls) {
+function sshMiniBoard(bd, cls, ids) {
   const cellOf = new Map(), col = wsbColors(bd);
   bd.forEach((s, pi) => (slateCellsXY(s.u, s.i, s.d, s) || []).forEach(xy => {
     if (!cellOf.has(xy[0] + ',' + xy[1])) cellOf.set(xy[0] + ',' + xy[1], pi);
@@ -1522,8 +1522,10 @@ function sshMiniBoard(bd, cls) {
   let h = '<div class="' + (cls || 'ssh-mini') + '">';
   for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) {
     const act = SLATE_ACT.has(c * 10 + r), pi = cellOf.get(c + ',' + r);
-    if (!act && pi === undefined) { h += '<i class="v"></i>'; continue; }
-    h += pi === undefined ? '<i></i>' : `<i class="on" style="background:${col[pi]}"></i>`;
+    // 큰 그림만 칸 번호(data-cid)·피스 번호(data-pi)를 단다 — 마우스 강조가 이걸 보고 움직인다
+    const at = ids ? ` data-cid="${c * 10 + r}"` + (pi === undefined ? '' : ` data-pi="${pi}"`) : '';
+    if (!act && pi === undefined) { h += `<i class="v"${at}></i>`; continue; }
+    h += pi === undefined ? `<i${at}></i>` : `<i class="on" style="background:${col[pi]}"${at}></i>`;
   }
   return h + '</div>';
 }
@@ -1558,26 +1560,63 @@ if (typeof document !== 'undefined') document.addEventListener('keydown', e => {
 function sshPieceList(bd) {
   const col = wsbColors(bd);
   return '<ul class="ssh-plist">' + bd.map((s, pi) => {
-    const info = SLATES[s.u] || {}, pc = slatePcCells(s);
-    return `<li><i style="background:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
-      (pc ? `<em>${pc}칸</em>` : '') + '</li>';
+    const info = SLATES[s.u] || {}, pc = slatePcCells(s), n = (sshFx[pi] || {size: 0}).size;
+    return `<li data-pi="${pi}"><i style="background:${col[pi]}"></i>${escapeHtml(info.n || String(s.u))}` +
+      (pc ? `<em>${pc}칸</em>` : '') + (n ? `<b title="효과가 닿는 석판 ${n}장">↗${n}</b>` : '') + '</li>';
   }).join('') + '</ul>';
 }
+
+// 마우스를 올린 석판 강조 — 빌더·시뮬레이터의 wsbHighlight 와 같은 모양(hl / hl2 / dim / rng)
+//   범위(slateRange)는 **옵션 없이 자리만으로** 난다 — 들불·고향은 상하좌우, 나방은 정한 한 방향,
+//   균열은 좌우, 인펙션은 변을 맞댄 칸, 심판은 돌 사이 영역. 공유 배치엔 옵션이 없지만 범위는 그대로다.
+let sshRng = [];   // 피스 → 효과가 닿는 칸 id
+let sshFx = [];    // 피스 → 그 범위에 걸친 다른 피스
+function sshCalcFx(bd) {
+  sshRng = slateRange(bd);
+  const cellsOf = bd.map(s => (slateCellsXY(s.u, s.i, s.d, s) || []).map(xy => xy[0] * 10 + xy[1]));
+  sshFx = bd.map((_, pi) => new Set(bd.map((_, ni) => ni)
+    .filter(ni => ni !== pi && cellsOf[ni].some(c => sshRng[pi].has(c)))));
+}
+function sshHighlight(pi) {
+  const root = typeof document === 'undefined' ? null : document.querySelector('.ssh-modal');
+  if (!root) return;
+  const on = pi >= 0, rng = (on && sshRng[pi]) || new Set(), sec = (on && sshFx[pi]) || new Set();
+  root.querySelectorAll('.ssh-big i').forEach(el => {
+    const p = el.dataset.pi === undefined ? -1 : +el.dataset.pi;
+    el.classList.toggle('rng', rng.has(+el.dataset.cid));
+    el.classList.toggle('hl', on && p === pi);
+    el.classList.toggle('hl2', on && p >= 0 && p !== pi && sec.has(p));
+    el.classList.toggle('dim', on && p >= 0 && p !== pi && !sec.has(p));
+  });
+  root.querySelectorAll('.ssh-plist li').forEach(el => {
+    const p = +el.dataset.pi;
+    el.classList.toggle('hl', on && p === pi);
+    el.classList.toggle('hl2', on && p !== pi && sec.has(p));
+    el.classList.toggle('dim', on && p !== pi && !sec.has(p));
+  });
+}
+if (typeof document !== 'undefined') document.addEventListener('mouseover', e => {
+  if (sshOpenId === null || !e.target.closest) return;
+  const t = e.target.closest('.ssh-modal [data-pi]');
+  sshHighlight(t ? +t.dataset.pi : -1);
+});
 
 function sshDetail() {
   const row = (sshList || []).find(x => x.id === sshOpenId);
   if (!row || !row._bd) return '';
   const grew = row._bd.some(s => s.pcN > 1);
+  sshCalcFx(row._bd);
   return '<div class="ssh-dim" onclick="sshClose()"></div>' +
     '<div class="ssh-modal" role="dialog" aria-label="석판 배치 상세">' +
     '<div class="ssh-mtop"><b>석판 배치</b>' +
     `<span>석판 ${row._bd.length}장${row.n > 1 ? ' · 👥 ' + row.n + '명' : ''}</span>` +
     (sshAdmin ? `<button type="button" class="wz-btn" onclick="sshDelete('${row.id}')">✕ 삭제</button>` : '') +
     '<button type="button" class="ssh-x" onclick="sshClose()" title="닫기 (Esc)">✕</button></div>' +
-    '<div class="ssh-mbody">' + sshMiniBoard(row._bd, 'ssh-big') +
+    '<div class="ssh-mbody">' + sshMiniBoard(row._bd, 'ssh-big', 1) +
     `<div class="ssh-mside"><div class="ssh-tags">${sshTags(row._bd)}</div>${sshPieceList(row._bd)}</div></div>` +
     '<div class="ssh-mfoot">' +
-    (grew ? '<small>명왕은 옵션을 꽂아야 칸이 다시 늘어납니다.</small>' : '<small>보기만 하는 화면입니다 — 불러오기 전까지 시뮬레이터는 그대로입니다.</small>') +
+    `<small>석판에 마우스를 올리면 <b class="ssh-lg-r">효과가 닿는 칸</b>이 점선으로, <b class="ssh-lg-h">닿는 석판</b>이 함께 밝아집니다.` +
+    (grew ? ' 명왕은 옵션을 꽂아야 칸이 다시 늘어납니다.' : ' 불러오기 전까지 시뮬레이터는 그대로입니다.') + '</small>' +
     `<button type="button" class="wz-btn pri" onclick="sshTake('${row.id}')">🧩 시뮬레이터로 불러오기</button></div></div>`;
 }
 
@@ -1641,6 +1680,7 @@ function sshTake(id) {
   if ((preset.slateBd || []).length && !wtOk('석판 시뮬레이터의 지금 배치를 지우고 이 배치를 불러올까요?', () => sshTake(id))) return;
   // pcN(명왕이 쓰던 칸 수)은 저장하지 않는다 — 소켓을 꽂으면 칸이 다시 늘어난다(slateUseN)
   const grew = row._bd.some(s => s.pcN > 1);
+  sshCalcFx(row._bd);
   preset.slateBd = row._bd.map(s => Object.assign({u: s.u, i: s.i, d: s.d, t: []}, s.f ? {f: s.f} : null));
   rebuildSlateTalents(preset); persistPreset();
   hpToast('석판 시뮬레이터로 불러왔습니다' + (grew ? ' — 명왕은 옵션을 꽂으면 칸이 다시 늘어납니다.' : '.'));

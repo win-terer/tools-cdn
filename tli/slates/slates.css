@@ -926,6 +926,21 @@
     .ssh-plist li { display: flex; align-items: center; gap: 7px; color: #c3cedd; font-size: 12px; }
     .ssh-plist i { width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); flex: none; }
     .ssh-plist em { font-style: normal; color: #e3b860; font-size: 11px; }
+    /* 마우스 강조 — 시뮬레이터 .wsb-cell.hl/.hl2/.dim/.rng 와 같은 모양 */
+    .ssh-big i { transition: opacity .12s, filter .12s; }
+    .ssh-big i.on.hl { box-shadow: 0 0 0 2px #fff6, 0 0 12px rgba(255,255,255,.35); filter: brightness(1.45); }
+    .ssh-big i.on.hl2 { filter: brightness(1.2); box-shadow: 0 0 8px rgba(255,255,255,.25); }
+    .ssh-big i.on.dim { opacity: .28; }
+    .ssh-big i.rng { outline: 2px dashed rgba(255,209,102,.85); outline-offset: -3px; }
+    .ssh-big i.on.rng.dim { opacity: .7; }
+    .ssh-plist li { cursor: default; border-radius: 5px; padding: 1px 4px; margin: 0 -4px; transition: opacity .12s; }
+    .ssh-plist li.hl { background: #1c2535; color: #fff; }
+    .ssh-plist li.hl2 { color: #e6edf3; }
+    .ssh-plist li.dim { opacity: .35; }
+    .ssh-plist b { margin-left: auto; font-weight: 400; font-size: 10px; color: #ffd166; }
+    .ssh-lg-r { color: #ffd166; font-weight: 400; }
+    .ssh-lg-h { color: #e6edf3; font-weight: 400; }
+
     .ssh-mfoot { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #1e2634; }
     .ssh-mfoot small { flex: 1; color: #7d8794; font-size: 11px; line-height: 1.6; }
 
