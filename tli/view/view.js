@@ -2878,7 +2878,10 @@ async function codeToPreset(code) {
     if (typeof x === 'string' && x[0] === '#') { const it = H.it.get(x.slice(1)); return it ? it.name : null; }
     return str(x, 100) || null;
   };
-  const isV2 = pl.v === 2;
+  // v2 부터는 짧은 필드 이름(slots.k·pl.sk·pl.tal)을 쓴다. **`=== 2` 로 못 박으면 안 된다** —
+  // 바깥에서 v3 으로 보내면 v1 옛 필드(slots.kind·pl.skills·pl.talents)를 찾다가 장비·스킬을
+  // 통째로 버린다(2026-11-17 인게임 변환기 연동에서 실제로 그랬다. 조용히 비는 거라 더 나쁘다).
+  const isV2 = pl.v >= 2;
   PRESET_SLOTS.forEach(s => {
     const v = pl.slots && pl.slots[s.id];
     if (!v) return;
