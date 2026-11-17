@@ -5624,6 +5624,17 @@ async function codeToPreset(code, opt) {
       if (o && x && typeof x === 'object') {
         if (x.l >= 0 && x.l <= 99) o.lv = +x.l;
         if (Array.isArray(x.so)) { const v = x.so.slice(0, 6).map(Number).filter(isFinite); if (v.length) o.sopt = v; }
+        // 모듈 스킬의 랜덤 프로토콜 (최대 3개). 우리 코드는 {n, e}, 바깥(인게임 변환기)은 {name, effect} 로 보낸다 —
+        // 둘 다 받는다. 수치가 이미 적용된 문구라 그대로 쓴다 (2026-11-17 사용자)
+        const dp = Array.isArray(x.pr) ? x.pr : Array.isArray(x.proto) ? x.proto : null;
+        if (dp) {
+          const pr = dp.slice(0, 3).map(y => {
+            if (!y || typeof y !== 'object') return null;
+            const e = str(y.e != null ? y.e : y.effect, 600);
+            return e ? {name: str(y.n != null ? y.n : y.name, 60), effect: e} : null;
+          }).filter(Boolean);
+          if (pr.length) o.proto = pr;
+        }
       }
       return o;
     };
@@ -5878,6 +5889,8 @@ function buildCodePayload(p) {
     const ex = {};
     if (o.lv >= 0 && o.lv !== 20) ex.l = o.lv;
     if (o.sopt && o.sopt.length) ex.so = o.sopt;
+    // 모듈 스킬의 랜덤 프로토콜 — 로그에서 읽어 놓고 공유 코드엔 안 실어서, 공유하면 사라지고 있었다 (2026-11-17)
+    if (o.proto && o.proto.length) ex.pr = o.proto.slice(0, 3).map(x => ({n: x.name, e: x.effect}));
     if (Object.keys(ex).length) return typeof e === 'string' ? {h: e, ...ex} : {...e, ...ex};
     return e;
   };

@@ -2856,6 +2856,17 @@ async function codeToPreset(code, opt) {
       if (o && x && typeof x === 'object') {
         if (x.l >= 0 && x.l <= 99) o.lv = +x.l;
         if (Array.isArray(x.so)) { const v = x.so.slice(0, 6).map(Number).filter(isFinite); if (v.length) o.sopt = v; }
+        // 모듈 스킬의 랜덤 프로토콜 (최대 3개). 우리 코드는 {n, e}, 바깥(인게임 변환기)은 {name, effect} 로 보낸다 —
+        // 둘 다 받는다. 수치가 이미 적용된 문구라 그대로 쓴다 (2026-11-17 사용자)
+        const dp = Array.isArray(x.pr) ? x.pr : Array.isArray(x.proto) ? x.proto : null;
+        if (dp) {
+          const pr = dp.slice(0, 3).map(y => {
+            if (!y || typeof y !== 'object') return null;
+            const e = str(y.e != null ? y.e : y.effect, 600);
+            return e ? {name: str(y.n != null ? y.n : y.name, 60), effect: e} : null;
+          }).filter(Boolean);
+          if (pr.length) o.proto = pr;
+        }
       }
       return o;
     };
