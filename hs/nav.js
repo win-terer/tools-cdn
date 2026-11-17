@@ -204,15 +204,15 @@
       { href: '/tli/db/?tab=tips',     label: '팁',          match: /^\/tli\/db/, tab: 'tips' },
     ] },
     // slate 뒤의 (\/|$) 가 없으면 /tli/slates(석판 배치 공유)까지 물어 메뉴 두 개가 켜진다 (2026-11-08 사용자)
-    { label: '빌더', match: /^\/tli\/(builder|talent|hero|slate(\/|$)|void|blood|ingame)/, kids: [
+    { label: '빌더', href: '/tli/builder/', match: /^\/tli\/(builder|talent|hero|slate(\/|$)|void|blood|ingame)/, kids: [
+      // 게임 안 빌드 공유 코드를 빌더에서 열기 (2026-11-17 사용자, 맨 위로) — 코드→빌드 변환은 바깥 변환기가 한다
+      { href: '/tli/ingame/',  label: '인게임 코드',  match: /^\/tli\/ingame/ },
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
       { href: '/tli/hero/',    label: '히어로',    match: /^\/tli\/hero/ },
       { href: '/tli/talent/',  label: '재능 보드', match: /^\/tli\/talent/ },
       { href: '/tli/slate/',   label: '석판',      match: /^\/tli\/slate(\/|$)/ },   // /tli/slates(배치 공유)는 빌드 공유 쪽
       { href: '/tli/blood/',   label: '봉합',      match: /^\/tli\/blood/ },   // 봉합(블러드 장비) 시뮬레이터 (2026-10-28 메뉴 추가)
       { href: '/tli/void/',    label: '허공의 성도', match: /^\/tli\/void/ },   // 재능 별무리 시뮬레이터 (2026-10-16, 사용자: 빌더 아래로)
-      // 게임 안 빌드 공유 코드를 빌더에서 열기 (2026-11-17 사용자) — 코드→빌드 변환은 바깥 변환기가 한다
-      { href: '/tli/ingame/',  label: '인게임 코드',  match: /^\/tli\/ingame/ },
     ] },
     // 빌드 공유 — 히어로 빌드(/tli/share) · 파밍 빌드(허공의 성도 배치, /tli/farm) (2026-10-16 사용자)
     //   · 석판 배치(/tli/slates, 2026-11-08 사용자: 석판 시뮬 안 탭보다 공유 메뉴에 두는 게 낫다)
@@ -395,8 +395,10 @@
     `<span class="game" title="${GAME_FULL}">${GAME}</span>` +
     `<div class="tabs">` + LINKS.map((l, i) => l.kids
       // 묶음 탭도 누르면 첫 항목으로 간다(하위를 고르지 않아도 되게). 펼침은 마우스를 올리거나 ▼ 를 누를 때.
+      // 묶음에 href 를 적어 두면 그리로 간다 — 목록 맨 위가 대표 화면이 아닐 때 쓴다
+      // (2026-11-17: '인게임 코드' 를 맨 위로 올렸는데, 그러면 '빌더' 를 눌렀을 때 빌더가 안 열린다)
       ? `<span class="tabwrap"${l.match.test(navPath) ? ' aria-current="page"' : ''} data-menu="${i}">` +
-        `<a class="tab" href="${l.kids[0].href}">${l.label}</a>` +
+        `<a class="tab" href="${l.href || l.kids[0].href}">${l.label}</a>` +
         `<button class="caret" type="button" data-menu="${i}" aria-expanded="false" aria-label="${l.label} 하위 메뉴">▼</button></span>`
       : `<a class="tab" href="${l.href}"${l.match.test(navPath) ? ' aria-current="page"' : ''}>${l.label}</a>`
     ).join('') + `</div>` +
