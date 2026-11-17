@@ -5562,7 +5562,9 @@ function decodePactPayload(pc) {
   return {pacts: pacts.some(Boolean) ? pacts : null, missing};
 }
 // 코드 → 빌드 객체 (필드 검증·정리 포함). {preset, missing} 반환
-async function codeToPreset(code) {
+// opt.extV: 바깥에서 들어온 코드에만 추가로 허용할 버전 (인게임 변환기가 v3 으로 보낸다 — 2026-11-17).
+// 우리가 만드는 코드는 계속 v2 다. 우리가 v3 을 새로 정의하게 되면 이 예외부터 정리할 것.
+async function codeToPreset(code, opt) {
   code = (code || '').trim();
   let jsonBytes;
   if (code.startsWith('TLP1.')) {
@@ -5574,7 +5576,8 @@ async function codeToPreset(code) {
     throw new Error('빌드 코드 형식이 아닙니다 (TLP로 시작해야 합니다)');
   }
   const pl = JSON.parse(new TextDecoder().decode(jsonBytes));
-  if (!pl || (pl.v !== 1 && pl.v !== 2)) throw new Error('지원하지 않는 코드 버전입니다');
+  const okV = [1, 2].concat((opt && opt.extV) || []);
+  if (!pl || !okV.includes(pl.v)) throw new Error('지원하지 않는 코드 버전입니다');
   const H = ensureHashMaps();
   // XSS 방어: 외부에서 온 문자열의 태그 시작 문자를 전각(＜)으로 치환 — innerHTML 어디로 가도 태그로 해석되지 않음
   const str = (x, max) => String(x == null ? '' : x).replace(/<(?=[a-zA-Z/!?])/g, '＜').slice(0, max || 500);
@@ -7243,6 +7246,30 @@ async function extLogDump(tok) { // 빌더·빌더 2 공용 (2026-10-13 06_share
     });
   } catch (e) {}
 }
+// 인게임 빌드 공유 코드(?ingame=<코드>) → 새 빌드 (2026-11-17 사용자)
+// 게임 안에서 빌드를 공유하면 나오는 코드를 우리 워커(/api/ingame)가 바깥 변환기에 물어 TLP 코드로 받아 온다.
+// 받은 다음은 공유 코드를 가져오는 길과 똑같다 — 해석은 전부 여기(브라우저)서.
+async function extIngame(id) {
+  if (!id) return;
+  try {
+    showToast('게임 빌드 받는 중…');
+    const res = await fetch('/api/ingame?id=' + encodeURIComponent(id));
+    const d = await res.json().catch(() => null);
+    if (!res.ok || !d || !d.ok) { alert((d && d.error) || '빌드를 받지 못했습니다. 코드를 다시 확인해 주세요.'); return; }
+    const r = await codeToPreset(d.code, {extV: [3]});   // 변환기는 우리 v2 와 같은 모양을 v3 으로 보낸다
+    const p = r.preset;
+    p.id = wbNextId();
+    const nm = (d.title || '').trim();
+    if (nm) p.name = ('게임: ' + nm).slice(0, 30);
+    presets.list.push(p); presets.activeId = p.id; hpUse(p); persistPreset();
+    window.wtEv && wtEv('ingame_import');
+    if (typeof switchTab === 'function') switchTab('preset');
+    wzGo('hero');
+    showToast('게임 빌드를 가져왔습니다' + (r.missing ? ' (못 알아본 옵션 ' + r.missing + '개)' : ''));
+  } catch (e) {
+    alert('빌드 코드를 풀지 못했습니다.\n' + ((e && e.message) || ''));
+  }
+}
 // 외부 앱 로그 연동(?logimport=MLI1.xxx): 추출된 게임 ID 페이로드 → 새 빌드
 // 스펙: 미니토치DB_로그연동_스펙_v1.md — 로그 파일이 아니라 ID 요약만 받는다
 async function extLogImport(code) { // 빌더·빌더 2 공용 (2026-10-13 06_share 에서 옮김)
@@ -8035,11 +8062,11 @@ window.addEventListener('hashchange', () => { const h = location.hash.slice(1); 
 pageRender();
 if (wzHash0[0] === 'share') { history.replaceState(null, '', location.pathname + location.search); wzListShare(); }
 // 외부 앱 연동 링크(?logdump=토큰 · ?logimport=MLI1.…) — 옛 빌더 폐기로 빌더 2 가 받는다 (2026-10-13). 데이터부터 받고 02_logimport 공용 처리로
-{ const q = new URLSearchParams(location.search), tok = q.get('logdump'), lc = q.get('logimport');
-  if (tok || lc) {
+{ const q = new URLSearchParams(location.search), tok = q.get('logdump'), lc = q.get('logimport'), ing = q.get('ingame');
+  if (tok || lc || ing) {
     history.replaceState(null, '', location.pathname + location.hash); // 새로고침 중복 방지
     showToast('데이터 받는 중…');
-    wbLoad().then(() => tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
+    wbLoad().then(() => ing ? extIngame(ing) : tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
   } }
 // 빌더 안에서는 브라우저 우클릭 메뉴를 띄우지 않는다 — 우클릭은 빼기·포인트 빼기에 쓴다(2026-10-22 사용자). 입력칸·글상자·링크는 예외
 document.addEventListener('contextmenu', e => {
