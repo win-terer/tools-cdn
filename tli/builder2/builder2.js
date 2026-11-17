@@ -7249,30 +7249,11 @@ async function extLogDump(tok) { // 빌더·빌더 2 공용 (2026-10-13 06_share
     });
   } catch (e) {}
 }
-// 인게임 빌드 공유 코드(?ingame=<코드>) → 새 빌드 (2026-11-17 사용자)
-// 게임 안에서 빌드를 공유하면 나오는 코드를 우리 워커(/api/ingame)가 바깥 변환기에 물어 TLP 코드로 받아 온다.
-// 받은 다음은 공유 코드를 가져오는 길과 똑같다 — 해석은 전부 여기(브라우저)서.
-async function extIngame(id) {
-  id = String(id || '').trim().replace(/ /g, '+');   // 쿼리에서 '+' 가 공백으로 읽힌 것을 되돌린다 (base64 에 공백은 없다)
-  if (!id) return;
-  try {
-    showToast('게임 빌드 받는 중…');
-    const res = await fetch('/api/ingame?id=' + encodeURIComponent(id));
-    const d = await res.json().catch(() => null);
-    if (!res.ok || !d || !d.ok) { alert((d && d.error) || '빌드를 받지 못했습니다. 코드를 다시 확인해 주세요.'); return; }
-    const r = await codeToPreset(d.code, {extV: [3]});   // 변환기는 우리 v2 와 같은 모양을 v3 으로 보낸다
-    const p = r.preset;
-    p.id = wbNextId();
-    const nm = (d.title || '').trim();
-    if (nm) p.name = ('게임: ' + nm).slice(0, 30);
-    presets.list.push(p); presets.activeId = p.id; hpUse(p); persistPreset();
-    window.wtEv && wtEv('ingame_import');
-    if (typeof switchTab === 'function') switchTab('preset');
-    wzGo('hero');
-    showToast('게임 빌드를 가져왔습니다' + (r.missing ? ' (못 알아본 옵션 ' + r.missing + '개)' : ''));
-  } catch (e) {
-    alert('빌드 코드를 풀지 못했습니다.\n' + ((e && e.message) || ''));
-  }
+// 인게임 빌드 공유 코드(?ingame=<코드>) — **보기 화면 몫**이다 (2026-11-17 사용자: 내 빌드 목록에 바로
+// 넣지 말고 공유 글처럼 보기만 하고, 담는 건 [내 빌드로 가져오기] 로). 여기로 온 옛 링크만 넘겨 준다.
+function extIngame(id) {
+  const v = String(id || '').trim().replace(/ /g, '+');
+  if (v) location.replace('/tli/view/?ingame=' + encodeURIComponent(v));
 }
 // 외부 앱 로그 연동(?logimport=MLI1.xxx): 추출된 게임 ID 페이로드 → 새 빌드
 // 스펙: 미니토치DB_로그연동_스펙_v1.md — 로그 파일이 아니라 ID 요약만 받는다
@@ -8070,7 +8051,8 @@ if (wzHash0[0] === 'share') { history.replaceState(null, '', location.pathname +
   if (tok || lc || ing) {
     history.replaceState(null, '', location.pathname + location.hash); // 새로고침 중복 방지
     showToast('데이터 받는 중…');
-    wbLoad().then(() => ing ? extIngame(ing) : tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
+    if (ing) { extIngame(ing); }   // 데이터를 받기 전에 바로 넘긴다 (보기 화면이 제 몫을 받는다)
+    else wbLoad().then(() => tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
   } }
 // 빌더 안에서는 브라우저 우클릭 메뉴를 띄우지 않는다 — 우클릭은 빼기·포인트 빼기에 쓴다(2026-10-22 사용자). 입력칸·글상자·링크는 예외
 document.addEventListener('contextmenu', e => {

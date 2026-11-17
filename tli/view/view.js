@@ -2795,7 +2795,8 @@ function decodePactPayload(pc) {
   return {pacts: pacts.some(Boolean) ? pacts : null, missing};
 }
 // 코드 → 빌드 객체 (필드 검증·정리 포함). {preset, missing} 반환
-async function codeToPreset(code) {
+// opt.extV: 바깥에서 온 코드에만 추가로 허용할 버전 (인게임 변환기가 v3 으로 보낸다 — 2026-11-17)
+async function codeToPreset(code, opt) {
   code = (code || '').trim();
   let jsonBytes;
   if (code.startsWith('TLP1.')) {
@@ -2807,7 +2808,8 @@ async function codeToPreset(code) {
     throw new Error('빌드 코드 형식이 아닙니다 (TLP로 시작해야 합니다)');
   }
   const pl = JSON.parse(new TextDecoder().decode(jsonBytes));
-  if (!pl || (pl.v !== 1 && pl.v !== 2)) throw new Error('지원하지 않는 코드 버전입니다');
+  const okV = [1, 2].concat((opt && opt.extV) || []);
+  if (!pl || !okV.includes(pl.v)) throw new Error('지원하지 않는 코드 버전입니다');
   const H = ensureHashMaps();
   // XSS 방어: 외부에서 온 문자열의 태그 시작 문자를 전각(＜)으로 치환 — innerHTML 어디로 가도 태그로 해석되지 않음
   const str = (x, max) => String(x == null ? '' : x).replace(/<(?=[a-zA-Z/!?])/g, '＜').slice(0, max || 500);
@@ -6014,6 +6016,16 @@ async function vwLoad() {
       if (!res.ok) throw new Error('공유된 빌드 링크를 찾지 못했습니다 — 링크는 7일간 유지됩니다. 보낸 사람에게 새 링크를 요청해 주세요');
       code = (await res.json()).code || '';
     }
+    // 인게임 빌드 공유 코드(?ingame=<게임 코드>) — 워커가 바깥 변환기에 물어 우리 코드로 받아 온다 (2026-11-17 사용자).
+    // **저장하지 않고 보기만** 한다 — 내 빌드로 담는 것은 아래 [내 빌드로 가져오기] 버튼 몫(공유 글과 같은 규칙).
+    const ing = (q.get('ingame') || '').replace(/ /g, '+'); // 쿼리에서 '+' 가 공백으로 읽힌 것을 되돌린다
+    if (!code && ing) {
+      const res = await fetch('/api/ingame?id=' + encodeURIComponent(ing));
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j || !j.ok) throw new Error((j && j.error) || '게임 빌드를 받지 못했습니다 — 코드를 다시 확인해 주세요');
+      code = j.code || '';
+      VW.ingame = {title: j.title || '', main: j.main || ''};
+    }
     if (!code && id) {
       let j = null;
       try { const h = JSON.parse(sessionStorage.getItem('vwHand') || 'null'); if (h && h.item && h.item.id === id) j = h; sessionStorage.removeItem('vwHand'); } catch (e) {} // 현재 시즌 화면이 넘겨준 것 (조회수 두 번 안 세게)
@@ -6030,7 +6042,7 @@ async function vwLoad() {
       if (VW.stages) { const w = VW.stages.findIndex(x => x.t === q.get('st')); VW.st = w >= 0 ? w : 0; code = VW.stages[VW.st].code; }
     }
     if (!code) throw new Error('보여 줄 빌드가 없습니다 — 빌드 공유 링크(?preset=번호)로 열어 주세요');
-    const r = await codeToPreset(code);
+    const r = await codeToPreset(code, VW.ingame ? {extV: [3]} : undefined);
     // 시즌이 바뀐 뒤의 옛 시즌 공유 → 그 시즌 데이터로 보관한 보기 화면으로 (시즌 표시가 없는 코드 = SS13, 2026-10-09 이전 공유)
     VW.season = r.season || 'SS13';
     const cur = (window.TLI_SEASON || {}).label;
