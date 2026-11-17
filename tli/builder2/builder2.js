@@ -7253,6 +7253,7 @@ async function extLogDump(tok) { // 빌더·빌더 2 공용 (2026-10-13 06_share
 // 게임 안에서 빌드를 공유하면 나오는 코드를 우리 워커(/api/ingame)가 바깥 변환기에 물어 TLP 코드로 받아 온다.
 // 받은 다음은 공유 코드를 가져오는 길과 똑같다 — 해석은 전부 여기(브라우저)서.
 async function extIngame(id) {
+  id = String(id || '').trim().replace(/ /g, '+');   // 쿼리에서 '+' 가 공백으로 읽힌 것을 되돌린다 (base64 에 공백은 없다)
   if (!id) return;
   try {
     showToast('게임 빌드 받는 중…');
