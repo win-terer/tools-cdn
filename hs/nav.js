@@ -206,7 +206,7 @@
     // slate 뒤의 (\/|$) 가 없으면 /tli/slates(석판 배치 공유)까지 물어 메뉴 두 개가 켜진다 (2026-11-08 사용자)
     { label: '빌더', href: '/tli/builder/', match: /^\/tli\/(builder|talent|hero|slate(\/|$)|void|blood|ingame)/, kids: [
       // 게임 안 빌드 공유 코드를 빌더에서 열기 (2026-11-17 사용자, 맨 위로) — 코드→빌드 변환은 바깥 변환기가 한다
-      { href: '/tli/ingame/',  label: '인게임 코드',  match: /^\/tli\/ingame/ },
+      { href: '/tli/ingame/',  label: '빌드코드(인게임)', match: /^\/tli\/ingame/ },
       { href: '/tli/builder/', label: '빌더',      match: /^\/tli\/builder/ },
       { href: '/tli/hero/',    label: '히어로',    match: /^\/tli\/hero/ },
       { href: '/tli/talent/',  label: '재능 보드', match: /^\/tli\/talent/ },
