@@ -3613,6 +3613,68 @@ function wsProtoHtml(ref) {
   if (!pr.length) return '';
   return pr.map(p => `<div class="icard-opt ws-proto"><b>${escapeHtml(p.name || '')}</b><br>${escapeHtml(p.effect || '').replace(/\n/g, '<br>')}</div>`).join('');
 }
+// ── 랜덤 모듈 옵션 고르기 (2026-11-17 사용자) ──
+// 모듈 스킬에는 랜덤 옵션이 최대 3개까지 붙는다. 목록은 MODULE_OPTS(log_data.js, build_module_opts.py 수집)
+// 46종 = 일반 27 + 절대자 모듈 전용 19. **등급을 가려 주지 않는다** — 빌더는 빌드업을 그려 보는 자리고,
+// 실제 값은 로그·빌드 코드로 가져오면 된다(사용자 2026-11-17). 절대자 전용에는 표시만 단다.
+const WS_PROTO_MAX = 3;
+let wsProtoOpen = null;   // 지금 고르는 칸 번호 (null = 닫힘)
+let wsProtoQ = '';
+const wsIsModule = ref => !!ref && (ref.kind === '모듈화' || /^모듈:/.test(ref.name || ''));
+function wsProtoRef() { // 지금 보고 있는 칸의 스킬
+  const sk = wsSk(wsTarget.slot);
+  return sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]);
+}
+function wsProtoBar(ref) {
+  if (!wsIsModule(ref)) return '';
+  const pr = (ref.proto || []).slice(0, WS_PROTO_MAX);
+  const cells = Array.from({length: WS_PROTO_MAX}, (_, i) => {
+    const o = pr[i];
+    return `<div class="ws-pcell${o ? ' have' : ''}${wsProtoOpen === i ? ' tgt' : ''}" onclick="wsProtoPick(${i})"` +
+      `${o ? ` oncontextmenu="wsProtoSet(${i}, null);return false"` : ''} title="${escapeHtml(o ? o.effect : '누르면 고릅니다')}">` +
+      `<small>옵션 ${i + 1}</small><b>${o ? escapeHtml(o.name) : '<i>비어 있음</i>'}</b></div>`;
+  }).join('');
+  let list = '';
+  if (wsProtoOpen !== null) {
+    const all = typeof MODULE_OPTS !== 'undefined' ? MODULE_OPTS : null;
+    if (!all) { wbLoad().then(pageRender, () => {}); list = '<div class="ws-plist"><div class="hrm-empty">목록 받는 중…</div></div>'; }
+    else {
+      const q = wsProtoQ.trim();
+      const used = new Set((ref.proto || []).map(x => x.name));
+      const hit = all.filter(o => !q || qHit(q, o.n, o.e));
+      list = '<div class="ws-plist"><div class="ws-filter">' +
+        `<input id="wsPQ" type="search" placeholder="옵션 이름·효과 검색" value="${escapeHtml(wsProtoQ)}" oninput="wsProtoQ=this.value;pageRender();setTimeout(()=>{const e=document.getElementById('wsPQ');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},0)">` +
+        `<span class="ws-cnt">${hit.length}개</span><button type="button" class="wz-btn ws-pclose" onclick="wsProtoPick(null)">닫기</button></div>` +
+        '<div class="ws-pgrid">' + hit.map(o =>
+          `<div class="ws-popt${used.has(o.n) ? ' on' : ''}" onclick="wsProtoSet(${wsProtoOpen}, ${JSON.stringify(o.n).replace(/"/g, '&quot;')})">` +
+          `<b>${escapeHtml(o.n)}${o.a ? '<span class="ws-pabs" title="절대자 모듈에만 붙습니다">절대자</span>' : ''}</b>` +
+          `<span>${escapeHtml(o.e)}</span></div>`).join('') +
+        (hit.length ? '' : '<div class="hrm-empty">찾는 옵션이 없습니다</div>') + '</div></div>';
+    }
+  }
+  return `<div class="ws-proto-bar"><div class="ws-pcap">랜덤 모듈 옵션 <span class="gbm-hint">최대 ${WS_PROTO_MAX}개 · 빈 칸으로 둬도 됩니다 · 우클릭으로 빼기</span></div>` +
+    `<div class="ws-pcells">${cells}</div>${list}</div>`;
+}
+function wsProtoPick(i) { // 칸 누르기 (같은 칸이면 닫기)
+  wsProtoOpen = (wsProtoOpen === i || i === null) ? null : i;
+  wsProtoQ = '';
+  if (wsProtoOpen !== null && typeof MODULE_OPTS === 'undefined') wbLoad().then(pageRender, () => {});
+  pageRender();
+}
+function wsProtoSet(i, name) { // 고르기 / 빼기(name = null)
+  const ref = wsProtoRef();
+  if (!wsIsModule(ref)) return;
+  const pr = (ref.proto || []).slice(0, WS_PROTO_MAX);
+  while (pr.length < WS_PROTO_MAX) pr.push(null);
+  const o = name && typeof MODULE_OPTS !== 'undefined' ? MODULE_OPTS.find(x => x.n === name) : null;
+  pr[i] = o ? {name: o.n, effect: o.e} : null;
+  // 빈 칸은 저장하지 않는다 — 순서는 뜻이 없고, 코드에도 붙은 것만 싣는다
+  const kept = pr.filter(Boolean);
+  if (kept.length) ref.proto = kept; else delete ref.proto;
+  wsProtoOpen = null;
+  persistPreset();
+  pageRender();
+}
 function wsCard(s, ref) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는 빌더 카드와 같은 방식으로 그대로 싣는다
   if (!s) return '<div class="ws-card empty">스킬에 마우스를 올리거나 고르면 설명이 여기에 나옵니다</div>';
   const lvd = SKILL_LV[s.name];
@@ -3696,7 +3758,8 @@ function wsRender() {
       `<span class="ws-strip-i">${ref ? wsImg(ic) : (k === null ? '+' : k + 1)}</span>` +
       `<span class="ws-strip-t"><small>${escapeHtml(lab)}${k !== null && k % 2 === 0 ? ' · ' + WS_SOCK_NAME[k].split('·')[0] : ''}</small><b>${ref ? escapeHtml(ref.name) : '<i>비어 있음</i>'}</b></span></div>`;
   };
-  const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>';
+  const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>' +
+    wsProtoBar(sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]));   // 모듈 스킬이면 랜덤 옵션 칸
   const main = `<div class="gbm-head plain">${WZ_UP}<div><small>지금 채우는 자리</small><b class="ws-head">${head}</b></div>` +
     '</div>' + strip +
     `<div class="ws-filter"><input id="wsQ" type="search" placeholder="스킬 이름·태그 검색" value="${escapeHtml(wsQuery)}" oninput="wsQuery=this.value;wsRenderGrid()"><span class="ws-cnt" id="wsCnt">${shown.length}개</span></div>` +
