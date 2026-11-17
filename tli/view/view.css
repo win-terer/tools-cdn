@@ -1430,3 +1430,7 @@
     .vw-shotimg { max-height: 62vh; overflow: auto; border: 1px solid #2a3446; border-radius: 10px; background: #0a0e15; } .vw-shotimg img { display: block; width: 100%; height: auto; }
     .vw-shotmsg { color: #7d8794; font-size: 12px; margin: 8px 0 0; }
     .wb-btns a.wz-btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+    /* 빌드에 붙은 랜덤 모듈 프로토콜 — 게임 문구 자리에 끼워 넣는 줄이라 한 단 들여 구분한다 (2026-11-17) */
+    .ws-card .ws-proto { border-left: 2px solid #3a4a6b; padding-left: 8px; margin: 4px 0; }
+    .ws-card .ws-proto b { color: #7db4ff; font-weight: 600; }

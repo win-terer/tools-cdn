@@ -3605,7 +3605,15 @@ function wsUnequip(slot, k) {
   pageRender();
   return false;
 }
-function wsCard(s) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는 빌더 카드와 같은 방식으로 그대로 싣는다
+// 꽂힌 모듈 스킬이 들고 있는 랜덤 프로토콜(최대 3개) — 게임 문구의 "<랜덤 모듈 관련 옵션>" 자리에 끼운다.
+// 빌드에 붙은 값이라 데이터 원본(SKILLS)엔 없다 → 카드에 ref(빌드 인스턴스)를 같이 넘길 때만 나온다 (2026-11-17 사용자)
+const WS_PROTO_MARK = /(?:&lt;|<)랜덤 모듈 관련 옵션(?:&gt;|>)/;
+function wsProtoHtml(ref) {
+  const pr = (ref && ref.proto) || [];
+  if (!pr.length) return '';
+  return pr.map(p => `<div class="icard-opt ws-proto"><b>${escapeHtml(p.name || '')}</b><br>${escapeHtml(p.effect || '').replace(/\n/g, '<br>')}</div>`).join('');
+}
+function wsCard(s, ref) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는 빌더 카드와 같은 방식으로 그대로 싣는다
   if (!s) return '<div class="ws-card empty">스킬에 마우스를 올리거나 고르면 설명이 여기에 나옵니다</div>';
   const lvd = SKILL_LV[s.name];
   const clean = l => (lvd && lvd.rows) ? l.replace(/\s*\(Lv\d+:[^)]*\)/g, '') : l;
@@ -3619,7 +3627,11 @@ function wsCard(s) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는
     (s.weapon ? `<div class="sk-weapon">${escapeHtml(s.weapon)}</div>` : '') +
     (s.stats && s.stats.length ? `<div class="icard-attrs">${s.stats.map(p => `<div>${escapeHtml(p[0])} <b class="m">${escapeHtml(p[1])}</b></div>`).join('')}</div>` : '') +
     (dsc.length ? `<div class="icard-opts">${dsc.map(l => `<div class="icard-opt">${l}</div>`).join('')}</div>` : '') +
-    (det.length ? '<div class="ccard-sec">세부 수치</div>' + det.map(l => `<div class="icard-opt">${l}</div>`).join('') : '') +
+    (det.length ? '<div class="ccard-sec">세부 수치</div>' + det.map(l =>
+      // 자리표시자 줄은 실제로 붙은 프로토콜로 바꿔 끼운다. 붙은 게 없으면 원문 그대로 둔다(데이터 미리보기)
+      WS_PROTO_MARK.test(l) && wsProtoHtml(ref) ? wsProtoHtml(ref) : `<div class="icard-opt">${l}</div>`).join('') : '') +
+    // 문구에 자리표시자가 없는 스킬인데 프로토콜이 붙어 있으면 맨 아래에 따로
+    (wsProtoHtml(ref) && !det.some(l => WS_PROTO_MARK.test(l)) ? '<div class="ccard-sec">랜덤 모듈 옵션</div>' + wsProtoHtml(ref) : '') +
     skillLvHtml(s.name) +
     (typeof itemPriceHtml === 'function' ? itemPriceHtml(s) : '') + // 부귀·숭고 지난 시즌 시세 (2026-10-15)
     '</div>';
@@ -3691,7 +3703,11 @@ function wsRender() {
     `<div class="ws-tags"><span class="ws-tag${!wsTag ? ' on' : ''}" onclick="wsTag='';pageRender()">전체</span>` +
     tags.map(t => `<span class="ws-tag${wsTag === t ? ' on' : ''}" onclick="wsTag=${JSON.stringify(t).replace(/"/g, '&quot;')};pageRender()">${escapeHtml(t)}</span>`).join('') + '</div>' +
     `<div class="ws-split"><div class="ws-grid" id="wsGrid">${wsGridHtml(shown, onSet)}</div>` +
-    `<div class="ws-cardbox" id="wsCard">${wsCard(SKILLS[wsFocus >= 0 ? wsFocus : (sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]) ? findSkill(wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]) : -1)])}</div></div>`;
+    `<div class="ws-cardbox" id="wsCard">${(() => { // 고른 칸의 스킬이면 빌드 인스턴스도 넘긴다 (프로토콜이 보이게)
+      const cur = sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]);
+      const i = wsFocus >= 0 ? wsFocus : (cur ? findSkill(cur) : -1);
+      return wsCard(SKILLS[i], wsFocus >= 0 ? null : cur);
+    })()}</div></div>`;
   return '<div class="gbm wsm" oncontextmenu="return event.target.tagName===\'INPUT\'"><div class="gbm-top"><b class="gbm-title">스킬</b>' + (typeof gbmHelp === 'function' ? gbmHelp('skill') : '') + 
     '<span class="gbm-keys">왼쪽에서 칸·소켓을 고르고 오른쪽 스킬을 누르면 끼웁니다 (다시 누르거나 우클릭하면 빼기) <span class="gbm-sep">·</span> 왼쪽 칸은 끌어서 순서 바꾸기 <span class="gbm-sep">·</span> 보조 1 촉발체 · 보조 3 부귀 · 보조 5 숭고</span></div>' +
     `<div class="gbm-body"><div class="gbm-side">${side}</div><div class="gbm-main">${main}</div></div></div>`;

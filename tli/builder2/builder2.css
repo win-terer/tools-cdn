@@ -596,6 +596,9 @@
     .ws-card .icard-attrs { color: #ddd; padding-bottom: 6px; border-bottom: 1px solid #2a3550; margin-bottom: 6px; }
     .ws-card .icard-opt { color: #c8d2e0; padding: 2px 0; }
     .ws-card b.m { color: #7db4ff; font-weight: 600; }
+    /* 빌드에 붙은 랜덤 모듈 프로토콜 — 게임 문구 자리에 끼워 넣는 줄이라 한 단 들여 구분한다 (2026-11-17) */
+    .ws-card .ws-proto { border-left: 2px solid #3a4a6b; padding-left: 8px; margin: 4px 0; }
+    .ws-card .ws-proto b { color: #7db4ff; font-weight: 600; }
     .ws-card .ccard-sec { font-size: 11px; color: #8b949e; margin: 7px 0 3px; padding-top: 6px; border-top: 1px solid #2a3550; }
     .ws-card .sk-weapon { font-style: italic; color: #8b949e; font-size: 11px; margin-bottom: 6px; }
     .ws-card .sk-lvtag { color: #7db4ff; font-size: 10.5px; }
