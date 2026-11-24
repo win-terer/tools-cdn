@@ -79,7 +79,8 @@ function decodePactPayload(pc) {
   return {pacts: pacts.some(Boolean) ? pacts : null, missing};
 }
 // 코드 → 프리셋 객체 (필드 검증·정리 포함). {preset, missing} 반환
-async function codeToPreset(code) {
+// opt.extV: 바깥에서 온 코드에만 추가로 허용할 버전 (인게임 변환기가 v3 으로 보낸다 — 2026-11-17)
+async function codeToPreset(code, opt) {
   code = (code || '').trim();
   let jsonBytes;
   if (code.startsWith('TLP1.')) {
@@ -91,7 +92,8 @@ async function codeToPreset(code) {
     throw new Error('프리셋 코드 형식이 아닙니다 (TLP로 시작해야 합니다)');
   }
   const pl = JSON.parse(new TextDecoder().decode(jsonBytes));
-  if (!pl || (pl.v !== 1 && pl.v !== 2)) throw new Error('지원하지 않는 코드 버전입니다');
+  const okV = [1, 2].concat((opt && opt.extV) || []);
+  if (!pl || !okV.includes(pl.v)) throw new Error('지원하지 않는 코드 버전입니다');
   const H = ensureHashMaps();
   // XSS 방어: 외부에서 온 문자열의 태그 시작 문자를 전각(＜)으로 치환 — innerHTML 어디로 가도 태그로 해석되지 않음
   const str = (x, max) => String(x == null ? '' : x).replace(/<(?=[a-zA-Z/!?])/g, '＜').slice(0, max || 500);
@@ -138,6 +140,17 @@ async function codeToPreset(code) {
       if (o && x && typeof x === 'object') {
         if (x.l >= 0 && x.l <= 99) o.lv = +x.l;
         if (Array.isArray(x.so)) { const v = x.so.slice(0, 6).map(Number).filter(isFinite); if (v.length) o.sopt = v; }
+        // 모듈 스킬의 랜덤 프로토콜 (최대 3개). 우리 코드는 {n, e}, 바깥(인게임 변환기)은 {name, effect} 로 보낸다 —
+        // 둘 다 받는다. 수치가 이미 적용된 문구라 그대로 쓴다 (2026-11-17 사용자)
+        const dp = Array.isArray(x.pr) ? x.pr : Array.isArray(x.proto) ? x.proto : null;
+        if (dp) {
+          const pr = dp.slice(0, 3).map(y => {
+            if (!y || typeof y !== 'object') return null;
+            const e = str(y.e != null ? y.e : y.effect, 600);
+            return e ? {name: str(y.n != null ? y.n : y.name, 60), effect: e} : null;
+          }).filter(Boolean);
+          if (pr.length) o.proto = pr;
+        }
       }
       return o;
     };
@@ -162,7 +175,10 @@ async function codeToPreset(code) {
     if (typeof x === 'string' && x[0] === '#') { const it = H.it.get(x.slice(1)); return it ? it.name : null; }
     return str(x, 100) || null;
   };
-  const isV2 = pl.v === 2;
+  // v2 부터는 짧은 필드 이름(slots.k·pl.sk·pl.tal)을 쓴다. **`=== 2` 로 못 박으면 안 된다** —
+  // 바깥에서 v3 으로 보내면 v1 옛 필드(slots.kind·pl.skills·pl.talents)를 찾다가 장비·스킬을
+  // 통째로 버린다(2026-11-17 인게임 변환기 연동에서 실제로 그랬다. 조용히 비는 거라 더 나쁘다).
+  const isV2 = pl.v >= 2;
   PRESET_SLOTS.forEach(s => {
     const v = pl.slots && pl.slots[s.id];
     if (!v) return;
@@ -389,6 +405,8 @@ function buildCodePayload(p) {
     const ex = {};
     if (o.lv >= 0 && o.lv !== 20) ex.l = o.lv;
     if (o.sopt && o.sopt.length) ex.so = o.sopt;
+    // 모듈 스킬의 랜덤 프로토콜 — 로그에서 읽어 놓고 공유 코드엔 안 실어서, 공유하면 사라지고 있었다 (2026-11-17)
+    if (o.proto && o.proto.length) ex.pr = o.proto.slice(0, 3).map(x => ({n: x.name, e: x.effect}));
     if (Object.keys(ex).length) return typeof e === 'string' ? {h: e, ...ex} : {...e, ...ex};
     return e;
   };
@@ -2958,7 +2976,9 @@ function gbPlaceAt(pre, i) {
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
     gbpSet('i', {b: pre, c: gbAreaCells(pre, r, c, 'i'), nd: nid, k: 'i', iv});
-    preset.inverse = {pos, opts: {low: iv.low > -100, mid: iv.mid > -100, abs: iv.leg > -100}};
+    // 🔧 -100% 여도 반사는 된다 — 수치 없는 효과는 그대로 걸린다(2026-11-24 사용자).
+    // 그래서 '값이 있으면 반사됨'으로 센다. 값이 아예 없으면(undefined) 비교가 false 라 저절로 빠진다.
+    preset.inverse = {pos, opts: {low: iv.low >= -100, mid: iv.mid >= -100, abs: iv.leg >= -100}};
   } else {
     if (!preset.prism) return;
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
@@ -3053,7 +3073,7 @@ function gbPzSave() {
     gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
-    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
+    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low >= -100, mid: e.iv.mid >= -100, abs: e.iv.leg >= -100}; } // -100% 도 반사됨 (2026-11-24)
     else gbInvPending = Object.assign({}, e.iv);
     gbPlace = g ? null : 'i';
   }

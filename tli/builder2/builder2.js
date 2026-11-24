@@ -874,7 +874,9 @@ function gbPlaceAt(pre, i) {
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
     gbpSet('i', {b: pre, c: gbAreaCells(pre, r, c, 'i'), nd: nid, k: 'i', iv});
-    preset.inverse = {pos, opts: {low: iv.low > -100, mid: iv.mid > -100, abs: iv.leg > -100}};
+    // 🔧 -100% 여도 반사는 된다 — 수치 없는 효과는 그대로 걸린다(2026-11-24 사용자).
+    // 그래서 '값이 있으면 반사됨'으로 센다. 값이 아예 없으면(undefined) 비교가 false 라 저절로 빠진다.
+    preset.inverse = {pos, opts: {low: iv.low >= -100, mid: iv.mid >= -100, abs: iv.leg >= -100}};
   } else {
     if (!preset.prism) return;
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
@@ -969,7 +971,7 @@ function gbPzSave() {
     gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
-    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
+    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low >= -100, mid: e.iv.mid >= -100, abs: e.iv.leg >= -100}; } // -100% 도 반사됨 (2026-11-24)
     else gbInvPending = Object.assign({}, e.iv);
     gbPlace = g ? null : 'i';
   }
@@ -3605,18 +3607,11 @@ function wsUnequip(slot, k) {
   pageRender();
   return false;
 }
-// 꽂힌 모듈 스킬이 들고 있는 랜덤 프로토콜(최대 3개) — 게임 문구의 "<랜덤 모듈 관련 옵션>" 자리에 끼운다.
-// 빌드에 붙은 값이라 데이터 원본(SKILLS)엔 없다 → 카드에 ref(빌드 인스턴스)를 같이 넘길 때만 나온다 (2026-11-17 사용자)
-const WS_PROTO_MARK = /(?:&lt;|<)랜덤 모듈 관련 옵션(?:&gt;|>)/;
-function wsProtoHtml(ref) {
-  const pr = (ref && ref.proto) || [];
-  if (!pr.length) return '';
-  return pr.map(p => `<div class="icard-opt ws-proto"><b>${escapeHtml(p.name || '')}</b><br>${escapeHtml(p.effect || '').replace(/\n/g, '<br>')}</div>`).join('');
-}
 // ── 랜덤 모듈 옵션 고르기 (2026-11-17 사용자) ──
 // 모듈 스킬에는 랜덤 옵션이 최대 3개까지 붙는다. 목록은 MODULE_OPTS(log_data.js, build_module_opts.py 수집)
 // 46종 = 일반 27 + 절대자 모듈 전용 19. **등급을 가려 주지 않는다** — 빌더는 빌드업을 그려 보는 자리고,
 // 실제 값은 로그·빌드 코드로 가져오면 된다(사용자 2026-11-17). 절대자 전용에는 표시만 단다.
+// 🔧 보기 화면(/tli/view)에는 안 그린다 — 거기선 고칠 수 없다(guardShareView). 2026-11-24 원본 복원하며 추가.
 const WS_PROTO_MAX = 3;
 let wsProtoOpen = null;   // 지금 고르는 칸 번호 (null = 닫힘)
 let wsProtoQ = '';
@@ -3626,7 +3621,7 @@ function wsProtoRef() { // 지금 보고 있는 칸의 스킬
   return sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]);
 }
 function wsProtoBar(ref) {
-  if (!wsIsModule(ref)) return '';
+  if (guardShareView() || !wsIsModule(ref)) return '';
   const pr = (ref.proto || []).slice(0, WS_PROTO_MAX);
   const cells = Array.from({length: WS_PROTO_MAX}, (_, i) => {
     const o = pr[i];
@@ -3674,6 +3669,14 @@ function wsProtoSet(i, name) { // 고르기 / 빼기(name = null)
   wsProtoOpen = null;
   persistPreset();
   pageRender();
+}
+// 꽂힌 모듈 스킬이 들고 있는 랜덤 프로토콜(최대 3개) — 게임 문구의 "<랜덤 모듈 관련 옵션>" 자리에 끼운다.
+// 빌드에 붙은 값이라 데이터 원본(SKILLS)엔 없다 → 카드에 ref(빌드 인스턴스)를 같이 넘길 때만 나온다 (2026-11-17 사용자)
+const WS_PROTO_MARK = /(?:&lt;|<)랜덤 모듈 관련 옵션(?:&gt;|>)/;
+function wsProtoHtml(ref) {
+  const pr = (ref && ref.proto) || [];
+  if (!pr.length) return '';
+  return pr.map(p => `<div class="icard-opt ws-proto"><b>${escapeHtml(p.name || '')}</b><br>${escapeHtml(p.effect || '').replace(/\n/g, '<br>')}</div>`).join('');
 }
 function wsCard(s, ref) { // 오른쪽 아래 스킬 카드 — tlidb 문구(HTML)는 빌더 카드와 같은 방식으로 그대로 싣는다
   if (!s) return '<div class="ws-card empty">스킬에 마우스를 올리거나 고르면 설명이 여기에 나옵니다</div>';
@@ -5641,8 +5644,7 @@ function decodePactPayload(pc) {
   return {pacts: pacts.some(Boolean) ? pacts : null, missing};
 }
 // 코드 → 빌드 객체 (필드 검증·정리 포함). {preset, missing} 반환
-// opt.extV: 바깥에서 들어온 코드에만 추가로 허용할 버전 (인게임 변환기가 v3 으로 보낸다 — 2026-11-17).
-// 우리가 만드는 코드는 계속 v2 다. 우리가 v3 을 새로 정의하게 되면 이 예외부터 정리할 것.
+// opt.extV: 바깥에서 온 코드에만 추가로 허용할 버전 (인게임 변환기가 v3 으로 보낸다 — 2026-11-17)
 async function codeToPreset(code, opt) {
   code = (code || '').trim();
   let jsonBytes;
@@ -7341,12 +7343,6 @@ async function extLogDump(tok) { // 빌더·빌더 2 공용 (2026-10-13 06_share
     });
   } catch (e) {}
 }
-// 인게임 빌드 공유 코드(?ingame=<코드>) — **보기 화면 몫**이다 (2026-11-17 사용자: 내 빌드 목록에 바로
-// 넣지 말고 공유 글처럼 보기만 하고, 담는 건 [내 빌드로 가져오기] 로). 여기로 온 옛 링크만 넘겨 준다.
-function extIngame(id) {
-  const v = String(id || '').trim().replace(/ /g, '+');
-  if (v) location.replace('/tli/view/?ingame=' + encodeURIComponent(v));
-}
 // 외부 앱 로그 연동(?logimport=MLI1.xxx): 추출된 게임 ID 페이로드 → 새 빌드
 // 스펙: 미니토치DB_로그연동_스펙_v1.md — 로그 파일이 아니라 ID 요약만 받는다
 async function extLogImport(code) { // 빌더·빌더 2 공용 (2026-10-13 06_share 에서 옮김)
@@ -8138,13 +8134,21 @@ window.addEventListener('hashchange', () => { const h = location.hash.slice(1); 
   if (h !== wzStep && WZ_STEPS.some(s => s.id === h)) { wzStep = h; pageRender(); } });
 pageRender();
 if (wzHash0[0] === 'share') { history.replaceState(null, '', location.pathname + location.search); wzListShare(); }
+// 인게임 빌드 공유 코드(?ingame=<코드>) — **보기 화면 몫**이다 (2026-11-17 사용자: 내 빌드 목록에 바로
+// 넣지 말고 공유 글처럼 보기만 하고, 담는 건 [내 빌드로 가져오기] 로). 여기로 온 옛 링크만 넘겨 준다.
+function extIngame(id) {
+  const v = String(id || '').trim().replace(/ /g, '+');
+  if (v) location.replace('/tli/view/?ingame=' + encodeURIComponent(v));
+}
 // 외부 앱 연동 링크(?logdump=토큰 · ?logimport=MLI1.…) — 옛 빌더 폐기로 빌더 2 가 받는다 (2026-10-13). 데이터부터 받고 02_logimport 공용 처리로
 { const q = new URLSearchParams(location.search), tok = q.get('logdump'), lc = q.get('logimport'), ing = q.get('ingame');
   if (tok || lc || ing) {
     history.replaceState(null, '', location.pathname + location.hash); // 새로고침 중복 방지
-    showToast('데이터 받는 중…');
     if (ing) { extIngame(ing); }   // 데이터를 받기 전에 바로 넘긴다 (보기 화면이 제 몫을 받는다)
-    else wbLoad().then(() => tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
+    else {
+      showToast('데이터 받는 중…');
+      wbLoad().then(() => tok ? extLogDump(tok) : extLogImport(lc), () => alert('데이터를 받지 못했습니다. 새로고침 뒤 다시 해 주세요.'));
+    }
   } }
 // 빌더 안에서는 브라우저 우클릭 메뉴를 띄우지 않는다 — 우클릭은 빼기·포인트 빼기에 쓴다(2026-10-22 사용자). 입력칸·글상자·링크는 예외
 document.addEventListener('contextmenu', e => {

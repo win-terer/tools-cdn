@@ -389,7 +389,9 @@ function gbPlaceAt(pre, i) {
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
     gbpSet('i', {b: pre, c: gbAreaCells(pre, r, c, 'i'), nd: nid, k: 'i', iv});
-    preset.inverse = {pos, opts: {low: iv.low > -100, mid: iv.mid > -100, abs: iv.leg > -100}};
+    // 🔧 -100% 여도 반사는 된다 — 수치 없는 효과는 그대로 걸린다(2026-11-24 사용자).
+    // 그래서 '값이 있으면 반사됨'으로 센다. 값이 아예 없으면(undefined) 비교가 false 라 저절로 빠진다.
+    preset.inverse = {pos, opts: {low: iv.low >= -100, mid: iv.mid >= -100, abs: iv.leg >= -100}};
   } else {
     if (!preset.prism) return;
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
@@ -484,7 +486,7 @@ function gbPzSave() {
     gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
-    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
+    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low >= -100, mid: e.iv.mid >= -100, abs: e.iv.leg >= -100}; } // -100% 도 반사됨 (2026-11-24)
     else gbInvPending = Object.assign({}, e.iv);
     gbPlace = g ? null : 'i';
   }

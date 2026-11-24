@@ -873,7 +873,9 @@ function gbPlaceAt(pre, i) {
     if (preset.gboard) preset.gboard = preset.gboard.filter(e => String(e[0]).slice(0, 2) !== pre);
     const iv = (old && old.iv) || gbInvPending || {low: 0, mid: 0, leg: 0}; gbInvPending = null;
     gbpSet('i', {b: pre, c: gbAreaCells(pre, r, c, 'i'), nd: nid, k: 'i', iv});
-    preset.inverse = {pos, opts: {low: iv.low > -100, mid: iv.mid > -100, abs: iv.leg > -100}};
+    // 🔧 -100% 여도 반사는 된다 — 수치 없는 효과는 그대로 걸린다(2026-11-24 사용자).
+    // 그래서 '값이 있으면 반사됨'으로 센다. 값이 아예 없으면(undefined) 비교가 false 라 저절로 빠진다.
+    preset.inverse = {pos, opts: {low: iv.low >= -100, mid: iv.mid >= -100, abs: iv.leg >= -100}};
   } else {
     if (!preset.prism) return;
     gbpSet('p', {b: pre, c: gbAreaCells(pre, r, c, 'p', preset.prism.opts), nd: nid, k: 'p'});
@@ -968,7 +970,7 @@ function gbPzSave() {
     gbPzClamp(); // 「추가 N회 포인트」 옵션을 바꾸거나 뺐으면 넘친 포인트를 줄인다
   } else {
     const g = gbpOf('i');
-    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low > -100, mid: e.iv.mid > -100, abs: e.iv.leg > -100}; }
+    if (g) { g.iv = Object.assign({}, e.iv); if (preset.inverse) preset.inverse.opts = {low: e.iv.low >= -100, mid: e.iv.mid >= -100, abs: e.iv.leg >= -100}; } // -100% 도 반사됨 (2026-11-24)
     else gbInvPending = Object.assign({}, e.iv);
     gbPlace = g ? null : 'i';
   }
@@ -3121,6 +3123,8 @@ function buildCodePayload(p) {
     const ex = {};
     if (o.lv >= 0 && o.lv !== 20) ex.l = o.lv;
     if (o.sopt && o.sopt.length) ex.so = o.sopt;
+    // 모듈 스킬의 랜덤 프로토콜 — 로그에서 읽어 놓고 공유 코드엔 안 실어서, 공유하면 사라지고 있었다 (2026-11-17)
+    if (o.proto && o.proto.length) ex.pr = o.proto.slice(0, 3).map(x => ({n: x.name, e: x.effect}));
     if (Object.keys(ex).length) return typeof e === 'string' ? {h: e, ...ex} : {...e, ...ex};
     return e;
   };
@@ -4215,6 +4219,69 @@ function wsUnequip(slot, k) {
   pageRender();
   return false;
 }
+// ── 랜덤 모듈 옵션 고르기 (2026-11-17 사용자) ──
+// 모듈 스킬에는 랜덤 옵션이 최대 3개까지 붙는다. 목록은 MODULE_OPTS(log_data.js, build_module_opts.py 수집)
+// 46종 = 일반 27 + 절대자 모듈 전용 19. **등급을 가려 주지 않는다** — 빌더는 빌드업을 그려 보는 자리고,
+// 실제 값은 로그·빌드 코드로 가져오면 된다(사용자 2026-11-17). 절대자 전용에는 표시만 단다.
+// 🔧 보기 화면(/tli/view)에는 안 그린다 — 거기선 고칠 수 없다(guardShareView). 2026-11-24 원본 복원하며 추가.
+const WS_PROTO_MAX = 3;
+let wsProtoOpen = null;   // 지금 고르는 칸 번호 (null = 닫힘)
+let wsProtoQ = '';
+const wsIsModule = ref => !!ref && (ref.kind === '모듈화' || /^모듈:/.test(ref.name || ''));
+function wsProtoRef() { // 지금 보고 있는 칸의 스킬
+  const sk = wsSk(wsTarget.slot);
+  return sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]);
+}
+function wsProtoBar(ref) {
+  if (guardShareView() || !wsIsModule(ref)) return '';
+  const pr = (ref.proto || []).slice(0, WS_PROTO_MAX);
+  const cells = Array.from({length: WS_PROTO_MAX}, (_, i) => {
+    const o = pr[i];
+    return `<div class="ws-pcell${o ? ' have' : ''}${wsProtoOpen === i ? ' tgt' : ''}" onclick="wsProtoPick(${i})"` +
+      `${o ? ` oncontextmenu="wsProtoSet(${i}, null);return false"` : ''} title="${escapeHtml(o ? o.effect : '누르면 고릅니다')}">` +
+      `<small>옵션 ${i + 1}</small><b>${o ? escapeHtml(o.name) : '<i>비어 있음</i>'}</b></div>`;
+  }).join('');
+  let list = '';
+  if (wsProtoOpen !== null) {
+    const all = typeof MODULE_OPTS !== 'undefined' ? MODULE_OPTS : null;
+    if (!all) { wbLoad().then(pageRender, () => {}); list = '<div class="ws-plist"><div class="hrm-empty">목록 받는 중…</div></div>'; }
+    else {
+      const q = wsProtoQ.trim();
+      const used = new Set((ref.proto || []).map(x => x.name));
+      const hit = all.filter(o => !q || qHit(q, o.n, o.e));
+      list = '<div class="ws-plist"><div class="ws-filter">' +
+        `<input id="wsPQ" type="search" placeholder="옵션 이름·효과 검색" value="${escapeHtml(wsProtoQ)}" oninput="wsProtoQ=this.value;pageRender();setTimeout(()=>{const e=document.getElementById('wsPQ');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},0)">` +
+        `<span class="ws-cnt">${hit.length}개</span><button type="button" class="wz-btn ws-pclose" onclick="wsProtoPick(null)">닫기</button></div>` +
+        '<div class="ws-pgrid">' + hit.map(o =>
+          `<div class="ws-popt${used.has(o.n) ? ' on' : ''}" onclick="wsProtoSet(${wsProtoOpen}, ${JSON.stringify(o.n).replace(/"/g, '&quot;')})">` +
+          `<b>${escapeHtml(o.n)}${o.a ? '<span class="ws-pabs" title="절대자 모듈에만 붙습니다">절대자</span>' : ''}</b>` +
+          `<span>${escapeHtml(o.e)}</span></div>`).join('') +
+        (hit.length ? '' : '<div class="hrm-empty">찾는 옵션이 없습니다</div>') + '</div></div>';
+    }
+  }
+  return `<div class="ws-proto-bar"><div class="ws-pcap">랜덤 모듈 옵션 <span class="gbm-hint">최대 ${WS_PROTO_MAX}개 · 빈 칸으로 둬도 됩니다 · 우클릭으로 빼기</span></div>` +
+    `<div class="ws-pcells">${cells}</div>${list}</div>`;
+}
+function wsProtoPick(i) { // 칸 누르기 (같은 칸이면 닫기)
+  wsProtoOpen = (wsProtoOpen === i || i === null) ? null : i;
+  wsProtoQ = '';
+  if (wsProtoOpen !== null && typeof MODULE_OPTS === 'undefined') wbLoad().then(pageRender, () => {});
+  pageRender();
+}
+function wsProtoSet(i, name) { // 고르기 / 빼기(name = null)
+  const ref = wsProtoRef();
+  if (!wsIsModule(ref)) return;
+  const pr = (ref.proto || []).slice(0, WS_PROTO_MAX);
+  while (pr.length < WS_PROTO_MAX) pr.push(null);
+  const o = name && typeof MODULE_OPTS !== 'undefined' ? MODULE_OPTS.find(x => x.n === name) : null;
+  pr[i] = o ? {name: o.n, effect: o.e} : null;
+  // 빈 칸은 저장하지 않는다 — 순서는 뜻이 없고, 코드에도 붙은 것만 싣는다
+  const kept = pr.filter(Boolean);
+  if (kept.length) ref.proto = kept; else delete ref.proto;
+  wsProtoOpen = null;
+  persistPreset();
+  pageRender();
+}
 // 꽂힌 모듈 스킬이 들고 있는 랜덤 프로토콜(최대 3개) — 게임 문구의 "<랜덤 모듈 관련 옵션>" 자리에 끼운다.
 // 빌드에 붙은 값이라 데이터 원본(SKILLS)엔 없다 → 카드에 ref(빌드 인스턴스)를 같이 넘길 때만 나온다 (2026-11-17 사용자)
 const WS_PROTO_MARK = /(?:&lt;|<)랜덤 모듈 관련 옵션(?:&gt;|>)/;
@@ -4306,7 +4373,8 @@ function wsRender() {
       `<span class="ws-strip-i">${ref ? wsImg(ic) : (k === null ? '+' : k + 1)}</span>` +
       `<span class="ws-strip-t"><small>${escapeHtml(lab)}${k !== null && k % 2 === 0 ? ' · ' + WS_SOCK_NAME[k].split('·')[0] : ''}</small><b>${ref ? escapeHtml(ref.name) : '<i>비어 있음</i>'}</b></span></div>`;
   };
-  const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>';
+  const strip = '<div class="ws-strip">' + cellOf(sk && sk.main, null) + [0, 1, 2, 3, 4].map(k => cellOf(sk && sk.sup[k], k)).join('') + '</div>' +
+    wsProtoBar(sk && (wsTarget.socket === null ? sk.main : sk.sup[wsTarget.socket]));   // 모듈 스킬이면 랜덤 옵션 칸
   const main = `<div class="gbm-head plain">${WZ_UP}<div><small>지금 채우는 자리</small><b class="ws-head">${head}</b></div>` +
     '</div>' + strip +
     `<div class="ws-filter"><input id="wsQ" type="search" placeholder="스킬 이름·태그 검색" value="${escapeHtml(wsQuery)}" oninput="wsQuery=this.value;wsRenderGrid()"><span class="ws-cnt" id="wsCnt">${shown.length}개</span></div>` +
@@ -6043,7 +6111,7 @@ async function vwLoad() {
       if (!res.ok) throw new Error('공유된 빌드 링크를 찾지 못했습니다 — 링크는 7일간 유지됩니다. 보낸 사람에게 새 링크를 요청해 주세요');
       code = (await res.json()).code || '';
     }
-    // 인게임 빌드 공유 코드(?ingame=<게임 코드>) — 워커가 바깥 변환기에 물어 우리 코드로 받아 온다 (2026-11-17 사용자).
+    // 인게임 빌드 공유 코드(?ingame=<게임 코드>) — 워커(/api/ingame)가 게임에서 조회해 우리 코드로 바꿔 준다 (2026-11-17 사용자).
     // **저장하지 않고 보기만** 한다 — 내 빌드로 담는 것은 아래 [내 빌드로 가져오기] 버튼 몫(공유 글과 같은 규칙).
     const ing = (q.get('ingame') || '').replace(/ /g, '+'); // 쿼리에서 '+' 가 공백으로 읽힌 것을 되돌린다
     if (!code && ing) {
@@ -6288,7 +6356,7 @@ function vwSkills() {
   if (!SKILL_SLOTS.some(s => wsSk(s.id))) return vwEmpty('스킬을 넣지 않은 빌드입니다');
   const ic = ref => { const u = ref ? wsIcon(ref) : ''; return u ? `<img src="${u}" alt="">` : '<span class="ws-plus">·</span>'; };
   // 마우스를 올리면 스킬 설명 카드 (빌더 2 스킬 단계 wsCard — 빌더 1 공유 보기의 스킬 툴팁 자리)
-  const tip = ref => { const i = ref ? findSkill(ref) : -1; return i >= 0 ? ` tip2" data-h="${escapeHtml(wsCard(SKILLS[i], ref)).replace(/"/g, '&quot;')}` : ''; };
+  const tip = ref => { const i = ref ? findSkill(ref) : -1; return i >= 0 ? ` tip2" data-h="${escapeHtml(wsCard(SKILLS[i])).replace(/"/g, '&quot;')}` : ''; };
   return ['a', 'p'].map(g => `<div class="gbm-cap">${g === 'a' ? '액티브' : '패시브'}</div><div class="vw-skills">` +
     SKILL_SLOTS.filter(s => s.group === g).map(sl => {
       const sk = wsSk(sl.id);
