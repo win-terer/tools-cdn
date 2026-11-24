@@ -6051,7 +6051,8 @@ async function vwLoad() {
       const j = await res.json().catch(() => null);
       if (!res.ok || !j || !j.ok) throw new Error((j && j.error) || '게임 빌드를 받지 못했습니다 — 코드를 다시 확인해 주세요');
       code = j.code || '';
-      VW.ingame = {title: j.title || '', main: j.main || ''};
+      // 게임에선 읽혔지만 우리 데이터에 없어 빠진 항목 (2026-11-24 사용자) — 숨기지 않고 위에 띠로 알린다
+      VW.ingame = {title: j.title || '', main: j.main || '', skipped: j.skipped || 0, skippedAt: j.skippedAt || []};
     }
     if (!code && id) {
       let j = null;
@@ -6084,6 +6085,18 @@ async function vwLoad() {
   pageRender();
 }
 
+// 변환기가 쓰는 자리 이름(path) → 화면에 쓸 말. 'slots.ring1.options' 처럼 점으로 깊어지므로 앞 토막만 본다
+const VW_SKIP_WHERE = [
+  ['slots', '장비'], ['sk', '스킬'], ['tal', '재능 핵심'], ['gb', '재능 보드'], ['go', '재능 보드'],
+  ['pr', '프리즘'], ['gp', '프리즘'], ['iv', '역상 프리즘'], ['mem', '추억'], ['mg', '추억 등급'],
+  ['rv', '부활 옵션'], ['sb', '석판'], ['pc', '전투 정령'], ['hr', '히어로'], ['hn', '히어로 특성'],
+  ['name', '캐릭터 이름'],
+];
+const vwSkipWhere = (path) => {
+  const head = String(path || '').split('.')[0];
+  const hit = VW_SKIP_WHERE.find(x => x[0] === head);
+  return hit ? hit[1] : (head || '알 수 없는 자리');
+};
 const vwEsc = s => escapeHtml(s == null ? '' : String(s));
 const vwEmpty = t => `<div class="vw-empty">${vwEsc(t)}</div>`;
 // 섹션 → 빌더 2 의 그 단계(·칸). 내 빌드 보기에서만 오른쪽 위에 [수정]
@@ -6130,7 +6143,16 @@ function vwHead() {
     `<div class="vw-meta">${meta.join(' <span class="gbm-sep">·</span> ')}</div>` +
     (window.TLI_SNAPSHOT ? `<div class="vw-warn">📦 지난 시즌 <b>${vwEsc((window.TLI_SEASON || {}).label || '')}</b> 데이터로 보여 주는 빌드입니다 — 만들 때 그대로의 옵션·아이템입니다</div>` : '') +
     (s && s.unlisted ? `<div class="vw-unl" title="공유 목록·검색에는 나오지 않습니다">🔒 링크로만 공유된 빌드 — ${UNLISTED_DAYS}일 동안 아무도 열지 않으면 지워집니다</div>` : '') +
-    (VW.missing ? `<div class="vw-warn">⚠ 이 사이트 데이터에 없는 항목 ${VW.missing}개는 빠졌습니다 (시즌이 바뀌었거나 새 아이템)</div>` : '') + '</div>' +
+    (VW.missing ? `<div class="vw-warn">⚠ 이 사이트 데이터에 없는 항목 ${VW.missing}개는 빠졌습니다 (시즌이 바뀌었거나 새 아이템)</div>` : '') +
+    // 인게임 코드로 연 빌드에서 **게임은 읽었는데 우리가 못 옮긴** 항목. 위의 VW.missing(코드→빌드 단계)과
+    // 다른 단계라 따로 알린다 — 둘을 합치면 어디서 빠진 건지 알 수 없다 (2026-11-24 사용자)
+    (VW.ingame && VW.ingame.skipped
+      ? `<div class="vw-skip">⚠ <b>게임에서 읽어 오지 못한 항목 ${VW.ingame.skipped}개</b>가 있어 그 자리는 비어 있습니다` +
+        (VW.ingame.skippedAt && VW.ingame.skippedAt.length
+          ? `<ul>${[...new Set(VW.ingame.skippedAt.map(x => vwSkipWhere(x && x.p) + ' — ' + String((x && x.r) || '')))]
+              .slice(0, 6).map(t => `<li>${vwEsc(t)}</li>`).join('')}</ul>` : '') +
+        `<span class="vw-skipw">나머지는 그대로 보여 주고 있습니다. 새로 나온 항목이면 저희 데이터에 아직 없는 것입니다.</span></div>`
+      : '') + '</div>' +
     // 내 빌드: [수정][공유 올리기] + 아랫줄 작은 [삭제] (잘못 누르기 쉬운 자리에서 떼어 둠 — 2026-10-10 사용자)
     // 공유 글 수정 중이면 [💾 공유 글에 저장] 을 주 단추로 + 위에 띠 (보조 단추라 못 찾던 것, 2026-10-13 사용자)
     (VW.mine && preset.shareEdit ? `<div class="vw-sebar">✏ 공유 글 <b>${vwEsc(preset.shareEdit.title || preset.shareEdit.id)}</b> 수정 중 — 고친 내용(코멘트 포함)은 <b>[💾 공유 글에 저장]</b>을 눌러야 공유 글에 반영됩니다</div>` : '') +
