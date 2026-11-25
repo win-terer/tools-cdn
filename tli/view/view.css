@@ -1480,3 +1480,4 @@
     .vwc-note { padding: 8px 11px; border-top: 1px solid #1c2534; color: #7d8794; font-size: 11.5px; line-height: 1.6; }
     .vwc-note b { color: #9aa4b2; }
     @media (max-width: 560px) { .vwc-t .vwc-p, .vwc-t th:last-child { display: none; } .vwc-t .vwc-n { width: 58%; } }
+    .vwc-f { margin-left: 2px; color: #d4a84a; cursor: help; }
