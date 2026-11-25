@@ -6121,6 +6121,9 @@ async function vwLoad() {
       code = j.code || '';
       // 게임에선 읽혔지만 우리 데이터에 없어 빠진 항목 (2026-11-24 사용자) — 숨기지 않고 위에 띠로 알린다
       VW.ingame = {title: j.title || '', main: j.main || '', skipped: j.skipped || 0, skippedAt: j.skippedAt || []};
+      // 대미지 계산 (2026-11-25) — 게임 원본으로만 낼 수 있어서 조회 때 같이 받는다.
+      // 계산이 안 된 칸도 들고 온다: 무엇이 안 보이는지 알아야 하기 때문 (사용자)
+      VW.calc = j.calc && j.calc.ok ? j.calc : null;
     }
     if (!code && id) {
       let j = null;
@@ -6154,6 +6157,38 @@ async function vwLoad() {
 }
 
 // 변환기가 쓰는 자리 이름(path) → 화면에 쓸 말. 'slots.ring1.options' 처럼 점으로 깊어지므로 앞 토막만 본다
+// ── 대미지 계산 (인게임 코드로 연 빌드에만, 2026-11-25) ──────────────────────
+// 계산은 전부 변환기 개발자 쪽 것이다. 스킬마다 **기본 대미지를 알아야** 풀리는데
+// 레벨별 표가 있는 스킬이 적어서, 한 빌드에서 보통 한두 칸만 수치가 나온다.
+// 그래서 **못 푼 칸도 사유와 함께 보여 준다** — 뭐가 안 보이는지 알아야 하기 때문.
+const vwNum = (n) => (n == null ? '—' : Math.round(n).toLocaleString('ko-KR'));
+// 사유 문구는 저쪽 계산기 말투 그대로 오면 딱딱하다 — 사람 말로 바꿔 준다
+const vwCalcWhy = (text) => {
+  const t = String(text || '');
+  if (/기본 (최소|최대) 대미지/.test(t)) return '기본 대미지 표가 없는 스킬';
+  if (/계산 범위를 넘는/.test(t)) return '계산 범위를 벗어남';
+  return t.replace(/\s+/g, ' ').slice(0, 40);
+};
+function vwCalcHtml() {
+  const c = VW.calc;
+  if (!c || !Array.isArray(c.skills) || !c.skills.length) return '';
+  const done = c.skills.filter(x => x && x.dps != null);
+  const miss = c.skills.filter(x => x && x.dps == null);
+  if (!done.length && !miss.length) return '';
+  const row = (x) => `<tr><td class="vwc-n">${vwEsc(x.name || '이름 없음')}</td>` +
+    (x.dps == null
+      ? `<td class="vwc-x" colspan="2">${vwEsc(vwCalcWhy(x.err))}</td>`
+      : `<td class="vwc-d">${vwNum(x.dps)}</td><td class="vwc-p">${x.panel == null ? '' : vwNum(x.panel)}</td>`) +
+    '</tr>';
+  return '<details class="vw-calc"' + (done.length ? ' open' : '') + '>' +
+    `<summary>🧮 대미지 계산 <b>${done.length}</b>칸 계산됨` +
+    (miss.length ? ` · <span class="vwc-m">${miss.length}칸 못 품</span>` : '') + '</summary>' +
+    '<table class="vwc-t"><thead><tr><th>스킬</th><th>DPS</th><th>게임 패널 표기</th></tr></thead><tbody>' +
+    done.map(row).join('') + miss.map(row).join('') + '</tbody></table>' +
+    '<div class="vwc-note">계산은 <b>게임에서 불러온 빌드</b>에만 됩니다. 스킬마다 기본 대미지를 알아야 풀리는데, ' +
+    '레벨별 표가 있는 스킬이 아직 적어서 못 푸는 칸이 많습니다. 수치는 참고용입니다.</div></details>';
+}
+
 const VW_SKIP_WHERE = [
   ['slots', '장비'], ['sk', '스킬'], ['tal', '재능 핵심'], ['gb', '재능 보드'], ['go', '재능 보드'],
   ['pr', '프리즘'], ['gp', '프리즘'], ['iv', '역상 프리즘'], ['mem', '추억'], ['mg', '추억 등급'],
@@ -6220,7 +6255,7 @@ function vwHead() {
           ? `<ul>${[...new Set(VW.ingame.skippedAt.map(x => vwSkipWhere(x && x.p) + ' — ' + String((x && x.r) || '')))]
               .slice(0, 6).map(t => `<li>${vwEsc(t)}</li>`).join('')}</ul>` : '') +
         `<span class="vw-skipw">나머지는 그대로 보여 주고 있습니다. 새로 나온 항목이면 저희 데이터에 아직 없는 것입니다.</span></div>`
-      : '') + '</div>' +
+      : '') + vwCalcHtml() + '</div>' +
     // 내 빌드: [수정][공유 올리기] + 아랫줄 작은 [삭제] (잘못 누르기 쉬운 자리에서 떼어 둠 — 2026-10-10 사용자)
     // 공유 글 수정 중이면 [💾 공유 글에 저장] 을 주 단추로 + 위에 띠 (보조 단추라 못 찾던 것, 2026-10-13 사용자)
     (VW.mine && preset.shareEdit ? `<div class="vw-sebar">✏ 공유 글 <b>${vwEsc(preset.shareEdit.title || preset.shareEdit.id)}</b> 수정 중 — 고친 내용(코멘트 포함)은 <b>[💾 공유 글에 저장]</b>을 눌러야 공유 글에 반영됩니다</div>` : '') +
