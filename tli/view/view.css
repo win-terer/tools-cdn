@@ -1481,3 +1481,4 @@
     .vwc-note b { color: #9aa4b2; }
     @media (max-width: 560px) { .vwc-t .vwc-p, .vwc-t th:last-child { display: none; } .vwc-t .vwc-n { width: 58%; } }
     .vwc-f { margin-left: 2px; color: #d4a84a; cursor: help; }
+    .vwc-v { cursor: help; border-bottom: 1px dotted #4a5668; }

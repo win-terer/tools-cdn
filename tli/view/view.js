@@ -6162,6 +6162,25 @@ async function vwLoad() {
 // 레벨별 표가 있는 스킬이 적어서, 한 빌드에서 보통 한두 칸만 수치가 나온다.
 // 그래서 **못 푼 칸도 사유와 함께 보여 준다** — 뭐가 안 보이는지 알아야 하기 때문.
 const vwNum = (n) => (n == null ? '—' : Math.round(n).toLocaleString('ko-KR'));
+const vwNum1 = (n) => (n == null ? '—' : (Math.round(n * 100) / 100).toLocaleString('ko-KR'));
+// 이 DPS 가 어떻게 나왔는지 — 수치에 마우스를 올리면 뜬다 (사용자 2026-11-25).
+// dps = 평균 1타 × 적 저항 계수 × 초당 횟수. 1타에는 크리·이중이 이미 들어 있다.
+function vwCalcTip(x) {
+  const b = x && x.by;
+  if (!b) return '';
+  const L = [];
+  if (b.hit != null) L.push('평균 1타 ' + vwNum(b.hit) + ' (크리·이중 포함)');
+  if (b.crit != null) L.push('크리 ' + vwNum1(b.crit * 100) + '% × ' + vwNum1(b.critX) + '배');
+  if (b.dbl) L.push('이중 대미지 ' + vwNum1(b.dbl * 100) + '%');
+  if (b.inc != null) L.push('대미지 보너스 +' + vwNum1(b.inc) + '%');
+  if (b.more != null) L.push('별도 대미지 보너스 +' + vwNum1(b.more) + '%');
+  if (b.res != null) L.push('적 저항 ' + vwNum1(b.res) + '%' + (b.pen ? ' (관통 ' + vwNum1(b.pen) + '%)' : '') +
+    (b.resF != null ? ' → 계수 ×' + vwNum1(b.resF) : ''));
+  if (b.rate != null) L.push('초당 ' + vwNum1(b.rate) + '회');
+  L.push('─────────');
+  L.push(vwNum(b.hit) + (b.resF != null ? ' × ' + vwNum1(b.resF) : '') + ' × ' + vwNum1(b.rate) + ' = ' + vwNum(x.dps));
+  return L.join('\n');
+}
 // 사유 문구는 저쪽 계산기 말투 그대로 오면 딱딱하다 — 사람 말로 바꿔 준다
 const vwCalcWhy = (text) => {
   const t = String(text || '');
@@ -6178,7 +6197,8 @@ function vwCalcHtml() {
   const row = (x) => `<tr><td class="vwc-n">${vwEsc(x.name || '이름 없음')}</td>` +
     (x.dps == null
       ? `<td class="vwc-x" colspan="2">${vwEsc(vwCalcWhy(x.err))}</td>`
-      : `<td class="vwc-d">${vwNum(x.dps)}${x.filled ? '<span class="vwc-f" title="저쪽 계산기가 기본 대미지를 몰라서, 스킬 설명에 적힌 수치로 저희가 채워 계산한 값입니다">*</span>' : ''}</td>` +
+      : `<td class="vwc-d"><span class="vwc-v" title="${vwEsc(vwCalcTip(x))}">${vwNum(x.dps)}</span>` +
+         `${x.filled ? '<span class="vwc-f" title="계산기가 기본 대미지를 몰라서, 스킬 설명에 적힌 수치로 저희가 채워 계산한 값입니다">*</span>' : ''}</td>` +
          `<td class="vwc-p">${x.panel == null ? '' : vwNum(x.panel)}</td>`) +
     '</tr>';
   return '<details class="vw-calc"' + (done.length ? ' open' : '') + '>' +
